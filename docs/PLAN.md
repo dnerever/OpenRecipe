@@ -153,6 +153,7 @@ OpenRecipe/
 │       ├── hash.ts                 # sha256 over normalized text
 │       ├── diff.ts                 # text diff + semantic ingredient/step diff
 │       ├── merge.ts                # 3-way merge, conflict hunks
+│       ├── ancestry.ts             # merge base over the version DAG
 │       ├── scale.ts                # yield scaling + unit formatting
 │       ├── convert.ts              # metric <-> US, as a display transform
 │       ├── timers.ts               # durations found in step prose
@@ -427,6 +428,16 @@ Paste a URL → extract JSON-LD `schema.org/Recipe` (most food sites publish it)
 Merge-base computation, `node-diff3` three-way merge, mergeability status recomputed on view. Open a proposal from a fork or from an inline "suggest an edit". Review UI: diff, discussion thread, merge/close. Merging commits a version with `merge_parent_version_id` set and advances the target head. Conflicts render with markers in the editor for the owner to resolve, then merge with `resolvedContent`.
 **Done when:** two accounts collaborate — fork, edit, propose, discuss, merge — and the target's history shows a merge version with both parents. Also: force a real conflict (both edit the same ingredient line) and resolve it.
 *Break this into 8a (merge engine + tests in `packages/core`) and 8b (API + UI). The engine is pure and should be fully tested before any UI exists.*
+
+**8a is done.** `merge.ts` (three-way merge, conflict hunks, marker guard) and `ancestry.ts` (ancestors, `isAncestor`, `mergeBase`) — 31 tests, no I/O, nothing that knows what a proposal is. 8b is the API and the review UI.
+
+**Adjacent lines are not a conflict, whatever `diff3` says.** The library groups hunks whose base ranges merely *touch*, so two people editing consecutive lines come back as one contested region — and an ingredient list is nothing but consecutive lines, which would make the common case of two cooks tweaking two ingredients unmergeable. Where such a region is a straight substitution — every side the same number of lines — each line is an independent three-way merge, so it is resolved line by line and only the lines both sides actually rewrote stay contested. Git merges these without comment; so does this. Regions that insert or delete are left exactly as `diff3` made them, because the line-for-line correspondence the refinement relies on is not there.
+
+**The merge base is breadth-first from the source, and a criss-cross picks a candidate rather than merging them.** Git recursively merges the candidate bases; that is real machinery for a shape this app barely produces, and the cost of the wrong pick here is a conflict a human resolves rather than a wrong answer. Written down because it is a deliberate simplification and not an oversight.
+
+**An incomplete version graph throws.** `ancestorsOf` refuses to answer when something points at a version the caller did not load, because a merge base computed from half a graph is wrong in a way nothing downstream can detect. Loudly wrong beats quietly wrong when the output is somebody's recipe — which makes it 8b's job to load ancestry transitively, not to load one recipe's versions and hope.
+
+**`containsConflictMarkers` is the guard on the resolution.** A human resolving in a text editor can very easily leave a `=======` behind, and the merge endpoint has to refuse that content rather than store a recipe nobody can cook.
 
 **Deliberately resequenced to the end.** It was originally next after Fork, on the logic that it completes the git-like model. That logic was about the architecture, not about the app: nobody proposes a change to a recipe they cannot find (9), cannot cook from (10), cannot see (11), and never imported in the first place (12). Proposals need a second person who cares about your recipe, and every slice ahead of it is what produces that person. Nothing here is blocked by the delay — the merge engine is pure and self-contained, and `node-diff3` is already a dependency, carried in for Slice 6's diff.
 

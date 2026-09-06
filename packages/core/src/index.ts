@@ -26,6 +26,18 @@ export {
 } from './diff.ts';
 export { describeChange, isHeadline } from './describe-change.ts';
 export {
+  mergeDocuments,
+  containsConflictMarkers,
+  CONFLICT_START,
+  CONFLICT_DIVIDER,
+  CONFLICT_END,
+  type MergeKind,
+  type MergeLabels,
+  type MergeOutcome,
+  type ConflictHunk,
+} from './merge.ts';
+export { mergeBase, ancestorsOf, isAncestor, type VersionNode } from './ancestry.ts';
+export {
   scaleRecipe,
   scaleFrontmatter,
   scaleToYield,
