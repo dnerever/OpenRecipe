@@ -85,6 +85,22 @@ const recipeRoute = createRoute({
   path: '/$handle/$slug',
   component: RecipePage,
 });
+/**
+ * Editing and history are lazy for the same reason `/new` is: both pull in the
+ * parser (and, for the diff, `describeChange`) that a reader never needs. The
+ * history route is lazy even though anyone may open it, because most visits to
+ * a recipe never do.
+ */
+const editRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$handle/$slug/edit',
+  component: lazyRouteComponent(() => import('./pages/EditRecipePage.tsx'), 'EditRecipePage'),
+});
+const historyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$handle/$slug/history',
+  component: lazyRouteComponent(() => import('./pages/HistoryPage.tsx'), 'HistoryPage'),
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -92,6 +108,8 @@ const routeTree = rootRoute.addChildren([
   newRoute,
   profileRoute,
   recipeRoute,
+  editRoute,
+  historyRoute,
 ]);
 
 export const router = createRouter({

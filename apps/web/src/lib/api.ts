@@ -1,4 +1,4 @@
-import type { Frontmatter, Phase } from '@openrecipe/core';
+import type { Frontmatter, LineChange, Phase, SemanticChange } from '@openrecipe/core';
 
 export type PublicUser = {
   id: string;
@@ -135,3 +135,59 @@ export const setVisibility = (handle: string, slug: string, visibility: Visibili
   });
 
 export const rawUrl = (handle: string, slug: string) => `/api/recipes/${handle}/${slug}/raw`;
+
+/* ------------------------------------------------------- versions & diff -- */
+
+export type VersionSummary = {
+  id: string;
+  parentVersionId: string | null;
+  mergeParentVersionId: string | null;
+  message: string;
+  createdAt: string;
+  author: { handle: string; name: string; image: string | null };
+};
+
+export type VersionContent = {
+  id: string;
+  parentVersionId: string | null;
+  message: string;
+  createdAt: string;
+  content: string;
+};
+
+export type DiffResponse = {
+  from: { id: string; message: string; createdAt: string };
+  to: { id: string; message: string; createdAt: string; isHead: boolean };
+  identical: boolean;
+  hunks: LineChange[];
+  semantic: SemanticChange[];
+};
+
+export const updateRecipe = (
+  handle: string,
+  slug: string,
+  input: { content: string; message?: string },
+) =>
+  request<RecipeResponse>(`/api/recipes/${handle}/${slug}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+
+export const fetchVersions = (handle: string, slug: string) =>
+  request<{ headVersionId: string; versions: VersionSummary[] }>(
+    `/api/recipes/${handle}/${slug}/versions`,
+  );
+
+export const fetchVersion = (handle: string, slug: string, versionId: string) =>
+  request<VersionContent>(`/api/recipes/${handle}/${slug}/versions/${versionId}`);
+
+export const fetchDiff = (handle: string, slug: string, from: string, to: string) =>
+  request<DiffResponse>(
+    `/api/recipes/${handle}/${slug}/diff?${new URLSearchParams({ from, to }).toString()}`,
+  );
+
+export const revertRecipe = (handle: string, slug: string, toVersionId: string) =>
+  request<RecipeResponse>(`/api/recipes/${handle}/${slug}/revert`, {
+    method: 'POST',
+    body: JSON.stringify({ toVersionId }),
+  });

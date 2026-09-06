@@ -46,6 +46,14 @@ export function RecipePage() {
         {recipe.description && <p className="lede">{recipe.description}</p>}
 
         <div className="row">
+          {recipe.canEdit && (
+            <Link className="button" to="/$handle/$slug/edit" params={{ handle, slug }}>
+              Edit
+            </Link>
+          )}
+          <Link className="button secondary" to="/$handle/$slug/history" params={{ handle, slug }}>
+            History
+          </Link>
           <a
             className="button secondary"
             href={rawUrl(handle, slug)}
@@ -72,8 +80,10 @@ export function RecipePage() {
       <RecipeView frontmatter={doc.frontmatter} phases={doc.phases} />
 
       <footer className="version-line muted">
-        Version {version.id.slice(0, 8)} · {version.message} ·{' '}
-        {new Date(version.createdAt).toLocaleString()}
+        <Link to="/$handle/$slug/history" params={{ handle, slug }}>
+          Version {version.id.slice(0, 8)}
+        </Link>{' '}
+        · {version.message} · {new Date(version.createdAt).toLocaleString()}
       </footer>
     </article>
   );

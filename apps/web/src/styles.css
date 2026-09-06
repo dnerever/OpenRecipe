@@ -617,3 +617,121 @@ a.button.secondary {
 main {
   max-width: 60rem;
 }
+
+/* --- history timeline --- */
+.timeline {
+  list-style: none;
+  margin: 1.5rem 0 2.5rem;
+  padding: 0;
+}
+.timeline li {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.7rem 0.8rem;
+  border-left: 2px solid var(--rule);
+}
+.timeline li.is-head {
+  border-left-color: var(--accent);
+}
+.timeline .picks {
+  display: flex;
+  gap: 0.35rem;
+}
+.timeline .picks label {
+  margin: 0;
+}
+.entry-message {
+  margin: 0;
+  font-weight: 600;
+}
+.entry-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+}
+.entry-meta a {
+  text-decoration: none;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.compare-line {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* --- diff --- */
+.diff h2 {
+  margin: 2rem 0 0.75rem;
+}
+.headlines {
+  list-style: none;
+  margin: 0;
+  padding: 0.9rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+.headlines li {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.semantic {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.semantic li {
+  padding: 0.3rem 0 0.3rem 1.1rem;
+  border-left: 3px solid var(--rule);
+  font-variant-numeric: tabular-nums;
+}
+.semantic li[data-kind='add'] {
+  border-left-color: var(--good);
+}
+.semantic li[data-kind='remove'] {
+  border-left-color: var(--bad);
+}
+.hunks {
+  margin: 0;
+  padding: 0.6rem 0;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  tab-size: 2;
+}
+.hunks .line {
+  display: block;
+  padding: 0 0.8rem;
+  white-space: pre;
+}
+.hunks .mark {
+  display: inline-block;
+  width: 1.1ch;
+  color: var(--ink-2);
+}
+.hunks .add {
+  background: color-mix(in oklab, var(--good) 16%, transparent);
+}
+.hunks .del {
+  background: color-mix(in oklab, var(--bad) 16%, transparent);
+}
+.hunks .fold {
+  display: block;
+  padding: 0.15rem 0.8rem;
+  color: var(--ink-2);
+  background: var(--paper);
+  border-block: 1px solid var(--rule);
+  user-select: none;
+}
