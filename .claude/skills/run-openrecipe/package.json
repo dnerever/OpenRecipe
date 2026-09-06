@@ -1,0 +1,8 @@
+{
+  "name": "run-openrecipe-driver",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}
