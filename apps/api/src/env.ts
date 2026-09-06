@@ -1,6 +1,17 @@
 import { z } from 'zod';
 
 /**
+ * Treats an unset-but-declared variable (`FOO=`) the same as an absent one.
+ *
+ * The wrapped schema must already be `.optional()` — preprocess runs *before*
+ * validation, so an outer `.optional()` never sees the undefined this produces
+ * and the value fails as `Required`.
+ */
+function emptyAsUndefined<T extends z.ZodTypeAny>(optionalSchema: T) {
+  return z.preprocess((value) => (value === '' ? undefined : value), optionalSchema);
+}
+
+/**
  * Fail fast and loudly on boot rather than at the first request that needs a
  * missing variable.
  */
@@ -13,8 +24,21 @@ const EnvSchema = z
      * when you move hosts. In production the API serves the SPA itself, so
      * there is no second origin to reconcile: this is used for better-auth's
      * baseURL and for CORS in development, where Vite runs on its own port.
+     *
+     * `.default()` only fires on a *missing* key, and hosts routinely inject
+     * declared-but-unset variables as empty strings, so empty is normalized to
+     * undefined first. Otherwise the failure is a bare "Invalid url" instead of
+     * the guidance below.
      */
-    APP_URL: z.string().url().default('http://localhost:5173'),
+    APP_URL: emptyAsUndefined(z.string().url().optional()),
+
+    /**
+     * Injected by Render. A convenience fallback only — `APP_URL` always wins,
+     * and on any other host this is simply absent. Nothing depends on it, so it
+     * costs no portability; it just removes a deploy-then-configure-then-
+     * redeploy round trip on the first launch.
+     */
+    RENDER_EXTERNAL_URL: emptyAsUndefined(z.string().url().optional()),
 
     /**
      * Where the built SPA lives. Unset in development (Vite serves it); set in
@@ -34,6 +58,11 @@ const EnvSchema = z
     GITHUB_CLIENT_ID: z.string().min(1).optional(),
     GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
   })
+  .transform((env) => ({
+    ...env,
+    // Explicit wins; the host's hint is a fallback; localhost is the dev default.
+    APP_URL: env.APP_URL ?? env.RENDER_EXTERNAL_URL ?? 'http://localhost:5173',
+  }))
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
 
@@ -53,7 +82,7 @@ const EnvSchema = z
         code: z.ZodIssueCode.custom,
         path: ['APP_URL'],
         message:
-          'APP_URL still points at localhost. Set it to the public URL this app is served from, e.g. https://openrecipe.onrender.com',
+          "APP_URL is unset, so it fell back to localhost. Set it to the public URL this app is served from — the one shown at the top of your host's service page, e.g. https://openrecipe.onrender.com",
       });
     }
     if (!env.APP_URL.startsWith('https://')) {

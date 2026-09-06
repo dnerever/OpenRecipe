@@ -85,20 +85,24 @@ rather than the last.
    |---|---|
    | `DATABASE_URL` | the pooled Neon string from step 1 |
    | `BETTER_AUTH_SECRET` | let Render generate it, or `openssl rand -base64 32` |
-   | `APP_URL` | *leave blank for now* |
+   | `APP_URL` | leave blank — see below |
 
-5. Deploy. It will fail to boot with
-   `APP_URL still points at localhost` — that is intentional, see below.
-6. Copy the URL Render assigned (e.g. `https://openrecipe.onrender.com`), set
-   `APP_URL` to it, and redeploy.
+5. Deploy. It should come up on the URL shown at the top of the service page,
+   e.g. `https://openrecipe.onrender.com`.
 
-### Why the first boot fails on purpose
+### About `APP_URL`
 
 `APP_URL` is what better-auth uses to scope session cookies and build OAuth
 callback URLs. A wrong value does not crash anything — it silently breaks login
-in ways that are miserable to debug. So the app refuses to start in production
-unless `APP_URL` is set and `https`. You cannot know the URL until the service
-exists, hence the two-step.
+in ways that are miserable to debug, so the app refuses to start in production
+unless it resolves to an `https` URL.
+
+You cannot know that URL before the service exists, so the app falls back to
+`RENDER_EXTERNAL_URL`, which Render injects automatically. An explicitly set
+`APP_URL` always wins; set one only when you put a custom domain in front.
+
+On any other host, just set `APP_URL` — the fallback is absent there and nothing
+depends on it.
 
 ## 3. Verify
 

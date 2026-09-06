@@ -12,8 +12,11 @@ services:
       - key: NODE_ENV
         value: production
       # Render injects PORT; the app reads it.
+      # Optional. Render injects RENDER_EXTERNAL_URL, which the app falls back
+      # to, so the first deploy works without this. Set it only for a custom
+      # domain — an explicit value always wins.
       - key: APP_URL
-        sync: false # set to the service URL after the first deploy
+        sync: false
       - key: DATABASE_URL
         sync: false # Neon pooled connection string
       - key: BETTER_AUTH_SECRET
