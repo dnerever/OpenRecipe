@@ -4,6 +4,7 @@ Version control for recipes. Fork someone's country loaf, push the hydration to 
 and propose the change back upstream.
 
 The full architecture and slice plan lives in **[docs/PLAN.md](docs/PLAN.md)**.
+Deployment is in **[docs/DEPLOY.md](docs/DEPLOY.md)** — Render free + Neon free, $0/month.
 
 ---
 

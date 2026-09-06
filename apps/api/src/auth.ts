@@ -11,15 +11,17 @@ import { claimUniqueHandle } from './services/handles.ts';
  */
 export const auth = betterAuth({
   /**
-   * The browser-visible origin, not the API's own port: the web proxies
-   * `/api/*` straight through without rewriting, so the path the browser uses
-   * and the path this app serves are the same one. GitHub's callback URL is
-   * therefore `http://localhost:5173/api/auth/callback/github`.
+   * The browser-visible origin, not the port this process binds. In
+   * development Vite proxies `/api/*` through without rewriting; in production
+   * this same process serves the SPA. Either way the path the browser uses and
+   * the path this app serves are identical, which is what keeps the session
+   * cookie first-party and OAuth callbacks correct. GitHub's callback URL is
+   * `${APP_URL}/api/auth/callback/github`.
    */
-  baseURL: env.WEB_ORIGIN,
+  baseURL: env.APP_URL,
   basePath: '/api/auth',
   secret: env.BETTER_AUTH_SECRET,
-  trustedOrigins: [env.WEB_ORIGIN],
+  trustedOrigins: [env.APP_URL],
 
   database: drizzleAdapter(db, {
     provider: 'pg',

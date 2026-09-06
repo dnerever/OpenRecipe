@@ -120,7 +120,8 @@ Node 24.20 locally. Built-in test runner (`node --test`), native TS type-strippi
 | Routing/data | TanStack Router + TanStack Query |
 | UI | Tailwind + shadcn/ui |
 | Editor | textarea + core's line-numbered validation; CodeMirror 6 lands in Slice 6, where decorations start paying for themselves |
-| Objects | MinIO locally → S3/R2 in prod |
+| Objects | MinIO locally → R2 in prod (Slice 11) |
+| Hosting | Render free (one Docker service) + Neon free Postgres — $0/mo |
 | Tests | `node --test` (core + api), Playwright (2–3 critical flows) |
 | CI | GitHub Actions: typecheck → lint → unit → api-integration |
 
@@ -318,9 +319,23 @@ Route-level code splitting, done once `/` became the public front door and every
 
 *Deliberately narrow `manualChunks`.* A blanket `node_modules → vendor` rule would have dragged yaml, zod and the auth client back into the initial load and silently undone the route splitting.
 
-### Slice 5 — Deploy · ~1 day
-Fly.io (or Railway) for API + Postgres, Cloudflare Pages/Vercel for the SPA, R2/S3 for objects, migrations on release, `main` → production via Actions, Sentry + structured logs.
-**Done when:** MVP-1 is live on a real domain and every subsequent slice deploys on merge.
+### Slice 5 — Deploy ✅ **done** · ~1 day
+**Render free + Neon free = $0/month.** Runbook: [DEPLOY.md](DEPLOY.md).
+
+The original plan here — Fly for the API, Cloudflare Pages for the SPA, a purchased domain — was wrong on both cost and complexity. Fly's free tier no longer exists for new organizations, and splitting the SPA from the API across two hosts buys a CDN at the price of CORS, cross-site cookies and a domain purchase to share one.
+
+**Instead, Hono serves the built SPA from the same origin as the API.** One service, one origin, one deploy target, no CORS anywhere in production. Static assets come off a Node process rather than a CDN, which at this traffic is worth nothing against the complexity it removes.
+
+Four rules keep the host swappable, because the free plan's cold starts will eventually annoy someone:
+1. **Postgres is Neon, not Render's** — data never moves when compute does
+2. **A Dockerfile is the contract** — any host that runs a container runs this
+3. **Config is plain env vars** — no platform secret APIs
+4. **No host-specific features** — `render.yaml` is the only host-aware file, and deleting it breaks nothing
+
+**Done when:** MVP-1 is live and every later slice deploys on merge.
+*Shipped:* SPA served by Hono with correct cache headers, a 310 MB image verified end to end locally (12 checks), migrations on release, Docker build in CI, and production env guards that refuse to boot on a misconfigured `APP_URL`.
+
+**Two things this slice caught.** `index.html` was being served by the static middleware before the no-cache handler ran — a deploy would have left browsers holding a shell pointing at chunks that no longer existed. And better-auth declares `drizzle-kit` as an *optional peer*, which npm installs regardless of `--omit=dev`; 42 MB of migration tooling was riding along in the runtime image, which on a free tier is pull time on every cold start.
 *Pulled this far forward deliberately — you asked to deploy shortly after local works, and continuous deployment from here is far cheaper than a big-bang launch later.*
 
 ### Slice 6 — Edit, history, diff, revert · ~2 days

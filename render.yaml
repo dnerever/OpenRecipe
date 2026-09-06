@@ -1,0 +1,20 @@
+# The only host-specific file in the repo. Delete it on the way out — nothing
+# in the application reads it, and the Dockerfile is what actually matters.
+services:
+  - type: web
+    name: openrecipe
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render injects PORT; the app reads it.
+      - key: APP_URL
+        sync: false # set to the service URL after the first deploy
+      - key: DATABASE_URL
+        sync: false # Neon pooled connection string
+      - key: BETTER_AUTH_SECRET
+        generateValue: true

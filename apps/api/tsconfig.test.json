@@ -1,15 +1,16 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "noEmit": false
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "rewriteRelativeImportExtensions": false
   },
   "include": ["src/**/*"],
   "references": [
     {
       "path": "../../packages/core"
     }
-  ],
-  "exclude": ["src/**/*.test.ts", "src/test-support.ts"]
+  ]
 }

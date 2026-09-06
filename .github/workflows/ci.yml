@@ -53,3 +53,18 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # The Dockerfile is the portability contract — if it stops building, moving
+  # hosts stops being a 20-minute job. Cheaper to catch here than at deploy.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

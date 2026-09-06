@@ -1,6 +1,9 @@
+import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { SCHEMA_VERSION } from '@openrecipe/core';
 import { auth } from './auth.ts';
 import { sql as rawSql } from './db/index.ts';
@@ -24,15 +27,23 @@ export function createApp() {
   const api = new Hono<AppEnv>();
 
   app.use('*', logger());
-  app.use(
-    '/*',
-    cors({
-      origin: env.WEB_ORIGIN,
-      credentials: true,
-      allowHeaders: ['Content-Type', 'Authorization'],
-      allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    }),
-  );
+
+  /**
+   * Only needed in development, where Vite serves the SPA from its own port. In
+   * production this process serves both, so every request is same-origin and
+   * CORS never comes into it.
+   */
+  if (!env.SERVE_STATIC_DIR) {
+    app.use(
+      '/*',
+      cors({
+        origin: env.APP_URL,
+        credentials: true,
+        allowHeaders: ['Content-Type', 'Authorization'],
+        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      }),
+    );
+  }
 
   // better-auth owns everything under /api/auth and must run before withViewer:
   // it is what mints the session the rest of the app then reads.
@@ -70,7 +81,13 @@ export function createApp() {
   /** Unprefixed, for load balancers and container health checks. */
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
-  app.notFound((c) => c.json({ error: 'not_found' }, 404));
+  if (env.SERVE_STATIC_DIR) mountSpa(app, env.SERVE_STATIC_DIR);
+
+  app.notFound((c) =>
+    // Under /api a miss is a real 404. Everywhere else it is a client route the
+    // SPA will resolve, and mountSpa has already handled it.
+    c.json({ error: 'not_found' }, 404),
+  );
 
   app.onError((err, c) => {
     if (err instanceof NotFoundError) return c.json({ error: 'not_found' }, 404);
@@ -82,4 +99,45 @@ export function createApp() {
   });
 
   return app;
+}
+
+/**
+ * Serves the built SPA from the same origin as the API.
+ *
+ * This is what removes CORS, cross-site cookies and a second deploy target from
+ * production — worth far more than putting static assets on a CDN at this size.
+ * Hashed assets get a long cache; index.html must not, or a deploy leaves
+ * browsers holding a shell that references chunks which no longer exist.
+ */
+function mountSpa(app: Hono<AppEnv>, dir: string) {
+  const indexHtml = readFileSync(join(dir, 'index.html'), 'utf8');
+
+  // Asset filenames carry a content hash, so they can be cached forever.
+  app.use(
+    '/assets/*',
+    serveStatic({
+      root: dir,
+      onFound: (_path, c) => c.header('Cache-Control', 'public, max-age=31536000, immutable'),
+    }),
+  );
+
+  // Everything else (favicon, robots, and index.html itself). The shell must
+  // never be cached: it names the hashed chunks, and a stale copy points at
+  // files the last deploy deleted.
+  app.use(
+    '/*',
+    serveStatic({
+      root: dir,
+      onFound: (path, c) => {
+        if (path.endsWith('.html')) c.header('Cache-Control', 'no-cache');
+      },
+    }),
+  );
+
+  // Any path the API did not claim is a client route: hand back the shell and
+  // let the router resolve it.
+  app.get('/*', (c) => {
+    if (c.req.path.startsWith('/api/')) return c.json({ error: 'not_found' }, 404);
+    return c.html(indexHtml, 200, { 'Cache-Control': 'no-cache' });
+  });
 }
