@@ -27,7 +27,10 @@ runs the compute, so changing hosts never moves data. See *Moving hosts* below.
 ## 1. Postgres (Neon)
 
 1. Sign up at [neon.tech](https://neon.tech) — the free plan needs no card.
-2. Create a project. Pick the region closest to your Render region.
+2. Create a project named `open-recipe`, region **AWS US East 2 (Ohio)**.
+   Leave every service except **Postgres** switched off — Object storage,
+   Functions, AI gateway and especially **Neon Auth**, which would be a second
+   auth system competing with better-auth.
 3. Copy the **pooled** connection string — the host contains `-pooler`. It looks
    like:
    ```
@@ -44,7 +47,12 @@ idle. A recipe is roughly 2 KB, so storage is not a constraint you will meet.
 1. Sign up at [render.com](https://render.com) with GitHub.
 2. **New → Web Service**, connect this repository.
 3. Render reads `render.yaml`. Confirm: runtime **Docker**, plan **Free**,
-   health check path **`/health`**.
+   health check path **`/health`**, and **region Ohio (US East)**.
+
+   > **Render defaults to Oregon.** Leaving it there puts the app on the west
+   > coast and the database in Ohio, so every query crosses the country —
+   > roughly 50–60 ms per round trip, several times per page load. The two
+   > regions must match.
 4. Set environment variables:
 
    | Key | Value |
