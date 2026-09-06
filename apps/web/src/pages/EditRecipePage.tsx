@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ImageUpload } from '../components/ImageUpload.tsx';
 import { RecipeEditor } from '../components/RecipeEditor.tsx';
@@ -14,8 +14,14 @@ import { ApiError, fetchRecipe, updateRecipe, type RecipeIssueWire } from '../li
  */
 export function EditRecipePage() {
   const { handle, slug } = useParams({ from: '/$handle/$slug/edit' });
+  const { proposeTo } = useSearch({ from: '/$handle/$slug/edit' });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Set when "Propose a change" forked this recipe and sent us straight here.
+  // Saving then continues to the proposal form instead of stopping at the fork.
+  const [targetHandle, targetSlug] = proposeTo?.split('/') ?? [];
+  const proposing = targetHandle !== undefined && targetSlug !== undefined;
 
   const { data, isPending, error } = useQuery({
     queryKey: ['recipe', handle, slug],
@@ -34,10 +40,21 @@ export function EditRecipePage() {
         content: draft ?? '',
         ...(message.trim() ? { message: message.trim() } : {}),
       }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['recipe', handle, slug] });
+    onSuccess: async () => {
       void queryClient.invalidateQueries({ queryKey: ['versions', handle, slug] });
-      void navigate({ to: '/$handle/$slug', params: { handle, slug } });
+      /**
+       * Awaited, unlike the others: the next page reads this query, and the
+       * proposal form seeds its title from the version message just written.
+       * Navigating while the cache still holds the pre-save version would open
+       * that form on the fork's own "Forked from …" message instead of what was
+       * typed here, and it captures the default once on mount.
+       */
+      await queryClient.invalidateQueries({ queryKey: ['recipe', handle, slug] });
+      void navigate({
+        to: '/$handle/$slug',
+        params: { handle, slug },
+        ...(proposing ? { search: { propose: true } } : {}),
+      });
     },
     onError: (err) => {
       setServerIssues(err instanceof ApiError ? err.issues : undefined);
@@ -86,10 +103,24 @@ export function EditRecipePage() {
           {slug}
         </Link>
       </p>
-      <h1>Edit</h1>
-      <p className="lede">
-        Saving writes a new version. Nothing you have already saved is overwritten.
-      </p>
+      <h1>{proposing ? 'Propose a change' : 'Edit'}</h1>
+      {proposing ? (
+        <p className="lede">
+          This is your own copy of{' '}
+          <Link
+            to="/$handle/$slug"
+            params={{ handle: targetHandle as string, slug: targetSlug as string }}
+          >
+            @{targetHandle}/{targetSlug}
+          </Link>
+          . Change whatever you like here — saving offers it back to the author, who decides whether
+          to take it.
+        </p>
+      ) : (
+        <p className="lede">
+          Saving writes a new version. Nothing you have already saved is overwritten.
+        </p>
+      )}
 
       <ImageUpload handle={handle} slug={slug} draft={content} onChange={setDraft} />
 
@@ -102,7 +133,12 @@ export function EditRecipePage() {
 
       <div className="publish">
         <label>
-          What changed? <span className="hint">optional — shows up in the history</span>
+          What changed?{' '}
+          <span className="hint">
+            {proposing
+              ? 'optional — becomes the proposal’s title'
+              : 'optional — shows up in the history'}
+          </span>
           <input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -118,7 +154,7 @@ export function EditRecipePage() {
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || unchanged}
           >
-            {mutation.isPending ? 'Saving…' : 'Save version'}
+            {mutation.isPending ? 'Saving…' : proposing ? 'Save and continue' : 'Save version'}
           </button>
           <Link className="button secondary" to="/$handle/$slug" params={{ handle, slug }}>
             Cancel
@@ -128,7 +164,13 @@ export function EditRecipePage() {
           </Link>
         </div>
 
-        {unchanged && <p className="muted">No edits yet.</p>}
+        {unchanged && (
+          <p className="muted">
+            {proposing
+              ? 'No edits yet — a proposal has to change something before it can be opened.'
+              : 'No edits yet.'}
+          </p>
+        )}
         {mutation.isError && !serverIssues && <p className="bad">{mutation.error.message}</p>}
         {serverIssues && (
           <p className="bad">The server rejected this recipe — see the issues above.</p>

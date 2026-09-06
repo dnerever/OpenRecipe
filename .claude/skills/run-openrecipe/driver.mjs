@@ -32,6 +32,7 @@ const flag = (name) => {
 };
 const existing = flag('--recipe');
 const seedOnly = args.includes('--seed-only');
+const proposalsMode = args.includes('--proposals');
 
 mkdirSync(OUT, { recursive: true });
 
@@ -89,36 +90,131 @@ tags: [bread, smoke-test]
 3. Shape, prove for 3 hours, and bake at 240C for 40 minutes.
 `;
 
-/** Sign up a fresh cook and publish one recipe. Returns { handle, slug }. */
-async function seed() {
-  const n = Date.now().toString(36).slice(-6);
-  const handle = `smoke-${n}`;
-  const email = `${handle}@example.com`;
+/** Sign up a fresh cook. Returns { handle, cookie }. */
+async function signUp(prefix = 'smoke') {
+  const handle = `${prefix}-${Math.random().toString(36).slice(2, 7)}`;
 
   // better-auth rejects a cross-origin-looking POST with MISSING_OR_NULL_ORIGIN,
   // and bare fetch sends no Origin at all. Send the app's own origin.
   const signup = await fetch(`${WEB}/api/auth/sign-up/email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: WEB },
-    body: JSON.stringify({ email, password: 'smoke-password-123', name: `Smoke ${n}`, handle }),
+    body: JSON.stringify({
+      email: `${handle}@example.com`,
+      password: 'smoke-password-123',
+      name: handle,
+      handle,
+    }),
   });
   if (!signup.ok) fail(`sign-up returned ${signup.status}: ${await signup.text()}`);
 
-  // better-auth sets the session as a cookie; carry it to the create call.
+  // better-auth sets the session as a cookie; carry it to every later call.
   const cookie = (signup.headers.getSetCookie?.() ?? []).map((c) => c.split(';')[0]).join('; ');
   if (!cookie) fail('sign-up succeeded but set no session cookie');
   ok(`signed up @${handle}`);
+  return { handle, cookie };
+}
 
-  const created = await fetch(`${WEB}/api/recipes`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie },
-    body: JSON.stringify({ content: RECIPE, visibility: 'public' }),
+const api = (method, path, cookie, body) =>
+  fetch(`${WEB}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', Origin: WEB, ...(cookie ? { cookie } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
-  if (created.status !== 201) fail(`create recipe returned ${created.status}: ${await created.text()}`);
+
+/** A cook with one public recipe. Returns { handle, slug, cookie }. */
+async function seed() {
+  const { handle, cookie } = await signUp();
+  const created = await api('POST', '/api/recipes', cookie, {
+    content: RECIPE,
+    visibility: 'public',
+  });
+  if (created.status !== 201)
+    fail(`create recipe returned ${created.status}: ${await created.text()}`);
   const { recipe } = await created.json();
   const slug = recipe?.slug ?? 'smoke-test-loaf';
   ok(`created /${handle}/${slug}`);
-  return { handle, slug };
+  return { handle, slug, cookie };
+}
+
+/**
+ * The cross-account half of the app: anyone may propose a change to a public
+ * recipe, only its owner may accept, and several proposals may be open at once.
+ *
+ * Driven through the API rather than the browser because what is being asserted
+ * is the permission rule, not the page — and because it has to act as two
+ * people, which one browser session cannot.
+ */
+async function checkProposals() {
+  const alice = await seed();
+  const bob = await signUp('bob');
+
+  const opened = [];
+  for (const [water, title] of [
+    [420, 'Raise hydration'],
+    [460, 'Raise it further'],
+  ]) {
+    const forked = await api('POST', `/api/recipes/${alice.handle}/${alice.slug}/fork`, bob.cookie);
+    if (forked.status !== 201) fail(`fork returned ${forked.status}: ${await forked.text()}`);
+    const fork = (await forked.json()).recipe;
+
+    const edited = await api('PUT', `/api/recipes/${bob.handle}/${fork.slug}`, bob.cookie, {
+      content: RECIPE.replace(
+        'qty: 350, unit: g, item: water',
+        `qty: ${water}, unit: g, item: water`,
+      ),
+      message: title,
+    });
+    if (!edited.ok) fail(`editing the fork returned ${edited.status}`);
+
+    const p = await api(
+      'POST',
+      `/api/recipes/${alice.handle}/${alice.slug}/proposals`,
+      bob.cookie,
+      {
+        sourceRecipeId: fork.id,
+        title,
+      },
+    );
+    if (p.status !== 201)
+      fail(`@${bob.handle} could not propose to @${alice.handle}: ${p.status} ${await p.text()}`);
+    opened.push((await p.json()).number);
+  }
+  ok(`@${bob.handle} opened proposals #${opened.join(' and #')} on someone else's recipe`);
+
+  const open = await (
+    await api('GET', `/api/recipes/${alice.handle}/${alice.slug}/proposals?state=open`, bob.cookie)
+  ).json();
+  if (open.proposals.length !== 2)
+    fail(`expected 2 concurrent open proposals, got ${open.proposals.length}`);
+  ok(`both stay open at once (${open.proposals.map((p) => `#${p.number} ${p.title}`).join(', ')})`);
+
+  // The author of a proposal is not its reviewer.
+  const byBob = await api(
+    'POST',
+    `/api/recipes/${alice.handle}/${alice.slug}/proposals/${opened[0]}/merge`,
+    bob.cookie,
+    {},
+  );
+  if (byBob.status !== 403) fail(`a non-owner merging should be 403, got ${byBob.status}`);
+  ok('a non-owner cannot merge their own proposal (403)');
+
+  const byAlice = await api(
+    'POST',
+    `/api/recipes/${alice.handle}/${alice.slug}/proposals/${opened[0]}/merge`,
+    alice.cookie,
+    {},
+  );
+  if (!byAlice.ok)
+    fail(`the owner merging should succeed, got ${byAlice.status}: ${await byAlice.text()}`);
+  ok('the recipe owner can merge it');
+
+  const after = await (
+    await api('GET', `/api/recipes/${alice.handle}/${alice.slug}/proposals?state=open`, bob.cookie)
+  ).json();
+  if (after.proposals.length !== 1)
+    fail(`merging one should leave 1 open, got ${after.proposals.length}`);
+  ok('merging one leaves the other open and mergeable');
 }
 
 async function main() {
@@ -126,8 +222,11 @@ async function main() {
   const health = await fetch(`${WEB}/api/health`).catch(() => null);
   if (!health?.ok) fail(`${WEB}/api/health unreachable — is \`npm run dev\` up?`);
   const h = await health.json();
-  if (h.database !== 'up') fail(`database is ${h.database} — run \`npm run db:up && npm run db:migrate\``);
+  if (h.database !== 'up')
+    fail(`database is ${h.database} — run \`npm run db:up && npm run db:migrate\``);
   ok(`api healthy, database up, schema v${h.schemaVersion}`);
+
+  if (proposalsMode) return checkProposals();
 
   const target = existing
     ? { handle: String(existing).split('/')[0], slug: String(existing).split('/')[1] }
@@ -138,7 +237,9 @@ async function main() {
     executablePath: findChrome(),
     args: ['--no-sandbox', '--disable-dev-shm-usage'],
   });
-  const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+  const page = await (
+    await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  ).newPage();
 
   const bad = [];
   page.on('pageerror', (e) => bad.push(`pageerror: ${e.message}`));
@@ -150,7 +251,8 @@ async function main() {
   });
   page.on('response', (r) => {
     // The app ships no favicon; the browser asks anyway. Not a defect.
-    if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) bad.push(`HTTP ${r.status()} ${r.url()}`);
+    if (r.status() >= 400 && !r.url().endsWith('/favicon.ico'))
+      bad.push(`HTTP ${r.status()} ${r.url()}`);
   });
 
   const shot = (name) => page.screenshot({ path: join(OUT, `${name}.png`), fullPage: true });
@@ -206,7 +308,8 @@ async function main() {
     await page.getByRole('button', { name: 'Next' }).click();
     await page.waitForTimeout(400);
     const step = (await page.locator('body').innerText()).match(/STEP (\d+) OF (\d+)/i);
-    if (!step || step[1] !== '2') fail(`Next did not advance to step 2 (saw ${step?.[0] ?? 'nothing'})`);
+    if (!step || step[1] !== '2')
+      fail(`Next did not advance to step 2 (saw ${step?.[0] ?? 'nothing'})`);
     ok(`stepped to ${step[0]}`);
 
     await page.getByRole('button', { name: /Ingredients/i }).click();
@@ -216,7 +319,8 @@ async function main() {
 
     const raw = await page.request.get(`${WEB}/api/recipes/${target.handle}/${target.slug}/raw`);
     if (!raw.ok()) fail(`raw endpoint returned ${raw.status()}`);
-    if (!(await raw.text()).startsWith('---')) fail('raw endpoint did not return a recipe document');
+    if (!(await raw.text()).startsWith('---'))
+      fail('raw endpoint did not return a recipe document');
     ok('raw markdown endpoint serves the portable document');
   } finally {
     await browser.close();

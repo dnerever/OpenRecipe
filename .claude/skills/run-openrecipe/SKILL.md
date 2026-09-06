@@ -45,7 +45,12 @@ timeout 120 bash -c 'until curl -sf http://localhost:5173/api/health >/dev/null 
 of them. Health when it is really up:
 
 ```json
-{"status":"ok","database":"up","schemaVersion":1,"auth":{"emailPassword":true,"github":false}}
+{
+  "status": "ok",
+  "database": "up",
+  "schemaVersion": 1,
+  "auth": { "emailPassword": true, "github": false }
+}
 ```
 
 ## Run (agent path)
@@ -77,12 +82,25 @@ no console or network errors.
 Other modes:
 
 ```bash
+node .claude/skills/run-openrecipe/driver.mjs --proposals                    # cross-account proposal rules
 node .claude/skills/run-openrecipe/driver.mjs --recipe marguerite/carbonara  # drive an existing recipe
 node .claude/skills/run-openrecipe/driver.mjs --seed-only                    # just make data, no browser
 SHOTS_DIR=/tmp/shots WEB_URL=http://localhost:5173 node .claude/skills/run-openrecipe/driver.mjs
 ```
 
 **Look at the screenshots.** A green run with a blank frame is still a failure.
+
+`--proposals` covers what one browser session cannot: it signs up two cooks and
+asserts that anyone may propose to a public recipe, that several proposals stay
+open at once, and that only the recipe's owner may merge.
+
+```
+  ok    @bob-kew10 opened proposals #1 and #2 on someone else's recipe
+  ok    both stay open at once (#2 Raise it further, #1 Raise hydration)
+  ok    a non-owner cannot merge their own proposal (403)
+  ok    the recipe owner can merge it
+  ok    merging one leaves the other open and mergeable
+```
 
 ## Stop
 
@@ -124,7 +142,7 @@ against a non-local `DATABASE_URL`** unless `ALLOW_REMOTE_TEST_DB=1`.
   by waiting 120s. Vite meanwhile serves 200s, so the browser looks fine while
   every `/api` call gets `ECONNREFUSED 127.0.0.1:8787`.
 - **Never `pkill -f` anything here.** Patterns like `concurrently -n core,api,web`
-  match *every* stack on the machine — including one a human left running — and
+  match _every_ stack on the machine — including one a human left running — and
   a pattern such as `openrecipe/node_modules/.bin/concurrently` also matches the
   agent's own shell command line and kills the session mid-command (exit 144).
   Kill by port/pgid as in Stop.
@@ -132,7 +150,7 @@ against a non-local `DATABASE_URL`** unless `ALLOW_REMOTE_TEST_DB=1`.
   pane dies with `EADDRINUSE` but `concurrently` keeps the other two alive, so
   the web port serves HTTP 200 while nothing works. Vite also silently falls
   back to **:5174** when :5173 is taken — and its proxy target is hardcoded to
-  `localhost:8787`, so a fallback Vite happily proxies to *someone else's* API.
+  `localhost:8787`, so a fallback Vite happily proxies to _someone else's_ API.
   Always confirm via `/api/health`, not by the port answering.
 - **better-auth rejects requests with no `Origin`.** A bare `fetch`/`curl` POST
   to `/api/auth/sign-up/email` through the Vite proxy returns
@@ -147,7 +165,7 @@ against a non-local `DATABASE_URL`** unless `ALLOW_REMOTE_TEST_DB=1`.
 - **`?scale=` / `?units=` are a view.** They rewrite the URL, mint no version,
   and cook mode inherits them. Test scaling through the buttons, not by
   hand-editing the URL.
-- **GitHub sign-in is only registered when `GITHUB_CLIENT_ID` *and*
+- **GitHub sign-in is only registered when `GITHUB_CLIENT_ID` _and_
   `GITHUB_CLIENT_SECRET` are set**; `/api/health` reports `auth.github: false`
   otherwise. Email+password always works.
 - **Image uploads need the five `S3_*` vars.** Without them uploads answer 503
@@ -155,13 +173,13 @@ against a non-local `DATABASE_URL`** unless `ALLOW_REMOTE_TEST_DB=1`.
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---|---|
-| `ERR_MODULE_NOT_FOUND … @openrecipe/core/dist/index.js` | `npm run build -w @openrecipe/core`, then restart. |
-| `EADDRINUSE :::8787` and web still serves | A stack is already running. Stop it (see Stop) before relaunching. |
-| `vite] http proxy error … ECONNREFUSED 127.0.0.1:8787` | The API is dead; read `/tmp/openrecipe-dev.log` for its stack trace. |
-| `403 MISSING_OR_NULL_ORIGIN` on sign-up | Add `Origin: http://localhost:5173`. |
-| `"database":"down"` in `/api/health` | `npm run db:up && npm run db:migrate`. |
-| Driver: `No Chrome found` | `apt-get install -y google-chrome-stable` or set `CHROME_PATH`. |
-| Driver: `Cannot find package 'playwright-core'` | `npm install --prefix .claude/skills/run-openrecipe`. |
-| Shell dies mid-command, exit 144 | You ran `pkill -f` with a pattern matching your own command. Kill by port. |
+| Symptom                                                 | Fix                                                                        |
+| ------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `ERR_MODULE_NOT_FOUND … @openrecipe/core/dist/index.js` | `npm run build -w @openrecipe/core`, then restart.                         |
+| `EADDRINUSE :::8787` and web still serves               | A stack is already running. Stop it (see Stop) before relaunching.         |
+| `vite] http proxy error … ECONNREFUSED 127.0.0.1:8787`  | The API is dead; read `/tmp/openrecipe-dev.log` for its stack trace.       |
+| `403 MISSING_OR_NULL_ORIGIN` on sign-up                 | Add `Origin: http://localhost:5173`.                                       |
+| `"database":"down"` in `/api/health`                    | `npm run db:up && npm run db:migrate`.                                     |
+| Driver: `No Chrome found`                               | `apt-get install -y google-chrome-stable` or set `CHROME_PATH`.            |
+| Driver: `Cannot find package 'playwright-core'`         | `npm install --prefix .claude/skills/run-openrecipe`.                      |
+| Shell dies mid-command, exit 144                        | You ran `pkill -f` with a pattern matching your own command. Kill by port. |

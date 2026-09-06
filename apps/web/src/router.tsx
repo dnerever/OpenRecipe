@@ -149,7 +149,12 @@ const profileRoute = createRoute({
 const recipeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$handle/$slug',
-  validateSearch: (search: Record<string, unknown>) => parseCookSearch(search),
+  validateSearch: (search: Record<string, unknown>) => ({
+    ...parseCookSearch(search),
+    // Set by the editor when it hands a just-saved fork back for proposing, so
+    // the form is already open rather than behind one more click.
+    ...(search['propose'] === true || search['propose'] === 'true' ? { propose: true } : {}),
+  }),
   component: RecipePage,
 });
 const cookRoute = createRoute({
@@ -173,6 +178,12 @@ const cookRoute = createRoute({
 const editRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$handle/$slug/edit',
+  validateSearch: (search: Record<string, unknown>) => {
+    // `handle/slug` of the recipe this edit is destined for, when the editor
+    // was opened by "Propose a change" rather than by editing your own recipe.
+    const to = search['proposeTo'];
+    return typeof to === 'string' && /^[^/]+\/[^/]+$/.test(to) ? { proposeTo: to } : {};
+  },
   component: lazyRouteComponent(() => import('./pages/EditRecipePage.tsx'), 'EditRecipePage'),
 });
 const historyRoute = createRoute({

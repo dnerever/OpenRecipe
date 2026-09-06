@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useMemo, useState } from 'react';
 import { ForkButton } from '../components/ForkButton.tsx';
 import { ForkedFrom } from '../components/ForkedFrom.tsx';
+import { ProposeButton } from '../components/ProposeButton.tsx';
 import { ProposeForm } from '../components/ProposeForm.tsx';
 import { RecipeView } from '../components/RecipeView.tsx';
 import { ScaleControl } from '../components/ScaleControl.tsx';
@@ -24,7 +25,7 @@ export function RecipePage() {
   const search = useSearch({ from: '/$handle/$slug' });
   const navigate = useNavigate();
   const [showShopping, setShowShopping] = useState(false);
-  const [proposing, setProposing] = useState(false);
+  const [proposing, setProposing] = useState('propose' in search && search.propose === true);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const { data, isPending, error } = useQuery({
@@ -117,6 +118,12 @@ export function RecipePage() {
             starred={recipe.viewerHasStarred}
             count={recipe.starCount}
           />
+          {/*
+            Two ways in, because they are two different situations. On a fork
+            you own, the change is already written and the only question left is
+            the covering note. On somebody else's recipe there is nothing to
+            offer yet, so the button has to make you a copy first.
+          */}
           {recipe.canEdit && recipe.forkedFrom?.visible && (
             <button
               type="button"
@@ -127,6 +134,7 @@ export function RecipePage() {
               Propose changes
             </button>
           )}
+          {!recipe.canEdit && <ProposeButton handle={handle} slug={slug} />}
 
           <details
             className="more"

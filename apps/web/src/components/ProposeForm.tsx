@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { openProposal, type ForkAttribution } from '../lib/api.ts';
 
@@ -89,7 +89,19 @@ export function ProposeForm({
             {mutation.isPending ? 'Opening…' : 'Open proposal'}
           </button>
         </div>
-        {mutation.error && <p className="bad">{describeOpenError(mutation.error)}</p>}
+        {mutation.error && (
+          <p className="bad">
+            {describeOpenError(mutation.error)}{' '}
+            {mutation.error.message === 'already_open' && (
+              <Link
+                to="/$handle/$slug/proposals"
+                params={{ handle: target.owner.handle, slug: target.slug }}
+              >
+                See the open one
+              </Link>
+            )}
+          </p>
+        )}
       </form>
     </section>
   );
@@ -101,7 +113,11 @@ function describeOpenError(error: Error): string {
     case 'no_changes':
       return 'This fork is identical to the recipe it came from — change something first.';
     case 'already_open':
-      return 'You already have an open proposal from this fork.';
+      return (
+        'This copy already has a proposal open on that recipe. To suggest a ' +
+        'second, separate change, start again from the original — you get a ' +
+        'fresh copy, and both proposals stand on their own.'
+      );
     case 'private_source':
       return 'A private fork would publish itself. Make this recipe public to propose it back.';
     case 'unrelated_histories':
