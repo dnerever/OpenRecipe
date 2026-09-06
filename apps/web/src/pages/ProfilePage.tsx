@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { RecipeCard } from '../components/RecipeCard.tsx';
 import { ApiError, fetchUserRecipes } from '../lib/api.ts';
-import { useSession } from '../lib/auth.ts';
+import { useCurrentUser } from '../lib/session.ts';
 
 export function ProfilePage() {
   const { handle } = useParams({ from: '/$handle' });
-  const { data: session } = useSession();
-  const isSelf = (session?.user as { handle?: string } | undefined)?.handle === handle;
+  const { user } = useCurrentUser();
+  const isSelf = user?.handle === handle;
 
   const { data, isPending, error } = useQuery({
     queryKey: ['user-recipes', handle],

@@ -3,18 +3,18 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { AuthPanel } from '../components/AuthPanel.tsx';
 import { fetchHealth } from '../lib/api.ts';
-import { useSession } from '../lib/auth.ts';
+import { useCurrentUser } from '../lib/session.ts';
 
 /**
  * Sign-in used to sit on the home page. Now that `/` is the public index, it
  * gets its own address — the front door should not ask you for credentials.
  */
 export function SignInPage() {
-  const { data: session } = useSession();
+  const { user } = useCurrentUser();
   const navigate = useNavigate();
   const { data: health } = useQuery({ queryKey: ['health'], queryFn: fetchHealth, retry: false });
 
-  const handle = (session?.user as { handle?: string } | undefined)?.handle;
+  const handle = user?.handle;
 
   useEffect(() => {
     if (handle) void navigate({ to: '/$handle', params: { handle } });

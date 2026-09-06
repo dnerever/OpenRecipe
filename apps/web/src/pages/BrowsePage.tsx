@@ -2,15 +2,15 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { RecipeCard } from '../components/RecipeCard.tsx';
 import { fetchPublicIndex, type IndexCursor } from '../lib/api.ts';
-import { useSession } from '../lib/auth.ts';
+import { useCurrentUser } from '../lib/session.ts';
 
 /**
  * The front door. Deliberately readable signed out — no session is required to
  * reach it and none is consulted to build it.
  */
 export function BrowsePage() {
-  const { data: session } = useSession();
-  const signedIn = Boolean(session?.user);
+  const { user } = useCurrentUser();
+  const signedIn = user !== null;
 
   const { data, isPending, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({

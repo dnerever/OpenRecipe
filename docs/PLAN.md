@@ -306,6 +306,18 @@ Two denormalized columns land with it — `tags_cache` and `total_time_minutes` 
 
 **The index takes no viewer at all.** It could have been viewer-aware — showing you your own private recipes inline — but that puts the front page one careless `or` away from leaking someone's drafts. An owner's private recipes are already reachable from their profile, so the index stays categorically public.
 
+### Slice 4.5 — Bundle splitting ✅ **done** · ~½ day
+Route-level code splitting, done once `/` became the public front door and every stranger started paying for the editor.
+
+- `/new` and `/signin` load on demand; the read routes stay eager because they *are* the content
+- `packages/core` is marked `sideEffects: false`, which is what lets Rollup keep yaml and zod out of the main chunk rather than conservatively pulling the whole barrel in
+- Session state moved off better-auth's client store onto a TanStack Query over `/api/me` — the auth client now loads only when someone signs in or out. One cache holds identity instead of two running in parallel.
+- `react` and `@tanstack/*` are pinned to their own chunks so shipping app changes doesn't invalidate them; the per-deploy churn is a 5.8 kB chunk
+
+**Result:** first load **162.6 → 106.8 kB gzip (−34%)**. The entry HTML references three files; the editor's 46 kB and the auth client's 10 kB are fetched only when reached, preloaded on pointer intent.
+
+*Deliberately narrow `manualChunks`.* A blanket `node_modules → vendor` rule would have dragged yaml, zod and the auth client back into the initial load and silently undone the route splitting.
+
 ### Slice 5 — Deploy · ~1 day
 Fly.io (or Railway) for API + Postgres, Cloudflare Pages/Vercel for the SPA, R2/S3 for objects, migrations on release, `main` → production via Actions, Sentry + structured logs.
 **Done when:** MVP-1 is live on a real domain and every subsequent slice deploys on merge.

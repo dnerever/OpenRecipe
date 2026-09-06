@@ -3,10 +3,10 @@ import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { RecipeEditor, STARTER_RECIPE } from '../components/RecipeEditor.tsx';
 import { ApiError, createRecipe, type RecipeIssueWire, type Visibility } from '../lib/api.ts';
-import { useSession } from '../lib/auth.ts';
+import { useCurrentUser } from '../lib/session.ts';
 
 export function NewRecipePage() {
-  const { data: session, isPending } = useSession();
+  const { user, isPending } = useCurrentUser();
   const navigate = useNavigate();
 
   const [content, setContent] = useState(STARTER_RECIPE);
@@ -34,7 +34,7 @@ export function NewRecipePage() {
 
   if (isPending) return <p className="muted">Loading…</p>;
 
-  if (!session?.user) {
+  if (!user) {
     return (
       <section className="panel">
         <h2>Sign in first</h2>

@@ -1,11 +1,19 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { signIn, signOut, signUp, useSession } from '../lib/auth.ts';
 import type { Health } from '../lib/api.ts';
+import { signIn, signUp } from '../lib/auth.ts';
+import { SESSION_KEY } from '../lib/session.ts';
 
 type Mode = 'sign-in' | 'sign-up';
 
+/**
+ * The credential form, and the only place the better-auth client is imported —
+ * which is why it lives behind the lazy `/signin` route. On success it
+ * invalidates the session query and lets the page redirect; it does not track
+ * signed-in state itself, so there is only ever one source of truth.
+ */
 export function AuthPanel({ health }: { health: Health | null }) {
-  const { data: session, isPending, refetch } = useSession();
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>('sign-up');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +37,7 @@ export function AuthPanel({ health }: { health: Health | null }) {
         return;
       }
       setPassword('');
-      refetch();
+      await queryClient.invalidateQueries({ queryKey: SESSION_KEY });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -37,47 +45,8 @@ export function AuthPanel({ health }: { health: Health | null }) {
     }
   }
 
-  if (isPending) {
-    return (
-      <section className="panel">
-        <h2>Account</h2>
-        <p className="muted">Checking your session…</p>
-      </section>
-    );
-  }
-
-  if (session?.user) {
-    const user = session.user as { name?: string; email?: string; handle?: string };
-    return (
-      <section className="panel">
-        <h2>Account</h2>
-        <dl>
-          <dt>Signed in as</dt>
-          <dd className="good">@{user.handle ?? '—'}</dd>
-          <dt>Name</dt>
-          <dd>{user.name || <span className="muted">not set</span>}</dd>
-          <dt>Email</dt>
-          <dd>{user.email}</dd>
-        </dl>
-        <div className="row">
-          <button
-            type="button"
-            onClick={async () => {
-              await signOut();
-              refetch();
-            }}
-          >
-            Sign out
-          </button>
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section className="panel">
-      <h2>Account</h2>
-
       <div className="tabs" role="tablist">
         {(['sign-up', 'sign-in'] as const).map((m) => (
           <button

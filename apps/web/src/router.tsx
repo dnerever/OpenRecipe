@@ -1,10 +1,15 @@
-import { createRootRoute, createRoute, createRouter, Link, Outlet } from '@tanstack/react-router';
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  Link,
+  Outlet,
+} from '@tanstack/react-router';
 import { BrowsePage } from './pages/BrowsePage.tsx';
-import { NewRecipePage } from './pages/NewRecipePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
-import { SignInPage } from './pages/SignInPage.tsx';
-import { signOut, useSession } from './lib/auth.ts';
+import { useCurrentUser, useSignOut } from './lib/session.ts';
 
 /**
  * Handles live at the top level (`/chad-robertson/country-loaf`), which is
@@ -13,8 +18,9 @@ import { signOut, useSession } from './lib/auth.ts';
  * most-specific-first, so the static paths win regardless of declaration order.
  */
 function RootLayout() {
-  const { data: session, refetch } = useSession();
-  const handle = (session?.user as { handle?: string } | undefined)?.handle;
+  const { user } = useCurrentUser();
+  const signOut = useSignOut();
+  const handle = user?.handle;
 
   return (
     <>
@@ -29,14 +35,7 @@ function RootLayout() {
             <Link to="/$handle" params={{ handle }}>
               @{handle}
             </Link>
-            <button
-              type="button"
-              className="linkish"
-              onClick={async () => {
-                await signOut();
-                refetch();
-              }}
-            >
+            <button type="button" className="linkish" onClick={() => signOut.mutate()}>
               Sign out
             </button>
           </>
@@ -58,15 +57,23 @@ const indexRoute = createRoute({
   path: '/',
   component: BrowsePage,
 });
+/**
+ * `/new` and `/signin` load on demand.
+ *
+ * The editor is the only thing in the app that parses a recipe, and doing so
+ * drags in yaml and zod — about a quarter of the JavaScript — purely to
+ * validate as you type. Nobody browsing the index should pay for that. The read
+ * routes stay eager: they are the content.
+ */
 const signInRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/signin',
-  component: SignInPage,
+  component: lazyRouteComponent(() => import('./pages/SignInPage.tsx'), 'SignInPage'),
 });
 const newRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/new',
-  component: NewRecipePage,
+  component: lazyRouteComponent(() => import('./pages/NewRecipePage.tsx'), 'NewRecipePage'),
 });
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -87,7 +94,17 @@ const routeTree = rootRoute.addChildren([
   recipeRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({
+  routeTree,
+  /**
+   * Fetch a lazy route's chunk when the pointer lands on its link, so the
+   * split costs nothing perceptible — by the time the click registers the
+   * code is usually already there.
+   */
+  defaultPreload: 'intent',
+  defaultPreloadDelay: 50,
+  defaultPendingComponent: () => <p className="muted">Loading…</p>,
+});
 
 declare module '@tanstack/react-router' {
   interface Register {

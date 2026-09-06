@@ -3,6 +3,29 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        /**
+         * Pin the libraries every route needs into their own chunks so shipping
+         * app changes doesn't invalidate them — together they are most of the
+         * payload, and they change only when we upgrade a dependency.
+         *
+         * Deliberately narrow: anything not named here falls through to
+         * Rollup's automatic splitting, which is what keeps yaml, zod and the
+         * auth client inside the lazy route chunks that actually use them.
+         * A blanket `node_modules -> vendor` rule would drag them back into the
+         * initial load and undo the route splitting entirely.
+         */
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react';
+          if (id.includes('@tanstack')) return 'tanstack';
+          return undefined;
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     /**

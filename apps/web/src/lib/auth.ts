@@ -1,4 +1,4 @@
-import { createAuthClient } from 'better-auth/react';
+import { createAuthClient } from 'better-auth/client';
 
 /**
  * Same-origin: the dev server proxies `/api/*` to the API without rewriting the
@@ -10,4 +10,9 @@ export const authClient = createAuthClient({
   basePath: '/api/auth',
 });
 
-export const { signIn, signUp, signOut, useSession } = authClient;
+/**
+ * Only the credential flows are exported. Session *state* comes from
+ * `lib/session.ts` via `/api/me`, which keeps this client — and its store — out
+ * of every route that merely reads.
+ */
+export const { signIn, signUp, signOut } = authClient;
