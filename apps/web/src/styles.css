@@ -383,11 +383,34 @@ a.button.secondary {
   margin: 2rem 0 0;
 }
 .tags li {
+  display: flex;
   font-size: 0.78rem;
   color: var(--ink-2);
   border: 1px solid var(--rule);
   border-radius: 999px;
+}
+/*
+ * The `li` draws the pill and the child fills it. Putting the border on both —
+ * which is what happens if the button keeps its own — draws a pill inside a
+ * pill. The child carries the padding so the whole chip is clickable.
+ */
+.tags li > a,
+.tags li > button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: inherit;
   padding: 0.15rem 0.6rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tags li.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.tags li:hover {
+  border-color: var(--accent);
 }
 .source {
   margin-top: 1.25rem;
@@ -595,6 +618,9 @@ a.button.secondary {
 }
 .tags.small li {
   font-size: 0.7rem;
+}
+.tags.small li > a,
+.tags.small li > button {
   padding: 0.1rem 0.45rem;
 }
 .row.center {
@@ -749,6 +775,11 @@ main {
 }
 
 /* --- search --- */
+.topsearch {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
 .topsearch input {
   width: 12rem;
   padding: 0.35rem 0.6rem;
@@ -786,31 +817,12 @@ main {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.tags button {
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 500;
-  padding: 0.15rem 0.55rem;
-  color: var(--ink-2);
-  background: transparent;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  cursor: pointer;
-}
-.tags button.on {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-.tags a {
-  text-decoration: none;
-  color: inherit;
+.tags li .count {
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
 }
 .active-tags {
   margin-bottom: 1rem;
-}
-.active-tags button {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 .card-stars {
   font-variant-numeric: tabular-nums;

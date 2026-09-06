@@ -81,7 +81,7 @@ export function SearchPage() {
       {tag.length > 0 && (
         <ul className="tags active-tags">
           {tag.map((t) => (
-            <li key={t}>
+            <li key={t} className="on">
               <button type="button" onClick={() => toggleTag(t)} aria-label={`Remove tag ${t}`}>
                 {t} ×
               </button>
@@ -148,13 +148,9 @@ export function SearchPage() {
           <h2>Browse by tag</h2>
           <ul className="tags">
             {tags.data.tags.map(({ tag: t, count }) => (
-              <li key={t}>
-                <button
-                  type="button"
-                  className={tag.includes(t) ? 'on' : undefined}
-                  onClick={() => toggleTag(t)}
-                >
-                  {t} <span className="muted">{count}</span>
+              <li key={t} className={tag.includes(t) ? 'on' : undefined}>
+                <button type="button" onClick={() => toggleTag(t)}>
+                  {t} <span className="count">{count}</span>
                 </button>
               </li>
             ))}
