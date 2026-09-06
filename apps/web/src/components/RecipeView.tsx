@@ -1,12 +1,34 @@
-import { formatQuantity, humanizeDuration, type Frontmatter, type Phase } from '@openrecipe/core';
+import {
+  formatQuantity,
+  formatUnit,
+  humanizeDuration,
+  type Frontmatter,
+  type Phase,
+} from '@openrecipe/core';
+import type { ReactNode } from 'react';
 import { TagList } from './TagList.tsx';
 
 /**
  * The read view renders the *derived* step list the API sends, not the raw
  * markdown — the structure is computed once, server-side, from prose the author
  * actually wrote.
+ *
+ * `scaleControl` and `shoppingList` are slots rather than features of this
+ * component: both are about the ingredient list and belong beside it, but
+ * neither is part of what a recipe *is*, and a view of a recipe should still
+ * render without them.
  */
-export function RecipeView({ frontmatter, phases }: { frontmatter: Frontmatter; phases: Phase[] }) {
+export function RecipeView({
+  frontmatter,
+  phases,
+  scaleControl,
+  shoppingList,
+}: {
+  frontmatter: Frontmatter;
+  phases: Phase[];
+  scaleControl?: ReactNode;
+  shoppingList?: ReactNode;
+}) {
   const groups = groupIngredients(frontmatter);
   const times = Object.entries(frontmatter.time ?? {}).filter(([, v]) => typeof v === 'number');
 
@@ -33,6 +55,7 @@ export function RecipeView({ frontmatter, phases }: { frontmatter: Frontmatter; 
       <div className="cols">
         <section>
           <h3>Ingredients</h3>
+          {scaleControl}
           {groups.map(({ group, items }) => (
             <div key={group ?? '_'} className="ing-group">
               {group && <h4>{group}</h4>}
@@ -40,9 +63,7 @@ export function RecipeView({ frontmatter, phases }: { frontmatter: Frontmatter; 
                 {items.map((ing, i) => (
                   <li key={`${ing.item}-${i}`}>
                     <span className="qty">
-                      {ing.qty === null
-                        ? ''
-                        : `${formatQuantity(ing.qty, ing.unit)}${ing.unit ? ` ${ing.unit}` : ''}`}
+                      {ing.qty === null ? '' : formatAmount(ing.qty, ing.unit)}
                     </span>
                     <span className="item">
                       {ing.item}
@@ -56,10 +77,12 @@ export function RecipeView({ frontmatter, phases }: { frontmatter: Frontmatter; 
 
           {frontmatter.equipment?.length ? (
             <>
-              <h3>Equipment</h3>
+              <h3 className="equip-head">Equipment</h3>
               <p className="muted">{frontmatter.equipment.join(', ')}</p>
             </>
           ) : null}
+
+          {shoppingList}
         </section>
 
         <section>
@@ -94,6 +117,11 @@ export function RecipeView({ frontmatter, phases }: { frontmatter: Frontmatter; 
       )}
     </div>
   );
+}
+
+function formatAmount(qty: number, unit: string | undefined): string {
+  const plural = formatUnit(unit, qty);
+  return `${formatQuantity(qty, unit)}${plural ? ` ${plural}` : ''}`;
 }
 
 /** Preserves the author's ordering; groups are a display concern, not a data one. */

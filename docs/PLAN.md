@@ -154,6 +154,9 @@ OpenRecipe/
 │       ├── diff.ts                 # text diff + semantic ingredient/step diff
 │       ├── merge.ts                # 3-way merge, conflict hunks
 │       ├── scale.ts                # yield scaling + unit formatting
+│       ├── convert.ts              # metric <-> US, as a display transform
+│       ├── timers.ts               # durations found in step prose
+│       ├── shopping.ts             # ingredients -> a list you can shop from
 │       └── steps.ts                # body -> derived step list
 │       └── dist/                   # tsc --build output; what api and web import
 ├── docs/PLAN.md
@@ -384,9 +387,34 @@ That last substitution has a consequence: `array_to_tsvector` emits lexemes with
 
 **Stars count everything, unlike `fork_count`.** A star says something about a *person*, not about a child recipe, so there is no hidden row whose existence the number could betray — the only recipes carrying private stars are private ones, which only their owner can see or star. Starring is idempotent, and the count moves only when a row actually appeared; without that guard a double-click inflates a number nothing brings back down.
 
-### Slice 10 — Cook mode & scaling · ~1–2 days
+### Slice 10 — Cook mode & scaling ✅ **done** · ~1–2 days
 Scale by yield or by a single ingredient (baker's percentage for doughs), unit conversion, a step-by-step full-screen cooking view with wake-lock and inline timers parsed from step text, printable view, shopping-list export.
 **Done when:** you cook something from your phone using it. *This is the slice that makes people actually use it — do not let it slip indefinitely.*
+*Shipped:* `convert.ts`, `timers.ts` and `shopping.ts` in core, `scaleFrontmatter` and the two factor helpers alongside them, a scale-and-units control that lives with the ingredients, a shopping list you can tick, copy or download, a print stylesheet, and `/:owner/:slug/cook` — one step at a time, wake-locked, with timers tapped straight out of the prose. 52 new core tests, 13 in the web. **No API change at all:** every endpoint this slice needed already existed.
+
+**Scaling is a lens, not an edit.** It lives in the query string, mints no version, and survives nothing but the link you send. The alternative — a "scale and save" button — turns every reader who wanted a half batch into a fork, and turns the version history of a recipe into a log of people's dinner-party sizes.
+
+**Everything resolves to one number.** A yield target and an ingredient target are two ways of asking the same question, so `yieldFactor` and `ingredientFactor` answer it in the same currency and the UI holds a single piece of state. The ingredient anchor works off the *displayed* quantity rather than the authored one, which is what lets "I have 1½ lb of flour" work while the page is showing pounds.
+
+**`scaleFrontmatter` exists for the bundle.** Scaling a `RecipeDoc` means holding a parsed document, and parsing drags yaml and zod into a page whose whole point is that readers do not pay for the editor. The frontmatter is all scaling touches, and the read view already has it.
+
+**Mass never becomes volume.** That conversion needs a density per ingredient, and a wrong one ruins the bake without saying anything. `convertQuantity` returns `null` rather than guessing, and cloves, pinches and knobs pass through untouched — there is no honest number to give them.
+
+**Converted amounts snap to the fractions the measures are marked in.** 236.588 ml is arithmetically right and useless in a kitchen; ⅛ and ⅓ are what a measuring spoon actually has. Two rules follow: a positive quantity never rounds to zero (a scaled-down ⅛ tsp must not come back as `0 tsp`), and pints stay out of the US ladder, because a US pint is 16 fl oz and an imperial one is 20.
+
+**Timers are read out of the prose, like the step list.** `findTimers` reports offsets, so the phrase that becomes a button is the author's own — "bake for 20–25 minutes" never becomes "bake 20:00". Three decisions carry it: a range starts at its *near* end, because a timer that fires at 25 fires too late; `1 hour 30 minutes` merges into one timer rather than two; and the trailing `\b` on the unit is what keeps `5 mm` and `200 g` out of a feature that would otherwise be unusable in any recipe that mentions a pan.
+
+**Nobody picks "as written", so the recipe picks for them.** The units control started as three choices — as-written, metric, US — which asked every reader to answer a question about a document they had not read yet. `detectSystem` reads the answer off the ingredients instead: the recipe's own system is the one selected on arrival, and selecting it means no conversion at all, so what you see by default is exactly what the author typed. Two buttons, and the default is right.
+
+**Spoons get no vote, and never get converted.** `tsp` and `tbsp` are US-customary by definition and universal in practice, so a gram-and-millilitre recipe that opens with a teaspoon of vanilla would be labelled American by any rule that counted them. They are excluded from the detection vote for that reason, and excluded from conversion for a stronger one: `1 tsp baking soda` is an instruction anyone can act on, and `4.93 ml` is the same instruction made unusable. The ladder only ever runs on the units a second kitchen genuinely cannot use.
+
+**The scale control moved to the ingredients, and the header lost five buttons.** Above the recipe it was a banner every reader had to get past to reach the food; beside the ingredient list it is a control next to the numbers it changes. The header keeps Cook, Edit and the star, and everything occasional — fork, history, forks, raw, print, shopping list, visibility — went into one overflow menu. A reader who came here to cook should not have to read past eight buttons to find out what is in it.
+
+**The wake lock is re-acquired on `visibilitychange`.** The browser drops it whenever the tab hides and does not give it back, so checking a message would otherwise leave the screen sleeping for the rest of the cook.
+
+**Cook mode is a route, and paging through it replaces rather than pushes.** A route survives a refresh and can be sent as a link; `replace: true` means the way out of step eleven is the page you came in from, not eleven presses of the back button.
+
+**The shopping list is built from what the page is showing.** A list for a half batch that quotes the full one is worse than no list. Same item across two groups sums; mass and volume of the same thing stay two lines for the reason above; and an unmeasured ingredient is qualified with the author's own note — `rosemary (optional)`, not `rosemary (to taste)`.
 
 ### Slice 11 — Images · ~1 day
 Presigned uploads to S3/R2, a hero image plus per-step images referenced from frontmatter, EXIF stripping, size/type limits, thumbnails.

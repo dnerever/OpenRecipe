@@ -280,7 +280,17 @@ a.button.secondary {
 
 /* --- recipe read view --- */
 .recipe-head {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+}
+.recipe-head h1 {
+  font-size: 2rem;
+}
+.recipe-head .lede {
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
+}
+.recipe-head .row {
+  margin-top: 1rem;
 }
 .crumb {
   margin: 0 0 0.5rem;
@@ -301,8 +311,8 @@ a.button.secondary {
   flex-wrap: wrap;
   gap: 1.5rem;
   list-style: none;
-  margin: 0 0 2rem;
-  padding: 0.9rem 0;
+  margin: 0 0 1.5rem;
+  padding: 0.7rem 0;
   font-size: 0.92rem;
   border-top: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);
@@ -340,6 +350,9 @@ a.button.secondary {
 .cols h4 {
   font-size: 0.95rem;
   margin: 1.1rem 0 0.4rem;
+}
+.equip-head {
+  margin-top: 1.5rem;
 }
 .ingredients {
   list-style: none;
@@ -841,4 +854,407 @@ button.star.on {
   margin: 0 0 1.5rem;
   font-size: 0.88rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* --- scale control (lives with the ingredients) --- */
+.ing-scale {
+  margin: 0 0 1rem;
+}
+.ing-scale-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ing-scale-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.segmented {
+  display: flex;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.segmented button {
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 0.3rem 0.7rem;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+.segmented.small button {
+  font-size: 0.8rem;
+  padding: 0.22rem 0.5rem;
+}
+.segmented button + button {
+  border-left: 1px solid var(--rule);
+}
+.segmented button.on {
+  color: var(--paper);
+  background: var(--accent);
+}
+.ing-scale .linkish {
+  font-size: 0.8rem;
+}
+.numfield {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+.numfield input {
+  width: 4rem;
+  padding: 0.2rem 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+.numfield .unit {
+  color: var(--ink-2);
+}
+.anchor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.anchor select {
+  font: inherit;
+  font-size: 0.85rem;
+  max-width: 9rem;
+  padding: 0.2rem 0.4rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+}
+.scale-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+}
+.scale-note .linkish {
+  font-size: 0.8rem;
+}
+
+/* --- overflow menu --- */
+.more {
+  position: relative;
+}
+.more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.more > summary::-webkit-details-marker {
+  display: none;
+}
+.more > summary::after {
+  content: ' ▾';
+  font-size: 0.8em;
+}
+.more-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  padding: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+.more-menu button,
+.more-menu .button,
+.more-menu a.button {
+  width: 100%;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+}
+.more-menu button:hover,
+.more-menu .button:hover {
+  background: var(--paper);
+  color: var(--accent);
+}
+.more-menu .bad {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* --- shopping list --- */
+.shopping {
+  margin-top: 1.5rem;
+  padding: 1rem;
+}
+.shopping h2 {
+  margin: 0;
+}
+.checklist {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+.checklist li {
+  border-bottom: 1px solid var(--rule);
+}
+.checklist label {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  font-size: 0.94rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.checklist label.got span {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+.checklist input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+}
+
+/* --- cook mode --- */
+.cook {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+.cook-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+.cook-head h1 {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+/* The name is what gets clipped on a narrow phone; the scale badge must not,
+   because it is the one thing on this screen that changes the numbers. */
+.cook-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cook-progress {
+  height: 3px;
+  background: var(--rule);
+}
+.cook-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease-out;
+}
+.cook-ingredients {
+  max-height: 40vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.5rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+.cook-step {
+  flex: 1;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+.cook-where {
+  margin: 0 0 1rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.cook-text {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.timer-chip {
+  font: inherit;
+  padding: 0 0.15rem;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  border-bottom: 2px dotted var(--accent);
+  border-radius: 0;
+  cursor: pointer;
+}
+.timer-chip::before {
+  content: '⏱ ';
+  font-size: 0.85em;
+}
+.timer-tray {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+  background: var(--surface);
+}
+.timer-tray li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.timer-tray .timer-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.2rem;
+  font-weight: 600;
+  min-width: 4.5rem;
+}
+.timer-tray .timer-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timer-tray .timer-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  transition: width 0.5s linear;
+}
+.timer-tray li.done {
+  background: var(--accent);
+  color: var(--paper);
+  animation: timer-flash 1s steps(1) 3;
+}
+.timer-tray li.done .timer-label {
+  color: var(--paper);
+}
+.timer-tray li.done .secondary {
+  color: var(--paper);
+  border-color: var(--paper);
+}
+@keyframes timer-flash {
+  50% {
+    background: var(--surface);
+    color: var(--ink);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .timer-tray li.done {
+    animation: none;
+  }
+  .cook-progress span,
+  .timer-tray .timer-bar {
+    transition: none;
+  }
+}
+.cook-foot {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--rule);
+  background: var(--surface);
+}
+.cook-foot button {
+  min-width: 6.5rem;
+  padding: 0.7rem 1.2rem;
+}
+.cook-foot .cook-hint {
+  flex: 1;
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+/* --- print --- */
+.print-only {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 16mm;
+  }
+  :root {
+    --paper: #fff;
+    --surface: #fff;
+    --ink: #000;
+    --ink-2: #444;
+    --rule: #bbb;
+    --accent: #000;
+  }
+  .topbar,
+  .ing-scale,
+  .more,
+  .recipe-head .row,
+  .shopping,
+  .notice,
+  .version-line,
+  .forked-from,
+  .tags {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+  main {
+    max-width: none;
+    padding: 0;
+  }
+  h1 {
+    font-size: 1.8rem;
+  }
+  .lede {
+    margin-bottom: 1rem;
+  }
+  .cols {
+    gap: 1.5rem;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  /* A step or an ingredient split across two pages is a step you lose. A whole
+     phase is not: keeping one together pushes the entire method to page two
+     and leaves half a page of nothing behind it. */
+  .steps li,
+  .ingredients li {
+    break-inside: avoid;
+  }
 }

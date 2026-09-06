@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatDuration, humanizeDuration, parseDuration } from './duration.ts';
+import { formatClock, formatDuration, humanizeDuration, parseDuration } from './duration.ts';
 
 describe('parseDuration', () => {
   const cases: [string, number | null][] = [
@@ -55,5 +55,17 @@ describe('humanizeDuration', () => {
     assert.equal(humanizeDuration(1440), '1 day');
     assert.equal(humanizeDuration(2880), '2 days');
     assert.equal(humanizeDuration(0), 'none');
+  });
+});
+
+describe('formatClock', () => {
+  it('counts down in seconds', () => {
+    assert.equal(formatClock(300), '5:00');
+    assert.equal(formatClock(59), '0:59');
+    assert.equal(formatClock(3660), '1:01:00');
+  });
+
+  it('never shows a negative clock', () => {
+    assert.equal(formatClock(-5), '0:00');
   });
 });

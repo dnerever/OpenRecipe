@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { parseRecipe } from './parse.ts';
-import { formatQuantity, scaleRecipe, scaleToIngredient, scaleToYield } from './scale.ts';
+import {
+  formatQuantity,
+  formatUnit,
+  ingredientFactor,
+  scalableIngredients,
+  scaleFrontmatter,
+  scaleRecipe,
+  scaleToIngredient,
+  scaleToYield,
+  yieldFactor,
+} from './scale.ts';
 
 const doc = parseRecipe(`---
 schema: 1
@@ -102,5 +112,58 @@ describe('formatQuantity', () => {
 
   it('renders nothing for a to-taste quantity', () => {
     assert.equal(formatQuantity(null, 'g'), '');
+  });
+});
+
+describe('scaleFrontmatter', () => {
+  it('scales without a body, which is all the read view has', () => {
+    const fm = scaleFrontmatter(doc.frontmatter, 2);
+    assert.equal(fm.yield?.count, 4);
+    assert.equal(fm.ingredients[0]?.qty, 1000);
+  });
+
+  it('returns the same frontmatter for a factor of 1', () => {
+    assert.equal(scaleFrontmatter(doc.frontmatter, 1), doc.frontmatter);
+  });
+
+  it('rejects a non-positive factor', () => {
+    assert.throws(() => scaleFrontmatter(doc.frontmatter, 0), RangeError);
+  });
+});
+
+describe('factors', () => {
+  it('resolves a yield to the multiplier it implies', () => {
+    assert.equal(yieldFactor(doc.frontmatter, 3), 1.5);
+  });
+
+  it('resolves an ingredient target to the multiplier it implies', () => {
+    assert.equal(ingredientFactor(doc.frontmatter, 'bread flour', 750), 1.5);
+  });
+
+  it('offers only the ingredients that can anchor a scale', () => {
+    assert.deepEqual(
+      scalableIngredients(doc.frontmatter).map((i) => i.item),
+      ['bread flour', 'water', 'salt'],
+    );
+  });
+});
+
+describe('formatUnit', () => {
+  it('pluralizes spelled-out units', () => {
+    assert.equal(formatUnit('cup', 2), 'cups');
+    assert.equal(formatUnit('clove', 3), 'cloves');
+    assert.equal(formatUnit('pinch', 2), 'pinches');
+  });
+
+  it('leaves abbreviations alone — `2 gs` reads as a bug', () => {
+    assert.equal(formatUnit('g', 500), 'g');
+    assert.equal(formatUnit('tbsp', 4), 'tbsp');
+    assert.equal(formatUnit('ml', 60), 'ml');
+  });
+
+  it('keeps the singular for one, and for a quantity there is none of', () => {
+    assert.equal(formatUnit('cup', 1), 'cup');
+    assert.equal(formatUnit('cup', null), 'cup');
+    assert.equal(formatUnit(undefined, 2), '');
   });
 });

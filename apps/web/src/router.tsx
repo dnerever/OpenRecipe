@@ -12,6 +12,7 @@ import { BrowsePage } from './pages/BrowsePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
 import { useCurrentUser, useSignOut } from './lib/session.ts';
+import { parseCookSearch } from './lib/cook-options.ts';
 import type { SearchSort } from './lib/api.ts';
 
 /**
@@ -140,10 +141,28 @@ const profileRoute = createRoute({
   path: '/$handle',
   component: ProfilePage,
 });
+/**
+ * Scale and units are search params on the read route and inherited by cook
+ * mode, so "half of this, in cups" is a link — and so nothing about how you are
+ * reading a recipe is hidden in state the address bar cannot describe.
+ */
 const recipeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$handle/$slug',
+  validateSearch: (search: Record<string, unknown>) => parseCookSearch(search),
   component: RecipePage,
+});
+const cookRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$handle/$slug/cook',
+  validateSearch: (search: Record<string, unknown>) => {
+    const step = Number(search['step']);
+    return {
+      ...parseCookSearch(search),
+      ...(Number.isInteger(step) && step > 0 ? { step } : {}),
+    };
+  },
+  component: lazyRouteComponent(() => import('./pages/CookPage.tsx'), 'CookPage'),
 });
 /**
  * Editing and history are lazy for the same reason `/new` is: both pull in the
@@ -174,6 +193,7 @@ const routeTree = rootRoute.addChildren([
   newRoute,
   profileRoute,
   recipeRoute,
+  cookRoute,
   editRoute,
   historyRoute,
   forksRoute,

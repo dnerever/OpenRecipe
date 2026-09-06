@@ -26,12 +26,12 @@ are green, your stack is working.
 
 ## Layout
 
-| Path            | What                                                                                |
-| --------------- | ----------------------------------------------------------------------------------- |
-| `packages/core` | **Pure** recipe-document logic: parse, serialize, hash, diff, merge, scale. No I/O. |
-| `apps/api`      | Hono API on Node, Drizzle + Postgres.                                               |
-| `apps/web`      | Vite + React SPA.                                                                   |
-| `docs/PLAN.md`  | Architecture decisions and the 12-slice build plan.                                 |
+| Path            | What                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| `packages/core` | **Pure** recipe-document logic: parse, serialize, hash, diff, merge, scale, convert. No I/O. |
+| `apps/api`      | Hono API on Node, Drizzle + Postgres.                                                        |
+| `apps/web`      | Vite + React SPA.                                                                            |
+| `docs/PLAN.md`  | Architecture decisions and the 12-slice build plan.                                          |
 
 `packages/core` compiles to `dist/` and both apps import the built output —
 Node's TypeScript type-stripping skips `node_modules`, and workspace packages
@@ -72,8 +72,15 @@ suffix `-2`, `-3`, … on collision. Anything that could become a top-level rout
 | ---------------------------------- | ------------------------------- |
 | `/{handle}`                        | A cook's recipes                |
 | `/{handle}/{slug}`                 | A recipe                        |
+| `/{handle}/{slug}/cook`            | Cook mode — one step at a time  |
 | `/new`                             | Write a recipe                  |
 | `/api/recipes/{handle}/{slug}/raw` | The recipe as portable Markdown |
+
+`?scale=` and `?units=metric|us` on a recipe are a _view_ of it: they scale and
+convert what you are reading, mint no version, and are inherited by cook mode.
+Leave them off and you get exactly what the author wrote: the units control
+starts on whichever system the recipe was written in, which `detectSystem` reads
+off its own ingredients.
 
 Handles sit at the top level, which is why the API reserves every word that
 could become a route.

@@ -57,6 +57,20 @@ export function humanizeDuration(minutes: number): string {
   return parts.join(' ');
 }
 
+/**
+ * A running clock: `4:30`, `1:05:00`. Seconds rather than minutes, because a
+ * countdown that cannot show the last thirty seconds is not a countdown.
+ */
+export function formatClock(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(secs)}` : `${minutes}:${pad(secs)}`;
+}
+
 export function durationIssue(path: string, value: string): RecipeIssue {
   return {
     path,

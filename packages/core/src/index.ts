@@ -25,9 +25,44 @@ export {
   type IngredientField,
 } from './diff.ts';
 export { describeChange, isHeadline } from './describe-change.ts';
-export { scaleRecipe, scaleToYield, scaleToIngredient, formatQuantity } from './scale.ts';
-export { parseDuration, formatDuration, humanizeDuration } from './duration.ts';
-export { normalizeUnit, unitSystem, prefersFractions, type UnitSystem } from './units.ts';
+export {
+  scaleRecipe,
+  scaleFrontmatter,
+  scaleToYield,
+  scaleToIngredient,
+  yieldFactor,
+  ingredientFactor,
+  scalableIngredients,
+  formatQuantity,
+  formatUnit,
+} from './scale.ts';
+export {
+  detectSystem,
+  convertQuantity,
+  convertIngredient,
+  convertFrontmatter,
+  convertRecipe,
+  expressBaseAmount,
+  roundQuantity,
+} from './convert.ts';
+export { findTimers, splitOnTimers, type StepTimer, type StepSegment } from './timers.ts';
+export {
+  buildShoppingList,
+  formatShoppingList,
+  formatShoppingItem,
+  type ShoppingAmount,
+  type ShoppingItem,
+} from './shopping.ts';
+export { parseDuration, formatDuration, humanizeDuration, formatClock } from './duration.ts';
+export {
+  normalizeUnit,
+  unitSystem,
+  unitBase,
+  unitRegion,
+  prefersFractions,
+  type UnitSystem,
+  type MeasurementSystem,
+} from './units.ts';
 export { normalizeBody } from './body.ts';
 export type {
   Frontmatter,
