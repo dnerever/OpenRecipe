@@ -42,6 +42,32 @@ runs the compute, so changing hosts never moves data. See *Moving hosts* below.
 Free plan: 0.5 GB storage, 100 CU-hours/month, autosuspend after ~5 minutes
 idle. A recipe is roughly 2 KB, so storage is not a constraint you will meet.
 
+### Where the connection string lives
+
+**Render's environment variables are the system of record.** That is the only
+place it has to exist.
+
+**Do not put it in `.env`.** That file is what `npm run dev` and `npm test` read,
+and the test teardown runs `DELETE FROM users`. A production URL sitting there is
+one `npm test` away from data loss. (`apps/api/src/test-guard.ts` now refuses to
+run the suite against a non-local host, but do not rely on the net.)
+
+For the occasional one-off against production, fetch the credential rather than
+storing it:
+
+```bash
+# from the Neon console, or once the CLI is linked:
+DATABASE_URL="$(neon connection-string production --pooled)" npm run db:migrate
+```
+
+If you must keep it on disk, use a file that nothing loads automatically —
+`.env.production.local`, covered by `.gitignore` — and pass it explicitly with
+`node --env-file=.env.production.local`. Never `.env`.
+
+**If it leaks**, rotate it: Neon console → Roles → `neondb_owner` → Reset
+password, then update Render. Rotation is cheap; treat it as the first response
+rather than the last.
+
 ## 2. The service (Render)
 
 1. Sign up at [render.com](https://render.com) with GitHub.
