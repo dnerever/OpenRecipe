@@ -43,7 +43,19 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/
+#
+# The prune is part of *this* RUN on purpose. Layers are additive, so deleting
+# a file in a later step leaves it in the image and only adds a whiteout entry
+# — the bytes come back on every pull. Removed here, they are never committed.
+#
+# Type declarations and source maps are half the installed bytes (24.6 MB of
+# 49.5 MB) and 5,500 of its 10,500 files. Node resolves neither at runtime:
+# .d.ts is a compile-time artifact, and maps are inert unless something passes
+# --enable-source-maps, which nothing here does. Licences stay.
 RUN npm ci --omit=dev --omit=optional \
+ && find node_modules -type f \
+      \( -name '*.d.ts' -o -name '*.d.cts' -o -name '*.d.mts' -o -name '*.map' \) \
+      -delete \
  && npm cache clean --force
 
 # sharp ships its native libvips as *optional* platform packages, and the
