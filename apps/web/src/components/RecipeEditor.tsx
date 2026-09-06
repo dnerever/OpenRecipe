@@ -1,28 +1,27 @@
 import { safeParseRecipe, type RecipeDoc } from '@openrecipe/core';
 import { useMemo } from 'react';
 import type { RecipeIssueWire } from '../lib/api.ts';
+import { SourceEditor } from './SourceEditor.tsx';
 
 export { STARTER_RECIPE } from '../lib/starter-recipe.ts';
 
 /**
- * A plain textarea, not CodeMirror.
- *
- * CodeMirror earns its weight through decorations — diff gutters and conflict
- * markers — and neither exists until Slices 5 and 7. Until then a textarea plus
- * the parser's own line numbers gives the same feedback for a fraction of the
- * bundle. See docs/PLAN.md.
+ * The source pane plus a live reading of it.
  *
  * Validation runs against `@openrecipe/core` directly: the same parser the
- * server uses, so the browser cannot disagree with it.
+ * server uses, so the browser cannot disagree with it. Passing `baseline` turns
+ * on the editor's change gutter — see SourceEditor.
  */
 export function RecipeEditor({
   value,
   onChange,
   serverIssues,
+  baseline,
 }: {
   value: string;
   onChange: (next: string) => void;
   serverIssues?: RecipeIssueWire[] | undefined;
+  baseline?: string | undefined;
 }) {
   const parsed = useMemo(() => safeParseRecipe(value), [value]);
 
@@ -38,16 +37,15 @@ export function RecipeEditor({
   return (
     <div className="editor">
       <div className="editor-pane">
-        <label htmlFor="recipe-source">
-          Recipe source <span className="hint">YAML frontmatter, then Markdown</span>
-        </label>
-        <textarea
-          id="recipe-source"
-          value={value}
-          spellCheck={false}
-          onChange={(e) => onChange(e.target.value)}
-          rows={26}
-        />
+        <p className="editor-label">
+          Recipe source{' '}
+          <span className="hint">
+            {baseline === undefined
+              ? 'YAML frontmatter, then Markdown'
+              : 'lines you have changed are marked in the gutter'}
+          </span>
+        </p>
+        <SourceEditor value={value} onChange={onChange} baseline={baseline} />
       </div>
 
       <div className="editor-pane">

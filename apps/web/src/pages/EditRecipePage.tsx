@@ -90,7 +90,12 @@ export function EditRecipePage() {
         Saving writes a new version. Nothing you have already saved is overwritten.
       </p>
 
-      <RecipeEditor value={content} onChange={setDraft} serverIssues={serverIssues} />
+      <RecipeEditor
+        value={content}
+        onChange={setDraft}
+        serverIssues={serverIssues}
+        baseline={data.content}
+      />
 
       <div className="publish">
         <label>

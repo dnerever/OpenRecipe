@@ -412,21 +412,24 @@ a.button.secondary {
   flex-direction: column;
   gap: 0.4rem;
 }
-.editor textarea {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.82rem;
-  line-height: 1.6;
-  padding: 0.8rem;
-  tab-size: 2;
-  resize: vertical;
-  color: var(--ink);
-  background: var(--surface);
+.editor-label {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+/* The editor is scrolled, not grown — a long recipe must not push the
+   validation pane out of sight, since that pane is the point of the layout. */
+.source-editor {
   border: 1px solid var(--rule);
   border-radius: 5px;
+  overflow: hidden;
+  background: var(--paper);
 }
-.editor textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.source-editor .cm-editor {
+  max-height: 34rem;
+}
+.source-editor .cm-scroller {
+  overflow: auto;
 }
 .editor-status {
   margin: 0;

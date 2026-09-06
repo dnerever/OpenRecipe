@@ -21,6 +21,13 @@ export default defineConfig({
           if (!id.includes('node_modules')) return undefined;
           if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react';
           if (id.includes('@tanstack')) return 'tanstack';
+          /**
+           * CodeMirror is only ever reachable from the two lazy editor routes,
+           * so naming it here does not pull it into the initial load — it just
+           * stops the largest dependency in the app from being re-downloaded
+           * every time the editor's own code changes.
+           */
+          if (/[\\/]node_modules[\\/]@(codemirror|lezer)[\\/]/.test(id)) return 'codemirror';
           return undefined;
         },
       },

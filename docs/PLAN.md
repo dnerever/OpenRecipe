@@ -119,7 +119,7 @@ Node 24.20 locally. Built-in test runner (`node --test`), native TS type-strippi
 | Web | Vite + React 19 + TypeScript |
 | Routing/data | TanStack Router + TanStack Query |
 | UI | Tailwind + shadcn/ui |
-| Editor | textarea + core's line-numbered validation; CodeMirror 6 lands in Slice 6, where decorations start paying for themselves |
+| Editor | CodeMirror 6 — YAML frontmatter over Markdown, core's line-numbered validation, and a change gutter against the version you started from (Slice 6) |
 | Objects | MinIO locally → R2 in prod (Slice 11) |
 | Hosting | Render free (one Docker service) + Neon free Postgres — $0/mo |
 | Tests | `node --test` (core + api), Playwright (2–3 critical flows) |
@@ -294,7 +294,7 @@ Also lands `canRead` / `canWrite` and the optional-viewer middleware that every 
 
 **Two corrections to this plan came out of the slice:**
 - **Recipes live at `/{handle}/{slug}`, not `/r/{owner}/{slug}`.** The reserved-handle blocklist from Slice 2 only makes sense if handles are top-level, and they should be — it is the GitHub shape people already know.
-- **The editor is a textarea, not CodeMirror.** CodeMirror earns its weight through decorations — diff gutters and conflict markers — and neither exists before Slices 6 and 8. Until then the parser's own line numbers give identical feedback for a fraction of the bundle. It lands in Slice 6.
+- **The editor is a textarea, not CodeMirror.** CodeMirror earns its weight through decorations — diff gutters and conflict markers — and neither exists before Slices 6 and 8. Until then the parser's own line numbers give identical feedback for a fraction of the bundle. It lands in Slice 6. *(It did: see Slice 6.)*
 
 ### Slice 4 — Public index ✅ **done** · ~1 day
 The site's front door. `GET /api/recipes` returns every **public** recipe, newest activity first, keyset-paginated — no auth required. `/` becomes a real browse page: a grid of recipe cards showing title, description, owner, tags and total time, with "Load more". Sign-in moves to its own `/signin` route instead of squatting on the home page.
@@ -338,9 +338,18 @@ Four rules keep the host swappable, because the free plan's cold starts will eve
 **Two things this slice caught.** `index.html` was being served by the static middleware before the no-cache handler ran — a deploy would have left browsers holding a shell pointing at chunks that no longer existed. And better-auth declares `drizzle-kit` as an *optional peer*, which npm installs regardless of `--omit=dev`; 42 MB of migration tooling was riding along in the runtime image, which on a free tier is pull time on every cold start.
 *Pulled this far forward deliberately — you asked to deploy shortly after local works, and continuous deployment from here is far cheaper than a big-bang launch later.*
 
-### Slice 6 — Edit, history, diff, revert · ~2 days
+### Slice 6 — Edit, history, diff, revert ✅ **done** · ~2 days
 `PUT` creates a version and advances head (no-op guard on identical hash). History timeline. Diff view: unified/split text diff plus a **semantic layer** — "hydration 75% → 78%", "added: 20g fine sea salt", "step 3 reworded". Revert creates a *new* version restoring old content; history is never rewritten.
 **Done when:** you can edit a recipe five times, read the history, diff any two points, and revert — and the semantic diff tells you something a text diff wouldn't.
+*Shipped:* `diff.ts` and `describe-change.ts` in core, five version endpoints, and three lazy web routes — edit, history, and the diff hanging off it. 346 tests. Verified against a live local server: five edits, full history, root→head diff, and a revert that restored the old title while leaving all six earlier versions in place.
+
+**Three things worth recording.**
+
+- **The semantic layer is the reason the slice exists.** A line diff can only ever say "this YAML line changed". It cannot say *hydration 75% → 91.1%*, because hydration is a ratio over the whole ingredient list and belongs to no single line. Same for a rescale: doubling a recipe is eight changed quantities to a text diff and one fact to a cook, so `summarizeDiff` collapses it to "Scaled the whole recipe 2×". The UI puts that layer above the `-`/`+` block, which becomes the audit trail rather than the headline.
+
+- **Ingredient identity is `(group, item, nth)`, not `item`.** Keying on the name alone collapsed the two `bread flour` entries in the Tartine loaf — one in the Levain, one in the Dough — so the dough's flour was diffed against the levain's. That turned "doubled the recipe" into a page of nonsense quantity changes *and* stopped rescale detection from firing. The fixture corpus caught it; there is a regression test.
+
+- **CodeMirror finally earned its place, and it is expensive.** The decoration that justifies it is the change gutter: while you edit, the lines that differ from the version you started from are marked, computed with the same `diffText` the diff view uses. It costs **119 kB gzip**, in its own chunk, reachable only from the two lazy editor routes — the initial load is byte-for-byte unchanged. `@codemirror/lang-markdown` was the trap: it statically imports `@codemirror/lang-html`, and so `lang-javascript` and `lang-css`, to highlight embedded HTML a recipe will never contain. Using `commonmarkLanguage` directly instead of `markdown()` leaves that whole subtree unreferenced and saves 65 kB gzip.
 
 ### Slice 7 — Fork 🎯 **Objective 2** · ~1 day
 `POST /fork` creates a recipe under the caller with `fork_parent_recipe_id` + `fork_point_version_id`; the new head's `parent_version_id` points at the upstream version. "Forked from @owner/slug" attribution on the read view, fork counts, a fork list.
