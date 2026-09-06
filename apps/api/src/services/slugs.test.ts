@@ -5,9 +5,9 @@ import { RESERVED_SLUGS, slugify, validateSlug } from './slugs.ts';
 describe('slugify', () => {
   const cases: [string, string][] = [
     ['Tartine Country Loaf', 'tartine-country-loaf'],
-    ['Ragù alla Bolognese', 'ragu-alla-bolognese'],
+    ['Ragù di Funghi e Noci', 'ragu-di-funghi-e-noci'],
     ['  Spaced   Out  ', 'spaced-out'],
-    ['Century Egg & Pork Congee', 'century-egg-pork-congee'],
+    ['Shiitake & Ginger Congee', 'shiitake-ginger-congee'],
     ['粥', 'recipe'],
     ['', 'recipe'],
     ['---', 'recipe'],

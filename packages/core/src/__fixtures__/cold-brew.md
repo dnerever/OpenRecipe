@@ -15,4 +15,4 @@ Stir the grounds into the water until every particle is wet. Cover.
 Steep 16 hours at room temperature. Longer gets bitter, not stronger.
 
 Strain through a fine sieve, then again through a filter. Keeps 2 weeks
-refrigerated. Cut 1:1 with water or milk to serve.
+refrigerated. Cut 1:1 with water or oat milk to serve.

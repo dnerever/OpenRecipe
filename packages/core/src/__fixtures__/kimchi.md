@@ -1,20 +1,22 @@
 ---
 schema: 1
 title: Baechu Kimchi
-description: Napa cabbage kimchi. Ferments at room temperature, then lives in the fridge for months.
+description: Napa cabbage kimchi with no fish sauce — kelp and doenjang carry the savoury weight instead.
 yield: { count: 2, unit: quart }
 time: { prep: 1h, active: 30m, total: 72h }
 ingredients:
-  - { qty: 2, unit: ea, item: napa cabbage, note: about 2kg total }
+  - { qty: 2, unit: ea, item: napa cabbage, note: "about 2kg total" }
   - { qty: 150, unit: g, item: coarse sea salt }
   - { qty: 1, unit: ea, item: daikon radish, note: julienned }
   - { qty: 60, unit: g, item: gochugaru }
   - { qty: 6, unit: clove, item: garlic }
   - { qty: 20, unit: g, item: ginger }
-  - { qty: 60, unit: ml, item: fish sauce }
+  - { qty: 2, unit: tbsp, item: doenjang }
+  - { qty: 10, unit: g, item: dried kelp, note: "kombu, for the broth" }
   - { qty: 2, unit: tbsp, item: glutinous rice flour }
+  - { qty: 1, unit: tbsp, item: soy sauce }
   - { qty: 4, unit: ea, item: spring onions }
-tags: [fermentation, korean, pickles]
+tags: [fermentation, korean, vegan, pickles]
 ---
 
 ## Salt the cabbage
@@ -25,8 +27,11 @@ and drain an hour.
 
 ## Porridge and paste
 
-Whisk the rice flour into 250ml water and simmer until it thickens, then cool.
-Blend it with the gochugaru, garlic, ginger and fish sauce.
+Steep the kelp in 250ml cold water for 30 minutes, then bring to a bare simmer
+and pull the kelp out before it boils. Whisk in the rice flour and cook until it
+thickens, then cool.
+
+Blend the porridge with the gochugaru, garlic, ginger, doenjang and soy sauce.
 
 ## Combine and ferment
 
