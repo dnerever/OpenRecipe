@@ -119,6 +119,49 @@ expect.
 
 ---
 
+## Shipping a change
+
+```bash
+git push origin main
+```
+
+That is the whole deploy. `render.yaml` sets `autoDeploy: true`, so Render
+watches the repo, builds the image **itself** from the `Dockerfile`, runs the
+migrations, and swaps the service over. Three to five minutes on the free plan.
+
+Watch it on the service page under **Events** and **Logs**.
+
+**A local `docker build` is not the artifact.** Render never sees an image built
+on your machine — it always builds its own from the same `Dockerfile`. Building
+locally before a push is worth it anyway when a change adds a migration or
+touches the build: it fails in ten seconds on your laptop instead of five
+minutes into a release.
+
+```bash
+docker build -t openrecipe:check .
+docker run --rm openrecipe:check ls apps/api/dist/db/migrations   # .sql files present?
+```
+
+That second command is the one that matters, because `tsc` emits `.js` but not
+the `.sql` files beside it — the `Dockerfile` copies them explicitly, and that
+copy is the step most likely to be forgotten when the migrations folder moves.
+
+**Migrations are part of the release, not a separate step.** The container's
+`CMD` is `migrate && start`, so a migration that fails takes the *new* container
+down and leaves the old one serving. You get a failed deploy rather than a
+running server against a schema it does not expect.
+
+**Manual redeploy**, when there is no commit to push — after editing an
+environment variable by hand, say: service page → **Manual Deploy** → *Deploy
+latest commit*. Changing an env var through Render's UI already triggers a
+redeploy on its own, so this is mostly for retrying a build.
+
+**Rolling back**: service page → **Events** → find the previous successful
+deploy → *Rollback*. Note that this rolls back the *code*, not the database —
+a migration that has already run stays run. Write migrations so the previous
+release can still function against the new schema, which for everything so far
+has been free: every migration to date has only added tables and columns.
+
 ## Living with the free plan
 
 **Cold starts.** Render's free plan sleeps the service after 15 minutes of
