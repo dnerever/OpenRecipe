@@ -1,8 +1,11 @@
 import {
   deriveSteps,
+  diffHunks,
+  diffRecipes,
   hashContent,
   parseRecipe,
   serializeRecipe,
+  summarizeDiff,
   type RecipeDoc,
 } from '@openrecipe/core';
 import { and, desc, eq, lt, or, sql as raw } from 'drizzle-orm';
@@ -304,4 +307,187 @@ export async function countPublicRecipes(db: Db): Promise<number> {
     .from(recipes)
     .where(eq(recipes.visibility, 'public'));
   return row?.count ?? 0;
+}
+
+/* ------------------------------------------------------------- versions -- */
+
+/** Raised when a write would produce a version identical to the current head. */
+export class NoChangesError extends Error {
+  readonly status = 409 as const;
+  constructor() {
+    super('no_changes');
+    this.name = 'NoChangesError';
+  }
+}
+
+/**
+ * Writes a new version and advances the head.
+ *
+ * The no-op guard compares hashes of the *canonical* form, so reformatting a
+ * recipe without changing it does not mint a version. That is the whole reason
+ * the hash is taken over the serializer's output rather than the submitted text.
+ */
+export async function updateRecipe(
+  db: Db,
+  ownerHandle: string,
+  slug: string,
+  viewer: Viewer,
+  author: User,
+  input: { content: string; message?: string | undefined },
+): Promise<LoadedRecipe> {
+  const existing = await loadRecipe(db, ownerHandle, slug, viewer);
+  assertCanWrite(existing.recipe, viewer);
+
+  const { doc, canonical, title, description, tags, totalTimeMinutes } = normalize(input.content);
+  const contentSha256 = await hashContent(canonical);
+
+  if (contentSha256 === (await hashContent(existing.content))) throw new NoChangesError();
+
+  return db.transaction(async (tx) => {
+    const [version] = await tx
+      .insert(versions)
+      .values({
+        recipeId: existing.recipe.id,
+        parentVersionId: existing.version.id,
+        content: canonical,
+        contentSha256,
+        authorId: author.id,
+        message: input.message?.trim() || 'Update recipe',
+      })
+      .returning();
+    if (!version) throw new Error('failed to insert version');
+
+    const [updated] = await tx
+      .update(recipes)
+      .set({
+        headVersionId: version.id,
+        titleCache: title,
+        descriptionCache: description,
+        tagsCache: tags,
+        totalTimeMinutes,
+        updatedAt: new Date(),
+      })
+      .where(eq(recipes.id, existing.recipe.id))
+      .returning();
+    if (!updated) throw new NotFoundError();
+
+    return {
+      recipe: { ...updated, owner: existing.recipe.owner },
+      version: {
+        id: version.id,
+        message: version.message,
+        createdAt: version.createdAt,
+        authorId: version.authorId,
+      },
+      content: canonical,
+      doc,
+    };
+  });
+}
+
+/**
+ * Reverting writes a *new* version carrying the old content. History is append
+ * only — undoing an edit is itself an edit, and the record says so.
+ */
+export async function revertRecipe(
+  db: Db,
+  ownerHandle: string,
+  slug: string,
+  viewer: Viewer,
+  author: User,
+  toVersionId: string,
+): Promise<LoadedRecipe> {
+  const existing = await loadRecipe(db, ownerHandle, slug, viewer);
+  assertCanWrite(existing.recipe, viewer);
+
+  const target = await loadVersion(db, existing.recipe.id, toVersionId);
+  return updateRecipe(db, ownerHandle, slug, viewer, author, {
+    content: target.content,
+    message: `Revert to ${toVersionId.slice(0, 8)}`,
+  });
+}
+
+/**
+ * Loads a version *scoped to its recipe*.
+ *
+ * Version ids are globally addressable and ancestry crosses recipe boundaries
+ * after a fork, so the recipe id must be part of the lookup — otherwise a
+ * readable recipe's URL becomes a way to read a private ancestor's content.
+ * See docs/PLAN.md §5.1 rule 1.
+ */
+export async function loadVersion(db: Db, recipeId: string, versionId: string) {
+  const [version] = await db
+    .select()
+    .from(versions)
+    .where(and(eq(versions.id, versionId), eq(versions.recipeId, recipeId)))
+    .limit(1);
+
+  if (!version) throw new NotFoundError();
+  return version;
+}
+
+export async function listVersions(db: Db, recipeId: string) {
+  return db
+    .select({
+      id: versions.id,
+      parentVersionId: versions.parentVersionId,
+      mergeParentVersionId: versions.mergeParentVersionId,
+      message: versions.message,
+      contentSha256: versions.contentSha256,
+      createdAt: versions.createdAt,
+      author: { handle: users.handle, name: users.name, image: users.image },
+    })
+    .from(versions)
+    .innerJoin(users, eq(users.id, versions.authorId))
+    .where(eq(versions.recipeId, recipeId))
+    .orderBy(desc(versions.createdAt));
+}
+
+/** Text hunks plus the semantic layer, for any two versions of one recipe. */
+export async function diffVersions(
+  db: Db,
+  recipeId: string,
+  fromId: string,
+  toId: string,
+  headVersionId: string | null,
+) {
+  const [from, to] = await Promise.all([
+    loadVersion(db, recipeId, fromId),
+    loadVersion(db, recipeId, toId),
+  ]);
+
+  const beforeDoc = parseRecipe(from.content);
+  const afterDoc = parseRecipe(to.content);
+  const semantic = summarizeDiff(diffRecipes(beforeDoc, afterDoc), beforeDoc, afterDoc);
+
+  return {
+    from: { id: from.id, message: from.message, createdAt: from.createdAt.toISOString() },
+    to: {
+      id: to.id,
+      message: to.message,
+      createdAt: to.createdAt.toISOString(),
+      isHead: to.id === headVersionId,
+    },
+    identical: from.contentSha256 === to.contentSha256,
+    hunks: diffHunks(from.content, to.content),
+    semantic,
+  };
+}
+
+export function serializeVersion(version: {
+  id: string;
+  parentVersionId: string | null;
+  mergeParentVersionId: string | null;
+  message: string;
+  createdAt: Date;
+  author: { handle: string; name: string; image: string | null };
+}) {
+  return {
+    id: version.id,
+    parentVersionId: version.parentVersionId,
+    mergeParentVersionId: version.mergeParentVersionId,
+    message: version.message,
+    createdAt: version.createdAt.toISOString(),
+    author: version.author,
+  };
 }

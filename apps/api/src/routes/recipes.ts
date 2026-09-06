@@ -6,12 +6,19 @@ import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts'
 import {
   countPublicRecipes,
   createRecipe,
+  diffVersions,
   listPublicRecipes,
   listRecipesForOwner,
+  listVersions,
   loadRecipe,
+  loadVersion,
+  NoChangesError,
+  revertRecipe,
   serializeRecipeResponse,
   serializeRecipeSummary,
+  serializeVersion,
   setVisibility,
+  updateRecipe,
 } from '../services/recipes.ts';
 import { validateSlug } from '../services/slugs.ts';
 
@@ -22,6 +29,13 @@ const CreateBody = z.object({
 });
 
 const VisibilityBody = z.object({ visibility: z.enum(['public', 'private']) });
+
+const UpdateBody = z.object({
+  content: z.string().min(1, 'A recipe needs content.'),
+  message: z.string().trim().max(200).optional(),
+});
+
+const RevertBody = z.object({ toVersionId: z.string().uuid() });
 
 /** Keyset cursor, passed back verbatim from the previous page. */
 const IndexQuery = z.object({
@@ -113,6 +127,104 @@ export const recipeRoutes = new Hono<AppEnv>()
       'Content-Type': 'text/markdown; charset=utf-8',
       'Content-Disposition': `inline; filename="${loaded.recipe.slug}.md"`,
     });
+  })
+
+  /** A new version, and the head moves to it. Owner only. */
+  .put('/recipes/:handle/:slug', requireUser, async (c) => {
+    const parsed = UpdateBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) {
+      return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
+    }
+
+    try {
+      const loaded = await updateRecipe(
+        db,
+        c.req.param('handle'),
+        c.req.param('slug'),
+        c.get('viewer'),
+        currentUser(c),
+        parsed.data,
+      );
+      return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 200);
+    } catch (err) {
+      if (err instanceof RecipeParseError) return c.json(parseErrorResponse(err), 422);
+      if (err instanceof NoChangesError) {
+        return c.json(
+          { error: 'no_changes', message: 'That is identical to the current version.' },
+          409,
+        );
+      }
+      throw err;
+    }
+  })
+
+  .get('/recipes/:handle/:slug/versions', async (c) => {
+    const { recipe, version } = await loadRecipe(
+      db,
+      c.req.param('handle'),
+      c.req.param('slug'),
+      c.get('viewer'),
+    );
+    const history = await listVersions(db, recipe.id);
+    return c.json({
+      headVersionId: version.id,
+      versions: history.map(serializeVersion),
+    });
+  })
+
+  .get('/recipes/:handle/:slug/versions/:versionId', async (c) => {
+    const { recipe } = await loadRecipe(
+      db,
+      c.req.param('handle'),
+      c.req.param('slug'),
+      c.get('viewer'),
+    );
+    // Scoped to the recipe, never looked up by id alone — see §5.1 rule 1.
+    const version = await loadVersion(db, recipe.id, c.req.param('versionId'));
+    return c.json({
+      id: version.id,
+      parentVersionId: version.parentVersionId,
+      message: version.message,
+      createdAt: version.createdAt.toISOString(),
+      content: version.content,
+    });
+  })
+
+  .get('/recipes/:handle/:slug/diff', async (c) => {
+    const from = c.req.query('from');
+    const to = c.req.query('to');
+    if (!from || !to)
+      return c.json({ error: 'invalid_request', message: 'from and to are required' }, 400);
+
+    const { recipe, version } = await loadRecipe(
+      db,
+      c.req.param('handle'),
+      c.req.param('slug'),
+      c.get('viewer'),
+    );
+    return c.json(await diffVersions(db, recipe.id, from, to, version.id));
+  })
+
+  .post('/recipes/:handle/:slug/revert', requireUser, async (c) => {
+    const parsed = RevertBody.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
+
+    try {
+      const loaded = await revertRecipe(
+        db,
+        c.req.param('handle'),
+        c.req.param('slug'),
+        c.get('viewer'),
+        currentUser(c),
+        parsed.data.toVersionId,
+      );
+      return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 200);
+    } catch (err) {
+      if (err instanceof NoChangesError) {
+        return c.json({ error: 'no_changes', message: 'That version is already current.' }, 409);
+      }
+      throw err;
+    }
   })
 
   .post('/recipes/:handle/:slug/visibility', requireUser, async (c) => {

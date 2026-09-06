@@ -12,6 +12,7 @@ import { withViewer, type AppEnv } from './middleware/session.ts';
 import { meRoutes } from './routes/me.ts';
 import { recipeRoutes, userRoutes } from './routes/recipes.ts';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/authorization.ts';
+import { NoChangesError } from './services/recipes.ts';
 
 /**
  * Everything the browser talks to lives under `/api`, matching the path the web
@@ -93,6 +94,7 @@ export function createApp() {
     if (err instanceof NotFoundError) return c.json({ error: 'not_found' }, 404);
     if (err instanceof ForbiddenError) return c.json({ error: 'forbidden' }, 403);
     if (err instanceof UnauthorizedError) return c.json({ error: 'unauthorized' }, 401);
+    if (err instanceof NoChangesError) return c.json({ error: 'no_changes' }, 409);
 
     console.error(err);
     return c.json({ error: 'internal_error' }, 500);

@@ -23,6 +23,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
+    "node-diff3": "^3.2.1",
     "yaml": "^2.7.0",
     "zod": "^3.24.1"
   }

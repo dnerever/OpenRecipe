@@ -12,6 +12,19 @@ export { parseRecipe, safeParseRecipe, type ParseResult } from './parse.ts';
 export { serializeRecipe } from './serialize.ts';
 export { hashContent, hashRecipe } from './hash.ts';
 export { deriveSteps, countSteps } from './steps.ts';
+export {
+  diffText,
+  diffHunks,
+  diffRecipes,
+  summarizeDiff,
+  hydration,
+  scaleFactor,
+  isUnchanged,
+  type LineChange,
+  type SemanticChange,
+  type IngredientField,
+} from './diff.ts';
+export { describeChange, isHeadline } from './describe-change.ts';
 export { scaleRecipe, scaleToYield, scaleToIngredient, formatQuantity } from './scale.ts';
 export { parseDuration, formatDuration, humanizeDuration } from './duration.ts';
 export { normalizeUnit, unitSystem, prefersFractions, type UnitSystem } from './units.ts';
