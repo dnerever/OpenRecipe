@@ -1,15 +1,23 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
+  customType,
   index,
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+
+/** Postgres' own full-text type. Drizzle has no built-in for it. */
+const tsvector = customType<{ data: string; driverData: string }>({
+  dataType: () => 'tsvector',
+});
 
 /**
  * Binary visibility, per ADR-005. `private` means owner-only — enforced in the
@@ -153,6 +161,37 @@ export const recipes = pgTable(
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+
+    /**
+     * Search, computed by the database rather than by us.
+     *
+     * A generated column cannot drift from the row it describes — there is no
+     * write path that could forget to update it, which is exactly the failure
+     * mode a hand-maintained index column has. It reads the same denormalized
+     * caches the listing pages do, so searching still never parses YAML.
+     *
+     * Weighted title > tags > description: a recipe called "Rye Loaf" should
+     * beat one that merely mentions rye in a sentence.
+     *
+     * Three constraints shaped the expression, and Postgres enforces all of
+     * them by refusing to store a non-IMMUTABLE one:
+     *
+     * - Bare column names. A generated expression may only reference its own
+     *   row's columns, unqualified.
+     * - `to_tsvector` in its two-argument form. The one-argument form is
+     *   STABLE, because it reads `default_text_search_config` at runtime.
+     * - `array_to_tsvector` for the tags, *not* `to_tsvector(array_to_string(…))`.
+     *   `array_to_string` is polymorphic over `anyarray` and so is marked
+     *   STABLE for every element type, `text[]` included.
+     *
+     * That last one changes the semantics slightly and for the better here:
+     * `array_to_tsvector` stores tags as exact lexemes with no stemming, which
+     * is what a tag is. `gluten-free` stays one token instead of splitting.
+     * Core lowercases and dedupes tags on parse, so they arrive normalized.
+     */
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      sql`setweight(to_tsvector('english', coalesce(title_cache, '')), 'A') || setweight(array_to_tsvector(tags_cache), 'B') || setweight(to_tsvector('english', coalesce(description_cache, '')), 'C')`,
+    ),
   },
   (t) => [
     uniqueIndex('recipes_owner_slug_idx').on(t.ownerId, t.slug),
@@ -162,6 +201,34 @@ export const recipes = pgTable(
     // the index that keyset pagination walks.
     index('recipes_visibility_updated_idx').on(t.visibility, t.updatedAt, t.id),
     index('recipes_tags_idx').using('gin', t.tagsCache),
+    index('recipes_search_idx').using('gin', t.searchVector),
+    // Popularity sort, and the tiebreak that keeps it deterministic.
+    index('recipes_popular_idx').on(t.visibility, t.starCount, t.forkCount, t.id),
+  ],
+);
+
+/**
+ * A star is a bookmark that happens to be public — the only signal of
+ * popularity the app has, and the input to the "popular" sort.
+ *
+ * The composite primary key is the uniqueness rule: starring twice is the same
+ * as starring once, so there is no state to reconcile.
+ */
+export const stars = pgTable(
+  'stars',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    recipeId: uuid('recipe_id')
+      .notNull()
+      .references((): AnyPgColumn => recipes.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.recipeId] }),
+    // "Recipes I starred", newest first.
+    index('stars_user_created_idx').on(t.userId, t.createdAt),
   ],
 );
 
@@ -217,4 +284,5 @@ export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Recipe = typeof recipes.$inferSelect;
 export type Version = typeof versions.$inferSelect;
+export type Star = typeof stars.$inferSelect;
 export type Visibility = (typeof recipeVisibility.enumValues)[number];

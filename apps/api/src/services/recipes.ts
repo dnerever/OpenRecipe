@@ -10,7 +10,15 @@ import {
 } from '@openrecipe/core';
 import { and, desc, eq, lt, or, sql as raw } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
-import { recipes, users, versions, type Recipe, type User, type Visibility } from '../db/schema.ts';
+import {
+  recipes,
+  stars,
+  users,
+  versions,
+  type Recipe,
+  type User,
+  type Visibility,
+} from '../db/schema.ts';
 import {
   assertCanRead,
   assertCanWrite,
@@ -36,7 +44,24 @@ export type LoadedRecipe = {
   doc: RecipeDoc;
   /** Resolved on reads. `null` when this is not a fork. See `loadForkParent`. */
   forkedFrom?: ForkAttribution | null;
+  /** Resolved on reads. Always false for an anonymous viewer. */
+  viewerHasStarred?: boolean;
 };
+
+/**
+ * Lives here rather than in `stars.ts` so the dependency runs one way — the
+ * star service needs `loadRecipe`, and a cycle back would be a needless
+ * fragility for three lines of query.
+ */
+export async function hasStarred(db: Db, recipeId: string, viewer: Viewer): Promise<boolean> {
+  if (!viewer) return false;
+  const [row] = await db
+    .select({ userId: stars.userId })
+    .from(stars)
+    .where(and(eq(stars.userId, viewer.id), eq(stars.recipeId, recipeId)))
+    .limit(1);
+  return row !== undefined;
+}
 
 const ownerColumns = {
   id: users.id,
@@ -154,6 +179,11 @@ export async function loadRecipe(
     .limit(1);
   if (!version) throw new NotFoundError();
 
+  const [forkedFrom, viewerHasStarred] = await Promise.all([
+    loadForkParent(db, recipe, viewer),
+    hasStarred(db, recipe.id, viewer),
+  ]);
+
   return {
     recipe,
     version: {
@@ -164,7 +194,8 @@ export async function loadRecipe(
     },
     content: version.content,
     doc: parseRecipe(version.content),
-    forkedFrom: await loadForkParent(db, recipe, viewer),
+    forkedFrom,
+    viewerHasStarred,
   };
 }
 
@@ -248,6 +279,7 @@ export function serializeRecipeResponse(loaded: LoadedRecipe, viewer: Viewer) {
       updatedAt: recipe.updatedAt.toISOString(),
       canEdit: canWrite(recipe, viewer),
       forkedFrom: loaded.forkedFrom ?? null,
+      viewerHasStarred: loaded.viewerHasStarred ?? false,
     },
     version: {
       id: version.id,

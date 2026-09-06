@@ -36,6 +36,13 @@
       "when": 1788666639077,
       "tag": "0004_boring_talkback",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788676716701,
+      "tag": "0005_melted_cloak",
+      "breakpoints": true
     }
   ]
 }

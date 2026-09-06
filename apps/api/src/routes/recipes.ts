@@ -22,6 +22,8 @@ import {
   setVisibility,
   updateRecipe,
 } from '../services/recipes.ts';
+import { listTags, searchRecipes, type SearchSort } from '../services/search.ts';
+import { listStarredBy, star, unstar } from '../services/stars.ts';
 import { validateSlug } from '../services/slugs.ts';
 
 const CreateBody = z.object({
@@ -41,6 +43,16 @@ const RevertBody = z.object({ toVersionId: z.string().uuid() });
 
 /** Visibility is inherited, never chosen here — §5.1 rule 5. */
 const ForkBody = z.object({ slug: z.string().optional() }).optional();
+
+const SearchQuery = z.object({
+  q: z.string().trim().max(200).optional(),
+  // Repeated `?tag=` params. Matching is AND, which is what a reader narrowing
+  // a list expects: bread + vegan means both.
+  tag: z.union([z.string(), z.array(z.string())]).optional(),
+  sort: z.enum(['relevance', 'recent', 'popular']).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  offset: z.coerce.number().int().min(0).max(5000).optional(),
+});
 
 /** Keyset cursor, passed back verbatim from the previous page. */
 const IndexQuery = z.object({
@@ -84,6 +96,37 @@ export const recipeRoutes = new Hono<AppEnv>()
     ]);
 
     return c.json(total === null ? page : { ...page, total });
+  })
+
+  /**
+   * Full-text search. No auth and no viewer — public recipes only, always.
+   * Declared before `/recipes/:handle/:slug` so the static path wins.
+   */
+  .get('/search', async (c) => {
+    const parsed = SearchQuery.safeParse({
+      ...c.req.query(),
+      // `queries()` is the only accessor that keeps repeated params.
+      ...(c.req.queries('tag')?.length ? { tag: c.req.queries('tag') } : {}),
+    });
+    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
+
+    const { q, tag, sort, limit, offset } = parsed.data;
+    const tags = tag === undefined ? undefined : Array.isArray(tag) ? tag : [tag];
+
+    return c.json(
+      await searchRecipes(db, {
+        q: q || undefined,
+        tags: tags?.map((t) => t.trim().toLowerCase()).filter(Boolean),
+        sort: sort as SearchSort | undefined,
+        limit,
+        offset,
+      }),
+    );
+  })
+
+  .get('/tags', async (c) => {
+    const limit = Number(c.req.query('limit') ?? 40);
+    return c.json({ tags: await listTags(db, Number.isFinite(limit) ? limit : 40) });
   })
 
   .post('/recipes', requireUser, async (c) => {
@@ -274,6 +317,28 @@ export const recipeRoutes = new Hono<AppEnv>()
     });
   })
 
+  .post('/recipes/:handle/:slug/star', requireUser, async (c) => {
+    const result = await star(
+      db,
+      c.req.param('handle'),
+      c.req.param('slug'),
+      c.get('viewer'),
+      currentUser(c),
+    );
+    return c.json(result);
+  })
+
+  .post('/recipes/:handle/:slug/unstar', requireUser, async (c) => {
+    const result = await unstar(
+      db,
+      c.req.param('handle'),
+      c.req.param('slug'),
+      c.get('viewer'),
+      currentUser(c),
+    );
+    return c.json(result);
+  })
+
   .post('/recipes/:handle/:slug/visibility', requireUser, async (c) => {
     const parsed = VisibilityBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
@@ -288,10 +353,19 @@ export const recipeRoutes = new Hono<AppEnv>()
     return c.json({ slug: recipe.slug, visibility: recipe.visibility });
   });
 
-export const userRoutes = new Hono<AppEnv>().get('/users/:handle/recipes', async (c) => {
-  const { owner, recipes } = await listRecipesForOwner(db, c.req.param('handle'), c.get('viewer'));
-  return c.json({
-    owner: { handle: owner.handle, name: owner.name, image: owner.image },
-    recipes: recipes.map(serializeRecipeSummary),
-  });
-});
+export const userRoutes = new Hono<AppEnv>()
+  .get('/users/:handle/recipes', async (c) => {
+    const { owner, recipes } = await listRecipesForOwner(
+      db,
+      c.req.param('handle'),
+      c.get('viewer'),
+    );
+    return c.json({
+      owner: { handle: owner.handle, name: owner.name, image: owner.image },
+      recipes: recipes.map(serializeRecipeSummary),
+    });
+  })
+
+  .get('/users/:handle/stars', async (c) =>
+    c.json(await listStarredBy(db, c.req.param('handle'), c.get('viewer'))),
+  );
