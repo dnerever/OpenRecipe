@@ -27,6 +27,7 @@ for (const row of rows) {
       .set({
         titleCache: frontmatter.title,
         descriptionCache: frontmatter.description ?? null,
+        imageCache: frontmatter.image ?? null,
         tagsCache: frontmatter.tags ?? [],
         totalTimeMinutes: frontmatter.time?.total ?? null,
       })

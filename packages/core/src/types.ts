@@ -25,6 +25,12 @@ export type Frontmatter = {
   schema: 1;
   title: string;
   description?: string;
+  /**
+   * The hero photo: an uploaded path (`/api/media/<id>`) or a full URL to
+   * somebody else's. One image, not a gallery — a recipe is a document, and
+   * the picture's job is to say what the thing looks like.
+   */
+  image?: string;
   yield?: Yield;
   time?: Times;
   ingredients: Ingredient[];

@@ -57,6 +57,18 @@ const EnvSchema = z
     // fresh clone runs without anyone having to create a GitHub OAuth app.
     GITHUB_CLIENT_ID: z.string().min(1).optional(),
     GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Object storage: MinIO from docker-compose locally, R2 or S3 in
+     * production. All five are optional together — a clone with no storage
+     * configured runs fine and simply refuses image uploads, which is better
+     * than refusing to boot over a feature most pages never touch.
+     */
+    S3_ENDPOINT: emptyAsUndefined(z.string().url().optional()),
+    S3_REGION: emptyAsUndefined(z.string().min(1).optional()),
+    S3_BUCKET: emptyAsUndefined(z.string().min(1).optional()),
+    S3_ACCESS_KEY: emptyAsUndefined(z.string().min(1).optional()),
+    S3_SECRET_KEY: emptyAsUndefined(z.string().min(1).optional()),
   })
   .transform((env) => ({
     ...env,
@@ -106,6 +118,21 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+/**
+ * `null` when storage is not configured, which the media routes turn into a
+ * 503 rather than a crash. Everything else in the app works without it.
+ */
+export const objectStore =
+  env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY && env.S3_SECRET_KEY
+    ? {
+        endpoint: env.S3_ENDPOINT,
+        region: env.S3_REGION ?? 'auto',
+        bucket: env.S3_BUCKET,
+        accessKeyId: env.S3_ACCESS_KEY,
+        secretAccessKey: env.S3_SECRET_KEY,
+      }
+    : null;
 
 export const githubOAuth =
   env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET

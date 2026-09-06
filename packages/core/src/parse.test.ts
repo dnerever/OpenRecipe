@@ -192,3 +192,20 @@ Step.
     assert.equal(doc.frontmatter.ingredients[1]?.unit, 'knob');
   });
 });
+
+describe('image', () => {
+  const withImage = (value: string) =>
+    safeParseRecipe(`---\nschema: 1\ntitle: T\nimage: ${value}\ningredients: []\n---\n\nCook.\n`);
+
+  it('accepts an uploaded path and a full URL', () => {
+    assert.equal(withImage('/api/media/8f14e45f').ok, true);
+    assert.equal(withImage('https://example.com/loaf.jpg').ok, true);
+  });
+
+  it('refuses anything that is not one of those', () => {
+    // This string ends up in a `src` on a page other people read.
+    assert.equal(withImage('javascript:alert(1)').ok, false);
+    assert.equal(withImage('loaf.jpg').ok, false);
+    assert.equal(withImage('"data:image/png;base64,AAAA"').ok, false);
+  });
+});

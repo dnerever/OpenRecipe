@@ -16,12 +16,14 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
     "@hono/node-server": "^1.13.8",
     "@openrecipe/core": "*",
     "better-auth": "^1.7.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.20",
     "postgres": "^3.4.5",
+    "sharp": "^0.35.4",
     "zod": "^3.24.1"
   },
   "devDependencies": {

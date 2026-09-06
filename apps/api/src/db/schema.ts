@@ -133,6 +133,8 @@ export const recipes = pgTable(
     // Listing pages must never parse YAML.
     titleCache: text('title_cache').notNull().default(''),
     descriptionCache: text('description_cache'),
+    /** The hero image's URL, cached for the same reason the title is. */
+    imageCache: text('image_cache'),
     tagsCache: text('tags_cache').array().notNull().default([]),
     totalTimeMinutes: integer('total_time_minutes'),
 
@@ -358,6 +360,41 @@ export const comments = pgTable(
   (t) => [index('comments_proposal_created_idx').on(t.proposalId, t.createdAt)],
 );
 
+/**
+ * An uploaded image, and the row that decides who may look at it.
+ *
+ * Media belongs to a recipe rather than to a user, which is what makes the read
+ * check exact: a photo of a private recipe is as private as the recipe, and the
+ * only way to keep that true is to know which recipe it belongs to before
+ * serving a byte. The cost is that an image can only be uploaded to a recipe
+ * that already exists — see routes/media.ts.
+ *
+ * `storageKey` names the processed object; `thumbKey` its small twin. Neither
+ * is the file that was uploaded: the original never reaches the bucket.
+ */
+export const media = pgTable(
+  'media',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    recipeId: uuid('recipe_id')
+      .notNull()
+      .references((): AnyPgColumn => recipes.id, { onDelete: 'cascade' }),
+    uploaderId: text('uploader_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+
+    storageKey: text('storage_key').notNull(),
+    thumbKey: text('thumb_key').notNull(),
+    mime: text('mime').notNull(),
+    bytes: integer('bytes').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('media_recipe_idx').on(t.recipeId), index('media_uploader_idx').on(t.uploaderId)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Recipe = typeof recipes.$inferSelect;
@@ -366,4 +403,5 @@ export type Star = typeof stars.$inferSelect;
 export type Proposal = typeof proposals.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type ProposalState = (typeof proposalState.enumValues)[number];
+export type Media = typeof media.$inferSelect;
 export type Visibility = (typeof recipeVisibility.enumValues)[number];

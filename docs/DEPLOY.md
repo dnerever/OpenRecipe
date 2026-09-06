@@ -202,6 +202,37 @@ only when both are present, so until then nothing changes.
 
 ## Object storage
 
-Not needed yet. Images arrive in Slice 11; Cloudflare R2's free tier (10 GB) is
-the intended target, and MinIO in `docker-compose.yml` speaks the same S3 API
-locally.
+Images (Slice 11) need a bucket. Cloudflare R2's free tier is the target — 10 GB
+of storage and, more to the point, **no egress charges**, which is what makes
+serving images through the app affordable on a plan that costs nothing.
+
+Locally, MinIO from `docker-compose.yml` speaks the same S3 API, and the app
+creates the bucket on first use.
+
+1. In the Cloudflare dashboard, **R2 → Create bucket**, named `openrecipe-media`.
+   Leave public access off: the app streams objects itself so it can apply the
+   recipe's visibility to them, and a publicly-readable bucket would route
+   around that check entirely.
+2. **Manage R2 API Tokens → Create API token**, Object Read & Write, scoped to
+   that bucket. Copy the access key id, the secret, and the S3 endpoint
+   (`https://<account-id>.r2.cloudflarestorage.com`).
+3. Set five variables on the Render service:
+
+   ```
+   S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+   S3_REGION=auto
+   S3_BUCKET=openrecipe-media
+   S3_ACCESS_KEY=…
+   S3_SECRET_KEY=…
+   ```
+
+**All five are optional, together.** With none of them set the app boots and
+every page works; image uploads answer `503 storage_unavailable`. That is
+deliberate — a clone should run without anyone signing up for object storage,
+and a missing bucket should not be a reason the site is down.
+
+**The image pipeline is native code.** `sharp` carries libvips as a platform
+package under `@img/`, which npm treats as *optional* — and the runtime stage
+installs with `--omit=optional` to keep drizzle-kit out. The Dockerfile
+therefore copies `node_modules/@img` from the build stage. If a deploy ever
+fails with "Could not load the sharp module", that COPY is what went missing.

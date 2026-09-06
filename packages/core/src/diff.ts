@@ -69,6 +69,7 @@ export type SemanticChange =
   | { kind: 'step-added'; phase: string; text: string }
   | { kind: 'step-removed'; phase: string; text: string }
   | { kind: 'step-reworded'; phase: string; from: string; to: string }
+  | { kind: 'image'; from: string | null; to: string | null }
   | { kind: 'hydration'; from: number; to: number }
   | { kind: 'scaled'; factor: number };
 
@@ -90,6 +91,10 @@ export function diffRecipes(before: RecipeDoc, after: RecipeDoc): SemanticChange
 
   if ((a.description ?? null) !== (b.description ?? null)) {
     changes.push({ kind: 'description', from: a.description ?? null, to: b.description ?? null });
+  }
+
+  if ((a.image ?? null) !== (b.image ?? null)) {
+    changes.push({ kind: 'image', from: a.image ?? null, to: b.image ?? null });
   }
 
   const yieldOf = (y: typeof a.yield) => (y ? `${y.count} ${y.unit}` : null);

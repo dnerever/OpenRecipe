@@ -46,6 +46,13 @@ COPY apps/api/package.json apps/api/
 RUN npm ci --omit=dev --omit=optional \
  && npm cache clean --force
 
+# sharp ships its native libvips as *optional* platform packages, and the
+# --omit=optional above would drop them — leaving a `sharp` that throws on
+# first require. Taking them from the build stage rather than relaxing the flag
+# keeps drizzle-kit and esbuild out while keeping the image processing in, and
+# guarantees the binaries match the ones the build resolved.
+COPY --from=build /app/node_modules/@img node_modules/@img
+
 COPY --from=build /app/packages/core/dist packages/core/dist
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY --from=build /app/apps/web/dist apps/web/dist

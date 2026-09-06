@@ -34,6 +34,12 @@ export function RecipeView({
 
   return (
     <div className="recipe">
+      {frontmatter.image && (
+        // No dimensions to give it: the document stores a URL, not a size. The
+        // aspect ratio is fixed in CSS so the page does not jump when it lands.
+        <img className="hero" src={frontmatter.image} alt="" loading="lazy" />
+      )}
+
       {(frontmatter.yield || times.length > 0) && (
         <ul className="meta">
           {frontmatter.yield && (

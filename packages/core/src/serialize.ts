@@ -19,6 +19,7 @@ export function serializeRecipe(doc: RecipeDoc): string {
   out.push(`schema: ${fm.schema}`);
   out.push(`title: ${scalar(fm.title)}`);
   if (fm.description !== undefined) out.push(`description: ${scalar(fm.description)}`);
+  if (fm.image !== undefined) out.push(`image: ${scalar(fm.image)}`);
 
   if (fm.yield) out.push(`yield: ${flow({ count: fm.yield.count, unit: fm.yield.unit })}`);
 

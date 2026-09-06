@@ -1,6 +1,6 @@
 import { humanizeDuration } from '@openrecipe/core';
 import { Link } from '@tanstack/react-router';
-import type { RecipeSummary } from '../lib/api.ts';
+import { thumbUrlFor, type RecipeSummary } from '../lib/api.ts';
 import { TagList } from './TagList.tsx';
 
 /**
@@ -17,7 +17,15 @@ export function RecipeCard({
   showOwner?: boolean;
 }) {
   return (
-    <li className="card">
+    <li className={`card${recipe.imageUrl ? ' has-photo' : ''}`}>
+      {recipe.imageUrl && (
+        <Link className="card-photo" to="/$handle/$slug" params={{ handle, slug: recipe.slug }}>
+          {/* The thumbnail, not the full image: a browse page of full-size
+              photos is a browse page nobody waits for. */}
+          <img src={thumbUrlFor(recipe.imageUrl)} alt="" loading="lazy" />
+        </Link>
+      )}
+
       <h3>
         <Link to="/$handle/$slug" params={{ handle, slug: recipe.slug }}>
           {recipe.title}

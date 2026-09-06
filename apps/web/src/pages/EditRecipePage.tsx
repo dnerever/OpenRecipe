@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
+import { ImageUpload } from '../components/ImageUpload.tsx';
 import { RecipeEditor } from '../components/RecipeEditor.tsx';
 import { ApiError, fetchRecipe, updateRecipe, type RecipeIssueWire } from '../lib/api.ts';
 
@@ -89,6 +90,8 @@ export function EditRecipePage() {
       <p className="lede">
         Saving writes a new version. Nothing you have already saved is overwritten.
       </p>
+
+      <ImageUpload handle={handle} slug={slug} draft={content} onChange={setDraft} />
 
       <RecipeEditor
         value={content}

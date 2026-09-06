@@ -92,6 +92,7 @@ function normalize(content: string) {
     canonical,
     title: doc.frontmatter.title,
     description: doc.frontmatter.description ?? null,
+    image: doc.frontmatter.image ?? null,
     tags: doc.frontmatter.tags ?? [],
     totalTimeMinutes: doc.frontmatter.time?.total ?? null,
   };
@@ -102,7 +103,9 @@ export async function createRecipe(
   author: User,
   input: { content: string; slug?: string | undefined; visibility?: Visibility | undefined },
 ): Promise<LoadedRecipe> {
-  const { doc, canonical, title, description, tags, totalTimeMinutes } = normalize(input.content);
+  const { doc, canonical, title, description, image, tags, totalTimeMinutes } = normalize(
+    input.content,
+  );
   const contentSha256 = await hashContent(canonical);
 
   // One transaction: the slug claim, the recipe row, its root version, and the
@@ -119,6 +122,7 @@ export async function createRecipe(
           slug,
           titleCache: title,
           descriptionCache: description,
+          imageCache: image,
           tagsCache: tags,
           totalTimeMinutes,
           visibility: input.visibility ?? 'public',
@@ -287,6 +291,7 @@ export function serializeRecipeResponse(loaded: LoadedRecipe, viewer: Viewer) {
       starCount: recipe.starCount,
       createdAt: recipe.createdAt.toISOString(),
       updatedAt: recipe.updatedAt.toISOString(),
+      imageUrl: recipe.imageCache,
       canEdit: canWrite(recipe, viewer),
       forkedFrom: loaded.forkedFrom ?? null,
       viewerHasStarred: loaded.viewerHasStarred ?? false,
@@ -306,6 +311,7 @@ export function serializeRecipeSummary(recipe: Recipe) {
     slug: recipe.slug,
     title: recipe.titleCache,
     description: recipe.descriptionCache,
+    imageUrl: recipe.imageCache,
     tags: recipe.tagsCache,
     totalTimeMinutes: recipe.totalTimeMinutes,
     visibility: recipe.visibility,
@@ -408,7 +414,9 @@ export async function updateRecipe(
   const existing = await loadRecipe(db, ownerHandle, slug, viewer);
   assertCanWrite(existing.recipe, viewer);
 
-  const { doc, canonical, title, description, tags, totalTimeMinutes } = normalize(input.content);
+  const { doc, canonical, title, description, image, tags, totalTimeMinutes } = normalize(
+    input.content,
+  );
   const contentSha256 = await hashContent(canonical);
 
   if (contentSha256 === (await hashContent(existing.content))) throw new NoChangesError();
@@ -433,6 +441,7 @@ export async function updateRecipe(
         headVersionId: version.id,
         titleCache: title,
         descriptionCache: description,
+        imageCache: image,
         tagsCache: tags,
         totalTimeMinutes,
         updatedAt: new Date(),
@@ -588,7 +597,9 @@ export async function forkRecipe(
   input: { slug?: string | undefined } = {},
 ): Promise<LoadedRecipe> {
   const source = await loadRecipe(db, ownerHandle, slug, viewer);
-  const { doc, canonical, title, description, tags, totalTimeMinutes } = normalize(source.content);
+  const { doc, canonical, title, description, image, tags, totalTimeMinutes } = normalize(
+    source.content,
+  );
   const contentSha256 = await hashContent(canonical);
   const visibility = source.recipe.visibility;
 
@@ -607,6 +618,7 @@ export async function forkRecipe(
           slug: forkSlug,
           titleCache: title,
           descriptionCache: description,
+          imageCache: image,
           tagsCache: tags,
           totalTimeMinutes,
           visibility,

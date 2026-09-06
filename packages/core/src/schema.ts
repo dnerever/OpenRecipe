@@ -63,6 +63,20 @@ const IngredientField = z
     }
   });
 
+/**
+ * Either an uploaded image or one somebody else hosts. Anything else — a
+ * `data:` blob, a bare filename, a `javascript:` URL — is refused, because this
+ * string ends up in a `src` on a page other people read.
+ */
+const ImageField = z
+  .string()
+  .trim()
+  .min(1)
+  .refine(
+    (value) => /^https?:\/\//.test(value) || value.startsWith('/'),
+    'image must be an https URL or an uploaded image path.',
+  );
+
 const YieldField = z
   .object({
     count: z.number().positive('yield.count must be greater than zero.'),
@@ -100,6 +114,7 @@ export const FrontmatterSchema = z
     }),
     title: z.string().trim().min(1, 'A recipe needs a title.'),
     description: z.string().trim().min(1).optional(),
+    image: ImageField.optional(),
     yield: YieldField.optional(),
     time: TimeField.optional(),
     ingredients: z.array(IngredientField).default([]),

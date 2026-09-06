@@ -1391,3 +1391,47 @@ textarea:focus-visible {
 .propose {
   margin-bottom: 1.5rem;
 }
+
+/* --- images --- */
+.recipe .hero {
+  display: block;
+  width: 100%;
+  max-height: 26rem;
+  object-fit: cover;
+  border-radius: 8px;
+  margin: 0 0 1.5rem;
+  background: var(--surface);
+}
+.card.has-photo {
+  padding-top: 0;
+  overflow: hidden;
+}
+.card-photo {
+  display: block;
+  margin: 0 -1.1rem 0.35rem;
+}
+.card-photo img {
+  display: block;
+  width: 100%;
+  /* Fixed ratio so a grid of cards does not reflow as photos arrive. */
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  background: var(--surface);
+}
+.image-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+.image-upload .bad {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+}
+@media print {
+  .recipe .hero {
+    max-height: 12rem;
+  }
+}

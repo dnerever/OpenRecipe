@@ -579,6 +579,7 @@ export async function mergeProposal(
         headVersionId: version.id,
         titleCache: doc.frontmatter.title,
         descriptionCache: doc.frontmatter.description ?? null,
+        imageCache: doc.frontmatter.image ?? null,
         tagsCache: doc.frontmatter.tags ?? [],
         totalTimeMinutes: doc.frontmatter.time?.total ?? null,
         updatedAt: new Date(),

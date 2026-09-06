@@ -17,6 +17,10 @@ export function describeChange(change: SemanticChange): string {
       if (change.from === null) return 'Added a description';
       if (change.to === null) return 'Removed the description';
       return 'Reworded the description';
+    case 'image':
+      if (change.from === null) return 'Added a photo';
+      if (change.to === null) return 'Removed the photo';
+      return 'Changed the photo';
     case 'yield':
       if (change.from === null) return `Yield set to ${change.to}`;
       if (change.to === null) return 'Removed the yield';

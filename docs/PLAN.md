@@ -175,7 +175,7 @@ OpenRecipe/
 ```sql
 users        (id, handle UNIQUE, email UNIQUE, name, avatar_url, bio, created_at)
 
-recipes      (id, owner_id, slug, title_cache, description_cache,
+recipes      (id, owner_id, slug, title_cache, description_cache, image_cache,
               head_version_id, visibility DEFAULT 'public' NOT NULL,
               fork_parent_recipe_id, fork_point_version_id,
               fork_count, star_count, created_at, updated_at,
@@ -192,7 +192,8 @@ proposals    (id, number, target_recipe_id, source_recipe_id,
 
 comments     (id, proposal_id, author_id, body, created_at)
 stars        (user_id, recipe_id, PRIMARY KEY (user_id, recipe_id))
-media        (id, recipe_id, uploader_id, storage_key, mime, bytes, created_at)
+media        (id, recipe_id, uploader_id, storage_key, thumb_key,
+              mime, bytes, width, height, created_at)
 ```
 
 Notes:
@@ -419,8 +420,23 @@ Scale by yield or by a single ingredient (baker's percentage for doughs), unit c
 
 **The shopping list is built from what the page is showing.** A list for a half batch that quotes the full one is worse than no list. Same item across two groups sums; mass and volume of the same thing stay two lines for the reason above; and an unmeasured ingredient is qualified with the author's own note — `rosemary (optional)`, not `rosemary (to taste)`.
 
-### Slice 11 — Images · ~1 day
+### Slice 11 — Images ✅ **done** · ~1 day
 Presigned uploads to S3/R2, a hero image plus per-step images referenced from frontmatter, EXIF stripping, size/type limits, thumbnails.
+*Shipped:* an `image` field on the frontmatter, a `media` table, upload and serve endpoints, EXIF stripping and thumbnailing with sharp, MinIO locally and R2/S3 in production behind five environment variables, an upload button in the editor, the hero on the recipe page and the thumbnail on every browse card. 10 API tests.
+
+**Uploads go *through* the API, which is the opposite of what this line said.** Presigned uploads and EXIF stripping cannot both be true: a file the server never sees is a file whose GPS coordinates the server cannot remove. A recipe photo is usually taken in somebody's kitchen — which is to say, their home — so the privacy promise wins over the byte-shuffling saving. Everything else follows from having the bytes anyway: the format is normalized to WebP, the long edge is bounded at 2000px, and the thumbnail listings need is made in the same pass.
+
+**`rotate()` before stripping, or every phone photo comes out sideways.** Orientation lives in the EXIF that is about to be deleted, so it has to be applied to the pixels first. This is the bug that would have shipped if the metadata had simply been dropped.
+
+**A photo is exactly as private as the recipe it belongs to.** `media.recipe_id` is `NOT NULL` for that reason: the read check resolves the owning recipe before serving a byte, so §5.1 applies to images without a second implementation of it — including rule 2, since an image on a private recipe 404s rather than confirming anything. The cost is that a photo can only be added to a recipe that already exists, which the editor says out loud rather than working around with orphan uploads nothing can authorize.
+
+**The bucket is private and the app streams from it**, rather than redirecting to a signed URL — a redirect hands out a token that outlives the check that produced it. The objects are immutable (their keys carry a uuid), so they are cached for a year, `private` on a private recipe and `public` otherwise.
+
+**Per-step images are deliberately not here.** Steps are *derived* from the body, so their numbers shift the moment somebody adds a paragraph — an `images: {3: …}` map in the frontmatter would silently point at the wrong step on the next edit. The honest form is `![…](/api/media/…)` written where it belongs in the prose, and that needs a Markdown renderer for step text, which the read view does not have yet. Noted for whenever the body stops being rendered as plain text.
+
+**`image_cache` joins the other denormalized columns** for the reason they all exist: a browse card shows a thumbnail, and a listing page must never parse YAML to find one.
+
+**A relative `image:` costs some of `/raw`'s portability.** A downloaded document points its photo at `/api/media/…`, which means nothing on someone else's disk. Accepted: an absolute URL would break the moment the app moves hosts, and the text of the recipe — which is what the archive promise is actually about — travels intact either way. Authors who want a portable document can point `image:` at any URL they like.
 
 ### Slice 12 — Import · ~1–2 days
 Paste a URL → extract JSON-LD `schema.org/Recipe` (most food sites publish it) → map to `schema: 1` → drop the author into the editor to clean up. Paste-plain-text fallback. Import provenance recorded in `source`.

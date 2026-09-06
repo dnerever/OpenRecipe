@@ -24,6 +24,8 @@ export type RecipeSummary = {
   slug: string;
   title: string;
   description: string | null;
+  /** The hero image, cached on the row so a listing never parses YAML. */
+  imageUrl: string | null;
   tags: string[];
   totalTimeMinutes: number | null;
   visibility: Visibility;
@@ -64,6 +66,7 @@ export type RecipeResponse = {
     starCount: number;
     createdAt: string;
     updatedAt: string;
+    imageUrl: string | null;
     canEdit: boolean;
     forkedFrom: ForkAttribution | null;
     viewerHasStarred: boolean;
@@ -371,3 +374,51 @@ export const commentOnProposal = (handle: string, slug: string, number: number, 
     method: 'POST',
     body: JSON.stringify({ body }),
   });
+
+/* ----------------------------------------------------------------- media -- */
+
+export type UploadedImage = {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  width: number;
+  height: number;
+  bytes: number;
+};
+
+export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+/**
+ * The small copy of an uploaded image. An author may also point `image:` at
+ * somebody else's URL, and that one has no thumbnail to ask for — so it is
+ * returned untouched rather than mangled into a 404.
+ */
+export function thumbUrlFor(url: string): string {
+  return url.startsWith('/api/media/') ? `${url}/thumb` : url;
+}
+
+/**
+ * Multipart, not JSON: the bytes go through the API on purpose, because the
+ * EXIF a phone writes into a kitchen photo can only be stripped by a server
+ * that sees the file.
+ */
+export async function uploadImage(
+  handle: string,
+  slug: string,
+  file: File,
+): Promise<UploadedImage> {
+  const form = new FormData();
+  form.set('file', file);
+
+  const res = await fetch(`/api/recipes/${handle}/${slug}/media`, {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new ApiError(res.status, body?.error ?? `Upload failed (${res.status})`);
+  }
+  return (await res.json()) as UploadedImage;
+}
