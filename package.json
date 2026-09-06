@@ -16,7 +16,7 @@
     "dev:web": "npm run dev -w @openrecipe/web",
     "build": "tsc -b packages/core apps/api && npm run build -w @openrecipe/web",
     "typecheck": "npm run typecheck -w @openrecipe/core && npm run typecheck -w @openrecipe/api && npm run typecheck -w @openrecipe/web",
-    "test": "npm run test -w @openrecipe/core && npm run test -w @openrecipe/api",
+    "test": "npm run test -w @openrecipe/core && npm run test -w @openrecipe/api && npm run test -w @openrecipe/web",
     "clean": "tsc -b --clean packages/core apps/api && rm -rf apps/web/dist",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

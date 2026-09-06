@@ -2,6 +2,8 @@ import { safeParseRecipe, type RecipeDoc } from '@openrecipe/core';
 import { useMemo } from 'react';
 import type { RecipeIssueWire } from '../lib/api.ts';
 
+export { STARTER_RECIPE } from '../lib/starter-recipe.ts';
+
 /**
  * A plain textarea, not CodeMirror.
  *
@@ -108,33 +110,3 @@ function Summary({ doc }: { doc: RecipeDoc }) {
     </dl>
   );
 }
-
-export const STARTER_RECIPE = `---
-schema: 1
-title: My First Loaf
-description: A simple sandwich loaf to start with.
-yield: { count: 1, unit: loaf }
-time: { prep: 20m, cook: 40m, total: 4h }
-ingredients:
-  - { qty: 500, unit: g, item: bread flour }
-  - { qty: 320, unit: g, item: water, note: lukewarm }
-  - { qty: 10, unit: g, item: fine sea salt }
-  - { qty: 7, unit: g, item: instant yeast }
-  - { qty: null, item: butter, note: for the tin }
-equipment: [loaf tin]
-tags: [bread, beginner]
----
-
-## Mix
-
-Stir everything together until no dry flour remains. Rest 20 minutes.
-
-## Knead and prove
-
-Knead 8 minutes, then prove until doubled, about 90 minutes.
-
-## Shape and bake
-
-Shape into the buttered tin, prove another hour, and bake at 425°F for 40
-minutes until it sounds hollow underneath.
-`;
