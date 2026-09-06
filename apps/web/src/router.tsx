@@ -101,6 +101,11 @@ const historyRoute = createRoute({
   path: '/$handle/$slug/history',
   component: lazyRouteComponent(() => import('./pages/HistoryPage.tsx'), 'HistoryPage'),
 });
+const forksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$handle/$slug/forks',
+  component: lazyRouteComponent(() => import('./pages/ForksPage.tsx'), 'ForksPage'),
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -110,6 +115,7 @@ const routeTree = rootRoute.addChildren([
   recipeRoute,
   editRoute,
   historyRoute,
+  forksRoute,
 ]);
 
 export const router = createRouter({

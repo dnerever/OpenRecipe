@@ -738,3 +738,12 @@ main {
   border-block: 1px solid var(--rule);
   user-select: none;
 }
+
+/* --- fork attribution --- */
+.forked-from {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+.forked-from a {
+  text-decoration: none;
+}

@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
+import { ForkButton } from '../components/ForkButton.tsx';
+import { ForkedFrom } from '../components/ForkedFrom.tsx';
 import { RecipeView } from '../components/RecipeView.tsx';
 import { VisibilityToggle } from '../components/VisibilityToggle.tsx';
 import { ApiError, fetchRecipe, rawUrl } from '../lib/api.ts';
@@ -43,6 +45,7 @@ export function RecipePage() {
         </p>
 
         <h1>{recipe.title}</h1>
+        {recipe.forkedFrom && <ForkedFrom from={recipe.forkedFrom} />}
         {recipe.description && <p className="lede">{recipe.description}</p>}
 
         <div className="row">
@@ -51,8 +54,12 @@ export function RecipePage() {
               Edit
             </Link>
           )}
+          <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
           <Link className="button secondary" to="/$handle/$slug/history" params={{ handle, slug }}>
             History
+          </Link>
+          <Link className="button secondary" to="/$handle/$slug/forks" params={{ handle, slug }}>
+            Forks{recipe.forkCount > 0 && ` (${recipe.forkCount})`}
           </Link>
           <a
             className="button secondary"

@@ -40,9 +40,19 @@ export type IndexPage = {
   total?: number;
 };
 
+/**
+ * Where a fork came from, as much of it as this viewer may know.
+ * `{ visible: false }` is §5.1 rule 3 — the source went private after the fork
+ * was made, so the derivation is still stated but the source is not named.
+ */
+export type ForkAttribution =
+  { visible: true; owner: RecipeOwner; slug: string; title: string } | { visible: false };
+
+export type RecipeOwner = { handle: string; name: string; image: string | null };
+
 export type RecipeResponse = {
   recipe: {
-    owner: { handle: string; name: string; image: string | null };
+    owner: RecipeOwner;
     slug: string;
     title: string;
     description: string | null;
@@ -52,6 +62,7 @@ export type RecipeResponse = {
     createdAt: string;
     updatedAt: string;
     canEdit: boolean;
+    forkedFrom: ForkAttribution | null;
   };
   version: { id: string; message: string; createdAt: string };
   content: string;
@@ -191,3 +202,16 @@ export const revertRecipe = (handle: string, slug: string, toVersionId: string) 
     method: 'POST',
     body: JSON.stringify({ toVersionId }),
   });
+
+/* ----------------------------------------------------------------- forks -- */
+
+export const forkRecipe = (handle: string, slug: string, into?: string) =>
+  request<RecipeResponse>(`/api/recipes/${handle}/${slug}/fork`, {
+    method: 'POST',
+    body: JSON.stringify(into ? { slug: into } : {}),
+  });
+
+export const fetchForks = (handle: string, slug: string) =>
+  request<{ forks: (RecipeSummary & { owner: RecipeOwner })[] }>(
+    `/api/recipes/${handle}/${slug}/forks`,
+  );

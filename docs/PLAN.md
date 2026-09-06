@@ -351,11 +351,21 @@ Four rules keep the host swappable, because the free plan's cold starts will eve
 
 - **CodeMirror finally earned its place, and it is expensive.** The decoration that justifies it is the change gutter: while you edit, the lines that differ from the version you started from are marked, computed with the same `diffText` the diff view uses. It costs **119 kB gzip**, in its own chunk, reachable only from the two lazy editor routes — the initial load is byte-for-byte unchanged. `@codemirror/lang-markdown` was the trap: it statically imports `@codemirror/lang-html`, and so `lang-javascript` and `lang-css`, to highlight embedded HTML a recipe will never contain. Using `commonmarkLanguage` directly instead of `markdown()` leaves that whole subtree unreferenced and saves 65 kB gzip.
 
-### Slice 7 — Fork 🎯 **Objective 2** · ~1 day
+### Slice 7 — Fork ✅ **done** 🎯 **Objective 2** · ~1 day
 `POST /fork` creates a recipe under the caller with `fork_parent_recipe_id` + `fork_point_version_id`; the new head's `parent_version_id` points at the upstream version. "Forked from @owner/slug" attribution on the read view, fork counts, a fork list.
 
 **Slug collisions auto-suffix** — `country-loaf` → `country-loaf-2` → `country-loaf-3`, resolved in a transaction against the caller's own namespace so two concurrent forks can't claim the same slug. Forks inherit visibility per §5.1 rule 5, and attribution degrades per rule 3.
-**Done when:** you fork, edit, and both recipes evolve independently while ancestry remains queryable in both directions — and forking the same recipe twice yields `-2` and `-3` without an error.
+**Done when:** you fork, edit, and both recipes evolve independently while ancestry remains queryable in both directions — and forking the same recipe twice yields `-2` and `-3` without an error. **This is the second objective, complete.**
+*Shipped:* `POST /fork`, `GET /forks`, attribution on the read view, a fork list page, and a one-click Fork button. 20 API tests. No migration — the columns have been in the schema since Slice 1. Verified live: three forks landing at `-`/`-2`/`-3`, both sides edited independently, ancestry read in both directions, then the source made private and the attribution degrading in place.
+
+**What this slice was really about was §5.1.** Four of the seven rules had nothing to be about until forks existed, and each turned into a design decision rather than a check:
+
+- **Rule 7 changed what a column means.** `fork_count` is now *public* forks — stored rather than computed, so listings stay one query, which makes it `setVisibility`'s job to maintain: a fork going private has to withdraw itself from its source's total. Skip that and the counter announces precisely what going private was meant to hide.
+- **Rule 5 makes visibility inherited, not chosen.** Forking a private recipe is possible only for its owner, which falls out of the read check rather than needing its own; the copy stays private.
+- **Rule 3 makes attribution degrade rather than vanish.** A fork of a since-privatized recipe still says it is derived work — that is not the source's to retract — but names nothing about it.
+- **Rule 1 finally had a real case.** A fork's root version genuinely has a parent in another recipe, so "authorize on `version.recipe_id`, never the URL's recipe" stopped being hypothetical.
+
+**Forking your own recipe is allowed**, which is a departure from the tool this borrows its shape from. For code a self-fork is pointless; for recipes it is the common case — the same loaf with rye, the half batch, the one for the oven that runs hot. It collides with itself and comes back `-2`, which is exactly right.
 
 ### Slice 9 — Search & discovery · ~1–2 days
 Postgres FTS search over the cached title, description and tags, tag browse, sort by popularity, stars, and profile polish. The browse index itself shipped in Slice 4.
