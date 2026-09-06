@@ -125,8 +125,10 @@ export const recipes = pgTable(
 
     // Nullable only in the window between INSERT recipe and INSERT root version,
     // which always happens inside one transaction.
+    // `set null`, not `restrict`: deleting a recipe cascades to its versions, and
+    // a restrict here would block that on the very row the recipe points at.
     headVersionId: uuid('head_version_id').references((): AnyPgColumn => versions.id, {
-      onDelete: 'restrict',
+      onDelete: 'set null',
     }),
 
     visibility: recipeVisibility('visibility').notNull().default('public'),

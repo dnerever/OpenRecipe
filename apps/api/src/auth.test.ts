@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { inArray, like } from 'drizzle-orm';
-import { after, before, describe, it } from 'node:test';
+import { inArray } from 'drizzle-orm';
+import { after, describe, it } from 'node:test';
 import { createApp } from './app.ts';
-import { db, sql } from './db/index.ts';
+import { db } from './db/index.ts';
 import { users } from './db/schema.ts';
+import { cleanupRun } from './test-support.ts';
 
 const app = createApp();
 
@@ -43,10 +44,7 @@ async function me(cookie: string | null) {
 }
 
 describe('identity', () => {
-  after(async () => {
-    await db.delete(users).where(like(users.email, `t-${run}-%`));
-    await sql.end();
-  });
+  after(() => cleanupRun(`t-${run}-`));
 
   it('signs up with email and password and issues a session cookie', async () => {
     const { res, cookie } = await signUp('alice');

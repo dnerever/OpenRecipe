@@ -65,6 +65,18 @@ suffix `-2`, `-3`, … on collision. Anything that could become a top-level rout
 (`settings`, `search`, `raw`, …) is reserved — see
 `apps/api/src/services/handles.ts`.
 
+## URLs
+
+| Path                               | What                            |
+| ---------------------------------- | ------------------------------- |
+| `/{handle}`                        | A cook's recipes                |
+| `/{handle}/{slug}`                 | A recipe                        |
+| `/new`                             | Write a recipe                  |
+| `/api/recipes/{handle}/{slug}/raw` | The recipe as portable Markdown |
+
+Handles sit at the top level, which is why the API reserves every word that
+could become a route.
+
 ## Conventions
 
 - **`packages/core` stays pure.** No database, network, or filesystem imports.

@@ -7,6 +7,7 @@ import { sql as rawSql } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { withViewer, type AppEnv } from './middleware/session.ts';
 import { meRoutes } from './routes/me.ts';
+import { recipeRoutes, userRoutes } from './routes/recipes.ts';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/authorization.ts';
 
 /**
@@ -61,6 +62,8 @@ export function createApp() {
   });
 
   api.route('/', meRoutes);
+  api.route('/', recipeRoutes);
+  api.route('/', userRoutes);
 
   app.route('/api', api);
 

@@ -175,3 +175,324 @@ button:focus-visible {
 .panel + .panel {
   margin-top: 1.5rem;
 }
+
+/* --- chrome --- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+.topbar .brand {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.topbar .spacer {
+  flex: 1;
+}
+.topbar a {
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+.topbar a:hover {
+  color: var(--accent);
+}
+a {
+  color: var(--accent);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.panel-head h2 {
+  margin: 0;
+}
+.button,
+a.button {
+  display: inline-block;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 5px;
+  text-decoration: none;
+  color: var(--paper);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+.secondary,
+a.button.secondary {
+  color: var(--ink);
+  background: transparent;
+  border-color: var(--rule-strong, var(--rule));
+}
+.badge {
+  margin-left: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  color: var(--accent);
+  background: var(--paper);
+  border: 1px solid var(--accent);
+}
+.notice {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+/* --- lists --- */
+.recipe-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+}
+.recipe-list li {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--rule);
+}
+.recipe-list li:first-child {
+  border-top: none;
+}
+.recipe-list a {
+  font-weight: 600;
+  text-decoration: none;
+}
+.recipe-list p {
+  margin: 0.2rem 0 0;
+  font-size: 0.9rem;
+}
+
+/* --- recipe read view --- */
+.recipe-head {
+  margin-bottom: 2rem;
+}
+.crumb {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+.crumb a {
+  text-decoration: none;
+}
+.version-line {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.82rem;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0.9rem 0;
+  font-size: 0.92rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.meta li {
+  display: flex;
+  flex-direction: column;
+}
+.meta span {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.cols {
+  display: grid;
+  grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+@media (max-width: 42rem) {
+  .cols {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+.cols h3 {
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 0 0 0.75rem;
+}
+.cols h4 {
+  font-size: 0.95rem;
+  margin: 1.1rem 0 0.4rem;
+}
+.ingredients {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ingredients li {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.94rem;
+}
+.ingredients .qty {
+  flex: 0 0 5.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.ingredients em {
+  color: var(--ink-2);
+  font-style: normal;
+}
+.steps {
+  margin: 0;
+  padding-left: 1.3rem;
+}
+.steps li {
+  margin-bottom: 0.85rem;
+  white-space: pre-wrap;
+}
+.phase + .phase {
+  margin-top: 1.5rem;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0 0;
+}
+.tags li {
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+.source {
+  margin-top: 1.25rem;
+  font-size: 0.85rem;
+}
+
+/* --- editor --- */
+.editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+  align-items: start;
+}
+@media (max-width: 52rem) {
+  .editor {
+    grid-template-columns: 1fr;
+  }
+}
+.editor-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.editor textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  padding: 0.8rem;
+  tab-size: 2;
+  resize: vertical;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+}
+.editor textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.editor-status {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.issues {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.issues li {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.issues .loc {
+  flex: 0 0 4rem;
+  color: var(--bad);
+  font-variant-numeric: tabular-nums;
+}
+.issues code {
+  font-size: 0.9em;
+}
+.summary {
+  font-size: 0.88rem;
+}
+.publish {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 32rem;
+}
+.vis {
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 0.8rem 1rem;
+  margin: 0;
+}
+.vis legend {
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  padding: 0 0.35rem;
+}
+.radio {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.radio input {
+  width: auto;
+  margin-top: 0.25rem;
+}
+.radio span {
+  display: flex;
+  flex-direction: column;
+}
+.radio em {
+  font-style: normal;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+}
+.visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}

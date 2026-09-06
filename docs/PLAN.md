@@ -119,7 +119,7 @@ Node 24.20 locally. Built-in test runner (`node --test`), native TS type-strippi
 | Web | Vite + React 19 + TypeScript |
 | Routing/data | TanStack Router + TanStack Query |
 | UI | Tailwind + shadcn/ui |
-| Editor | CodeMirror 6 (YAML+Markdown modes, conflict-marker rendering) |
+| Editor | textarea + core's line-numbered validation; CodeMirror 6 lands in Slice 5, where decorations start paying for themselves |
 | Objects | MinIO locally → S3/R2 in prod |
 | Tests | `node --test` (core + api), Playwright (2–3 critical flows) |
 | CI | GitHub Actions: typecheck → lint → unit → api-integration |
@@ -284,11 +284,16 @@ Also lands `canRead` / `canWrite` and the optional-viewer middleware that every 
 
 **One structural decision came out of this slice:** everything the browser calls now lives under `/api`, and the dev proxy **forwards** that prefix instead of stripping it. better-auth derives OAuth callback URLs and cookie scope from the browser-visible path, so the path the browser uses and the path the API serves have to be the same string. Stripping the prefix silently breaks social sign-in in a way that only shows up once you add a provider.
 
-### Slice 3 — Create & read a recipe 🎯 **MVP-1** · ~1.5–2.5 days
+### Slice 3 — Create & read a recipe ✅ **done** 🎯 **MVP-1** · ~1.5–2.5 days
 `POST /recipes` creates recipe + root version. `GET /recipes/:owner/:slug` renders it. `/raw` serves plain Markdown. Web: a CodeMirror editor with live validation and a split preview, plus a clean read view — ingredients table, derived steps, tags, times.
 
 **Visibility ships here.** A Public/Private toggle in the editor and on the recipe page, defaulting to public; `POST /visibility` to flip it; 404-not-403 on unauthorized reads; a "only you can see this" banner on private recipes.
 **Done when:** a stranger can sign up, paste a recipe, and share a working public URL — *and* a second account gets a 404 on a private one, including on `/raw` and every version endpoint. **This is the first objective, complete.**
+*Shipped:* create/read/`/raw`/visibility, profile listings, TanStack Router + Query on the web, and a read view rendering the server-derived step list. 86 API tests, including all seven §5.1 cases.
+
+**Two corrections to this plan came out of the slice:**
+- **Recipes live at `/{handle}/{slug}`, not `/r/{owner}/{slug}`.** The reserved-handle blocklist from Slice 2 only makes sense if handles are top-level, and they should be — it is the GitHub shape people already know.
+- **The editor is a textarea, not CodeMirror.** CodeMirror earns its weight through decorations — diff gutters and conflict markers — and neither exists before Slices 5 and 7. Until then the parser's own line numbers give identical feedback for a fraction of the bundle. It lands in Slice 5.
 
 ### Slice 4 — Deploy · ~1 day
 Fly.io (or Railway) for API + Postgres, Cloudflare Pages/Vercel for the SPA, R2/S3 for objects, migrations on release, `main` → production via Actions, Sentry + structured logs.
