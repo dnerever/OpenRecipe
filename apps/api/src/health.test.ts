@@ -9,7 +9,7 @@ describe('GET /health', () => {
   });
 
   it('reports the database as up and echoes the schema version', async () => {
-    const res = await createApp().request('/health');
+    const res = await createApp().request('/api/health');
     assert.equal(res.status, 200);
 
     const body = (await res.json()) as {
@@ -23,7 +23,7 @@ describe('GET /health', () => {
   });
 
   it('404s unknown routes as JSON', async () => {
-    const res = await createApp().request('/nope');
+    const res = await createApp().request('/api/nope');
     assert.equal(res.status, 404);
     assert.deepEqual(await res.json(), { error: 'not_found' });
   });

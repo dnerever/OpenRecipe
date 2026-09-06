@@ -8,6 +8,20 @@
       "when": 1788660401118,
       "tag": "0000_cuddly_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788662636834,
+      "tag": "0001_yielding_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788662904359,
+      "tag": "0002_familiar_absorbing_man",
+      "breakpoints": true
     }
   ]
 }

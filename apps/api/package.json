@@ -16,12 +16,13 @@
   "dependencies": {
     "@hono/node-server": "^1.13.8",
     "@openrecipe/core": "*",
-    "drizzle-orm": "^0.39.0",
+    "better-auth": "^1.7.2",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.6.20",
     "postgres": "^3.4.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.30.4"
+    "drizzle-kit": "^0.31.10"
   }
 }

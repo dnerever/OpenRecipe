@@ -53,6 +53,18 @@ resolve through symlinks there. `npm run dev` keeps `tsc -b --watch` running so
 Local services: Postgres on `:5432`, MinIO on `:9000` (console `:9001`,
 user/password `openrecipe` / `openrecipe-dev-secret`).
 
+## Sign-in
+
+Email and password work out of the box. GitHub sign-in is **only registered when
+both `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are set**, so a fresh clone
+runs without anyone creating an OAuth app. When you do want it, the callback URL
+is `http://localhost:5173/api/auth/callback/github`.
+
+Handles are claimed at signup: supply one, or we derive it from your email and
+suffix `-2`, `-3`, … on collision. Anything that could become a top-level route
+(`settings`, `search`, `raw`, …) is reserved — see
+`apps/api/src/services/handles.ts`.
+
 ## Conventions
 
 - **`packages/core` stays pure.** No database, network, or filesystem imports.
@@ -60,3 +72,9 @@ user/password `openrecipe` / `openrecipe-dev-secret`).
 - **Relative imports carry `.ts` extensions.** Node runs the TypeScript directly;
   `tsc` rewrites the extension on emit.
 - **Authorization lives in services, not routes** — see `docs/PLAN.md` §5.1.
+  `canRead` / `canWrite` live in `apps/api/src/services/authorization.ts`; a
+  route that could return a recipe without passing through them is a bug.
+- **Everything the browser calls is under `/api`, and the dev proxy forwards
+  that prefix rather than stripping it.** better-auth derives OAuth callback
+  URLs from the browser-visible path, so the two must be identical.
+- **Private recipes 404, never 403.** A 403 confirms the recipe exists.

@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
-
-type Health = {
-  status: string;
-  database: 'up' | 'down';
-  schemaVersion: number;
-  uptimeSeconds: number;
-};
+import { AuthPanel } from './components/AuthPanel.tsx';
+import { fetchHealth, type Health } from './lib/api.ts';
 
 type State =
   { kind: 'loading' } | { kind: 'ok'; health: Health } | { kind: 'error'; message: string };
@@ -15,11 +10,8 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/health', { signal: controller.signal })
-      .then(async (res) => {
-        const body = (await res.json()) as Health;
-        setState({ kind: 'ok', health: body });
-      })
+    fetchHealth()
+      .then((health) => setState({ kind: 'ok', health }))
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
         setState({ kind: 'error', message: err instanceof Error ? err.message : String(err) });
@@ -27,11 +19,15 @@ export function App() {
     return () => controller.abort();
   }, []);
 
+  const health = state.kind === 'ok' ? state.health : null;
+
   return (
     <main>
-      <p className="eyebrow">Slice 0 · foundations</p>
+      <p className="eyebrow">Slice 2 · identity</p>
       <h1>OpenRecipe</h1>
       <p className="lede">Version control for recipes.</p>
+
+      <AuthPanel health={health} />
 
       <section className="panel">
         <h2>API health</h2>
@@ -43,20 +39,22 @@ export function App() {
             <span className="muted">{state.message}</span>
           </p>
         )}
-        {state.kind === 'ok' && (
+        {health && (
           <dl>
             <dt>Status</dt>
-            <dd className={state.health.database === 'up' ? 'good' : 'bad'}>
-              {state.health.status}
-            </dd>
+            <dd className={health.database === 'up' ? 'good' : 'bad'}>{health.status}</dd>
             <dt>Database</dt>
-            <dd className={state.health.database === 'up' ? 'good' : 'bad'}>
-              {state.health.database}
-            </dd>
+            <dd className={health.database === 'up' ? 'good' : 'bad'}>{health.database}</dd>
             <dt>Doc schema</dt>
-            <dd>v{state.health.schemaVersion}</dd>
+            <dd>v{health.schemaVersion}</dd>
+            <dt>Sign-in</dt>
+            <dd>
+              {[health.auth.emailPassword && 'email', health.auth.github && 'github']
+                .filter(Boolean)
+                .join(', ')}
+            </dd>
             <dt>Uptime</dt>
-            <dd>{state.health.uptimeSeconds}s</dd>
+            <dd>{health.uptimeSeconds}s</dd>
           </dl>
         )}
       </section>

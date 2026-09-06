@@ -276,10 +276,13 @@ Bun workspaces, `docker-compose up` → Postgres + MinIO, Drizzle configured wit
 **Done when:** `parse(serialize(doc))` round-trips to identity across a fixture corpus of ~20 real recipes, and invalid documents produce errors you'd be happy to show a user.
 *Shipped:* 197 tests green over a 20-recipe corpus — round-trip identity, serializer fixed-point, hash stability across reformatting, and derived steps for every fixture.
 
-### Slice 2 — Identity · ~1 day
+### Slice 2 — Identity ✅ **done** · ~1 day
 better-auth wired into Hono, email/password + GitHub OAuth, cookie sessions, `users.handle` claimed at signup with reserved-word blocklist, `/me`, protected-route middleware, sign-in/sign-up/profile UI shells.
 **Done when:** you can sign up, sign out, sign back in, and hit an authenticated endpoint.
 Also lands `canRead` / `canWrite` and the optional-viewer middleware that every later slice depends on.
+*Shipped:* better-auth 1.7 on Drizzle, handle derivation with auto-suffixing and a 60-word reserved blocklist, the authorization service with its 404-not-403 rule, and a working sign-up / sign-in / sign-out UI. 44 API tests.
+
+**One structural decision came out of this slice:** everything the browser calls now lives under `/api`, and the dev proxy **forwards** that prefix instead of stripping it. better-auth derives OAuth callback URLs and cookie scope from the browser-visible path, so the path the browser uses and the path the API serves have to be the same string. Stripping the prefix silently breaks social sign-in in a way that only shows up once you add a provider.
 
 ### Slice 3 — Create & read a recipe 🎯 **MVP-1** · ~1.5–2.5 days
 `POST /recipes` creates recipe + root version. `GET /recipes/:owner/:slug` renders it. `/raw` serves plain Markdown. Web: a CodeMirror editor with live validation and a split preview, plus a clean read view — ingredients table, derived steps, tags, times.

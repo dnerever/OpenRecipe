@@ -28,7 +28,7 @@ export const users = pgTable(
   {
     id: text('id').primaryKey(),
     handle: text('handle').notNull(),
-    name: text('name'),
+    name: text('name').notNull().default(''),
     email: text('email').notNull(),
     emailVerified: boolean('email_verified').notNull().default(false),
     image: text('image'),
@@ -37,9 +37,72 @@ export const users = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex('users_handle_lower_idx').on(t.handle),
-    uniqueIndex('users_email_lower_idx').on(t.email),
+    // Handles and emails are normalized to lowercase before insert, so a plain
+    // unique index is sufficient — see services/handles.ts.
+    uniqueIndex('users_handle_idx').on(t.handle),
+    uniqueIndex('users_email_idx').on(t.email),
   ],
+);
+
+/**
+ * better-auth owns the three tables below. Field keys must match the names
+ * better-auth expects (camelCase); the database columns stay snake_case.
+ */
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    token: text('token').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('sessions_token_idx').on(t.token), index('sessions_user_idx').on(t.userId)],
+);
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    /** Required by better-auth >= 1.7 for OIDC issuer pinning. */
+    issuer: text('issuer'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('accounts_user_idx').on(t.userId),
+    index('accounts_provider_account_idx').on(t.providerId, t.accountId),
+  ],
+);
+
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('verifications_identifier_idx').on(t.identifier)],
 );
 
 /**
@@ -136,6 +199,7 @@ export const versions = pgTable(
 );
 
 export type User = typeof users.$inferSelect;
+export type Session = typeof sessions.$inferSelect;
 export type Recipe = typeof recipes.$inferSelect;
 export type Version = typeof versions.$inferSelect;
 export type Visibility = (typeof recipeVisibility.enumValues)[number];
