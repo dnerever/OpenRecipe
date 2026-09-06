@@ -14,6 +14,7 @@ import { recipes, users, versions, type Recipe, type User, type Visibility } fro
 import {
   assertCanRead,
   assertCanWrite,
+  canRead,
   canWrite,
   NotFoundError,
   type Viewer,
@@ -33,6 +34,8 @@ export type LoadedRecipe = {
   version: { id: string; message: string; createdAt: Date; authorId: string };
   content: string;
   doc: RecipeDoc;
+  /** Resolved on reads. `null` when this is not a fork. See `loadForkParent`. */
+  forkedFrom?: ForkAttribution | null;
 };
 
 const ownerColumns = {
@@ -71,55 +74,58 @@ export async function createRecipe(
   const contentSha256 = await hashContent(canonical);
 
   // One transaction: the slug claim, the recipe row, its root version, and the
-  // head pointer all have to land together or not at all.
-  return db.transaction(async (tx) => {
-    const slug = await claimUniqueSlug(tx as unknown as Db, author.id, input.slug ?? title);
+  // head pointer all have to land together or not at all. Retried on a unique
+  // violation for the same reason forking is — see `withSlugRetry`.
+  return withSlugRetry(() =>
+    db.transaction(async (tx) => {
+      const slug = await claimUniqueSlug(tx as unknown as Db, author.id, input.slug ?? title);
 
-    const [recipe] = await tx
-      .insert(recipes)
-      .values({
-        ownerId: author.id,
-        slug,
-        titleCache: title,
-        descriptionCache: description,
-        tagsCache: tags,
-        totalTimeMinutes,
-        visibility: input.visibility ?? 'public',
-      })
-      .returning();
-    if (!recipe) throw new Error('failed to insert recipe');
+      const [recipe] = await tx
+        .insert(recipes)
+        .values({
+          ownerId: author.id,
+          slug,
+          titleCache: title,
+          descriptionCache: description,
+          tagsCache: tags,
+          totalTimeMinutes,
+          visibility: input.visibility ?? 'public',
+        })
+        .returning();
+      if (!recipe) throw new Error('failed to insert recipe');
 
-    const [version] = await tx
-      .insert(versions)
-      .values({
-        recipeId: recipe.id,
-        parentVersionId: null,
+      const [version] = await tx
+        .insert(versions)
+        .values({
+          recipeId: recipe.id,
+          parentVersionId: null,
+          content: canonical,
+          contentSha256,
+          authorId: author.id,
+          message: 'Create recipe',
+        })
+        .returning();
+      if (!version) throw new Error('failed to insert root version');
+
+      await tx.update(recipes).set({ headVersionId: version.id }).where(eq(recipes.id, recipe.id));
+
+      return {
+        recipe: {
+          ...recipe,
+          headVersionId: version.id,
+          owner: { id: author.id, handle: author.handle, name: author.name, image: author.image },
+        },
+        version: {
+          id: version.id,
+          message: version.message,
+          createdAt: version.createdAt,
+          authorId: version.authorId,
+        },
         content: canonical,
-        contentSha256,
-        authorId: author.id,
-        message: 'Create recipe',
-      })
-      .returning();
-    if (!version) throw new Error('failed to insert root version');
-
-    await tx.update(recipes).set({ headVersionId: version.id }).where(eq(recipes.id, recipe.id));
-
-    return {
-      recipe: {
-        ...recipe,
-        headVersionId: version.id,
-        owner: { id: author.id, handle: author.handle, name: author.name, image: author.image },
-      },
-      version: {
-        id: version.id,
-        message: version.message,
-        createdAt: version.createdAt,
-        authorId: version.authorId,
-      },
-      content: canonical,
-      doc,
-    };
-  });
+        doc,
+      };
+    }),
+  );
 }
 
 /** Throws `NotFoundError` — never 403 — when the viewer may not read it. */
@@ -158,6 +164,7 @@ export async function loadRecipe(
     },
     content: version.content,
     doc: parseRecipe(version.content),
+    forkedFrom: await loadForkParent(db, recipe, viewer),
   };
 }
 
@@ -171,14 +178,33 @@ export async function setVisibility(
   const { recipe } = await loadRecipe(db, ownerHandle, slug, viewer);
   assertCanWrite(recipe, viewer);
 
-  const [updated] = await db
-    .update(recipes)
-    .set({ visibility, updatedAt: new Date() })
-    .where(eq(recipes.id, recipe.id))
-    .returning();
-  if (!updated) throw new NotFoundError();
+  return db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(recipes)
+      .set({ visibility, updatedAt: new Date() })
+      .where(eq(recipes.id, recipe.id))
+      .returning();
+    if (!updated) throw new NotFoundError();
 
-  return { ...updated, owner: recipe.owner };
+    /**
+     * `fork_count` counts public forks only (§5.1 rule 7), so a fork changing
+     * its own visibility has to add itself to, or withdraw itself from, the
+     * total its source displays. Without this the number would announce
+     * exactly what going private was meant to hide.
+     *
+     * `greatest(…, 0)` because a counter that can go negative through some
+     * path nobody predicted should read as zero rather than as nonsense.
+     */
+    if (recipe.forkParentRecipeId && visibility !== recipe.visibility) {
+      const delta = visibility === 'public' ? 1 : -1;
+      await tx
+        .update(recipes)
+        .set({ forkCount: raw`greatest(${recipes.forkCount} + ${delta}, 0)` })
+        .where(eq(recipes.id, recipe.forkParentRecipeId));
+    }
+
+    return { ...updated, owner: recipe.owner };
+  });
 }
 
 /**
@@ -221,6 +247,7 @@ export function serializeRecipeResponse(loaded: LoadedRecipe, viewer: Viewer) {
       createdAt: recipe.createdAt.toISOString(),
       updatedAt: recipe.updatedAt.toISOString(),
       canEdit: canWrite(recipe, viewer),
+      forkedFrom: loaded.forkedFrom ?? null,
     },
     version: {
       id: version.id,
@@ -490,4 +517,183 @@ export function serializeVersion(version: {
     createdAt: version.createdAt.toISOString(),
     author: version.author,
   };
+}
+
+/* ----------------------------------------------------------------- forks -- */
+
+/**
+ * A fork is a new recipe whose root version's parent belongs to a *different*
+ * recipe. That one crossing edge is the entire feature: ancestry reads in both
+ * directions from it, and Slice 8's merge base is a walk up the same pointers.
+ *
+ * Visibility is inherited rather than chosen (§5.1 rule 5). Forking a private
+ * recipe is only possible for its owner — that falls out of `loadRecipe`
+ * 404ing for everyone else — and the copy stays private, because a fork that
+ * silently published someone's private recipe would be a data leak wearing a
+ * feature's clothes.
+ *
+ * Forking your own recipe is allowed. For code it would be pointless; for
+ * recipes it is the common case — the same loaf with rye, the half batch, the
+ * version for the oven that runs hot.
+ */
+export async function forkRecipe(
+  db: Db,
+  ownerHandle: string,
+  slug: string,
+  viewer: Viewer,
+  author: User,
+  input: { slug?: string | undefined } = {},
+): Promise<LoadedRecipe> {
+  const source = await loadRecipe(db, ownerHandle, slug, viewer);
+  const { doc, canonical, title, description, tags, totalTimeMinutes } = normalize(source.content);
+  const contentSha256 = await hashContent(canonical);
+  const visibility = source.recipe.visibility;
+
+  return withSlugRetry(() =>
+    db.transaction(async (tx) => {
+      const forkSlug = await claimUniqueSlug(
+        tx as unknown as Db,
+        author.id,
+        input.slug ?? source.recipe.slug,
+      );
+
+      const [fork] = await tx
+        .insert(recipes)
+        .values({
+          ownerId: author.id,
+          slug: forkSlug,
+          titleCache: title,
+          descriptionCache: description,
+          tagsCache: tags,
+          totalTimeMinutes,
+          visibility,
+          forkParentRecipeId: source.recipe.id,
+          forkPointVersionId: source.version.id,
+        })
+        .returning();
+      if (!fork) throw new Error('failed to insert fork');
+
+      // The crossing edge. `parentVersionId` names a version belonging to the
+      // *source* recipe, which is why every version read authorizes on
+      // `version.recipe_id` and never on the recipe in the URL (§5.1 rule 1).
+      const [version] = await tx
+        .insert(versions)
+        .values({
+          recipeId: fork.id,
+          parentVersionId: source.version.id,
+          content: canonical,
+          contentSha256,
+          authorId: author.id,
+          message: `Forked from @${source.recipe.owner.handle}/${source.recipe.slug}`,
+        })
+        .returning();
+      if (!version) throw new Error('failed to insert fork root version');
+
+      await tx.update(recipes).set({ headVersionId: version.id }).where(eq(recipes.id, fork.id));
+
+      // §5.1 rule 7: only public forks are counted, so a private fork leaves
+      // no trace on a page its source's readers can see.
+      if (visibility === 'public') {
+        await tx
+          .update(recipes)
+          .set({ forkCount: raw`${recipes.forkCount} + 1` })
+          .where(eq(recipes.id, source.recipe.id));
+      }
+
+      return {
+        recipe: {
+          ...fork,
+          headVersionId: version.id,
+          owner: { id: author.id, handle: author.handle, name: author.name, image: author.image },
+        },
+        version: {
+          id: version.id,
+          message: version.message,
+          createdAt: version.createdAt,
+          authorId: version.authorId,
+        },
+        content: canonical,
+        doc,
+      };
+    }),
+  );
+}
+
+/**
+ * Where a fork came from, as much of it as this viewer is allowed to know.
+ *
+ * §5.1 rule 3: if the source later goes private the fork stays public, but its
+ * page must say "a private recipe" rather than leaking the title and slug it
+ * was forked from. Attribution degrades; it never disappears, because the fork
+ * genuinely is derived work and saying so is the point.
+ */
+export type ForkAttribution =
+  | {
+      visible: true;
+      owner: { handle: string; name: string; image: string | null };
+      slug: string;
+      title: string;
+    }
+  | { visible: false };
+
+export async function loadForkParent(
+  db: Db,
+  recipe: Pick<Recipe, 'forkParentRecipeId'>,
+  viewer: Viewer,
+): Promise<ForkAttribution | null> {
+  if (!recipe.forkParentRecipeId) return null;
+
+  const [row] = await db
+    .select({ recipe: recipes, owner: ownerColumns })
+    .from(recipes)
+    .innerJoin(users, eq(users.id, recipes.ownerId))
+    .where(eq(recipes.id, recipe.forkParentRecipeId))
+    .limit(1);
+
+  if (!row) return null;
+  if (!canRead(row.recipe, viewer)) return { visible: false };
+
+  return {
+    visible: true,
+    owner: { handle: row.owner.handle, name: row.owner.name, image: row.owner.image },
+    slug: row.recipe.slug,
+    title: row.recipe.titleCache,
+  };
+}
+
+/**
+ * The other direction. Public forks, plus the viewer's own private ones — a
+ * fork list is a listing like any other, so §5.1's filter applies here too.
+ */
+export async function listForks(db: Db, recipeId: string, viewer: Viewer) {
+  const visible = viewer
+    ? or(eq(recipes.visibility, 'public'), eq(recipes.ownerId, viewer.id))
+    : eq(recipes.visibility, 'public');
+
+  return db
+    .select({ recipe: recipes, owner: ownerColumns })
+    .from(recipes)
+    .innerJoin(users, eq(users.id, recipes.ownerId))
+    .where(and(eq(recipes.forkParentRecipeId, recipeId), visible))
+    .orderBy(desc(recipes.updatedAt));
+}
+
+/**
+ * `claimUniqueSlug` reads the namespace and the insert writes it, so two forks
+ * landing together can both see the same slug free. The unique index is the
+ * real guarantee; this turns its rejection into one more attempt rather than a
+ * 500. Retried rather than locked because the collision is rare and a lock on
+ * the owner's whole namespace would be a much bigger promise than it is worth.
+ */
+const UNIQUE_VIOLATION = '23505';
+
+async function withSlugRetry<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await run();
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code;
+      if (code !== UNIQUE_VIOLATION || attempt >= attempts) throw err;
+    }
+  }
 }

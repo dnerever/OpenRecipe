@@ -142,6 +142,12 @@ export const recipes = pgTable(
       onDelete: 'set null',
     }),
 
+    /**
+     * **Public** forks only, per docs/PLAN.md §5.1 rule 7 — a private fork must
+     * not announce its own existence by bumping a number on a page strangers
+     * can read. Maintained on fork and on every visibility flip, so listings
+     * can show it without a second query.
+     */
     forkCount: integer('fork_count').notNull().default(0),
     starCount: integer('star_count').notNull().default(0),
 
@@ -175,10 +181,13 @@ export const versions = pgTable(
       .notNull()
       .references((): AnyPgColumn => recipes.id, { onDelete: 'cascade' }),
 
+    // `restrict` is load-bearing across recipes: a fork's root version points at
+    // a version of the recipe it came from, so this refuses to let a delete
+    // erase somebody else's ancestry out from under them.
     parentVersionId: uuid('parent_version_id').references((): AnyPgColumn => versions.id, {
       onDelete: 'restrict',
     }),
-    // Second parent. Set only by proposal merges (Slice 7).
+    // Second parent. Set only by proposal merges (Slice 8).
     mergeParentVersionId: uuid('merge_parent_version_id').references(
       (): AnyPgColumn => versions.id,
       {

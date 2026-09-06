@@ -7,6 +7,8 @@ import {
   countPublicRecipes,
   createRecipe,
   diffVersions,
+  forkRecipe,
+  listForks,
   listPublicRecipes,
   listRecipesForOwner,
   listVersions,
@@ -36,6 +38,9 @@ const UpdateBody = z.object({
 });
 
 const RevertBody = z.object({ toVersionId: z.string().uuid() });
+
+/** Visibility is inherited, never chosen here — §5.1 rule 5. */
+const ForkBody = z.object({ slug: z.string().optional() }).optional();
 
 /** Keyset cursor, passed back verbatim from the previous page. */
 const IndexQuery = z.object({
@@ -225,6 +230,48 @@ export const recipeRoutes = new Hono<AppEnv>()
       }
       throw err;
     }
+  })
+
+  /**
+   * Objective 2. The caller's own namespace absorbs the slug collision, so
+   * forking the same recipe twice yields `-2` and `-3` rather than an error.
+   */
+  .post('/recipes/:handle/:slug/fork', requireUser, async (c) => {
+    const parsed = ForkBody.safeParse(await c.req.json().catch(() => undefined));
+    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
+
+    const requested = parsed.data?.slug;
+    if (requested !== undefined) {
+      const check = validateSlug(requested);
+      if (!check.ok) return c.json({ error: 'invalid_slug', message: check.reason }, 400);
+    }
+
+    const loaded = await forkRecipe(
+      db,
+      c.req.param('handle'),
+      c.req.param('slug'),
+      c.get('viewer'),
+      currentUser(c),
+      requested === undefined ? {} : { slug: requested },
+    );
+    return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 201);
+  })
+
+  /** Ancestry downward. The source is authorized first, then the list filtered. */
+  .get('/recipes/:handle/:slug/forks', async (c) => {
+    const { recipe } = await loadRecipe(
+      db,
+      c.req.param('handle'),
+      c.req.param('slug'),
+      c.get('viewer'),
+    );
+    const forks = await listForks(db, recipe.id, c.get('viewer'));
+    return c.json({
+      forks: forks.map((row) => ({
+        ...serializeRecipeSummary(row.recipe),
+        owner: { handle: row.owner.handle, name: row.owner.name, image: row.owner.image },
+      })),
+    });
   })
 
   .post('/recipes/:handle/:slug/visibility', requireUser, async (c) => {

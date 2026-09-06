@@ -357,11 +357,6 @@ Four rules keep the host swappable, because the free plan's cold starts will eve
 **Slug collisions auto-suffix** — `country-loaf` → `country-loaf-2` → `country-loaf-3`, resolved in a transaction against the caller's own namespace so two concurrent forks can't claim the same slug. Forks inherit visibility per §5.1 rule 5, and attribution degrades per rule 3.
 **Done when:** you fork, edit, and both recipes evolve independently while ancestry remains queryable in both directions — and forking the same recipe twice yields `-2` and `-3` without an error.
 
-### Slice 8 — Proposals 🎯 **Objective 3** · ~3–4 days *(the big one)*
-Merge-base computation, `node-diff3` three-way merge, mergeability status recomputed on view. Open a proposal from a fork or from an inline "suggest an edit". Review UI: diff, discussion thread, merge/close. Merging commits a version with `merge_parent_version_id` set and advances the target head. Conflicts render with markers in the editor for the owner to resolve, then merge with `resolvedContent`.
-**Done when:** two accounts collaborate — fork, edit, propose, discuss, merge — and the target's history shows a merge version with both parents. Also: force a real conflict (both edit the same ingredient line) and resolve it.
-*Break this into 8a (merge engine + tests in `packages/core`) and 7b (API + UI). The engine is pure and should be fully tested before any UI exists.*
-
 ### Slice 9 — Search & discovery · ~1–2 days
 Postgres FTS search over the cached title, description and tags, tag browse, sort by popularity, stars, and profile polish. The browse index itself shipped in Slice 4.
 **Done when:** you can find a recipe by typing a word from it, not just by scrolling.
@@ -377,13 +372,23 @@ Presigned uploads to S3/R2, a hero image plus per-step images referenced from fr
 Paste a URL → extract JSON-LD `schema.org/Recipe` (most food sites publish it) → map to `schema: 1` → drop the author into the editor to clean up. Paste-plain-text fallback. Import provenance recorded in `source`.
 **Done when:** three major recipe sites import cleanly. *Biggest adoption lever in the plan — nobody hand-types their existing collection.*
 
+### Slice 8 — Proposals 🎯 **Objective 3** · ~3–4 days *(the big one, and now the last one)*
+Merge-base computation, `node-diff3` three-way merge, mergeability status recomputed on view. Open a proposal from a fork or from an inline "suggest an edit". Review UI: diff, discussion thread, merge/close. Merging commits a version with `merge_parent_version_id` set and advances the target head. Conflicts render with markers in the editor for the owner to resolve, then merge with `resolvedContent`.
+**Done when:** two accounts collaborate — fork, edit, propose, discuss, merge — and the target's history shows a merge version with both parents. Also: force a real conflict (both edit the same ingredient line) and resolve it.
+*Break this into 8a (merge engine + tests in `packages/core`) and 8b (API + UI). The engine is pure and should be fully tested before any UI exists.*
+
+**Deliberately resequenced to the end.** It was originally next after Fork, on the logic that it completes the git-like model. That logic was about the architecture, not about the app: nobody proposes a change to a recipe they cannot find (9), cannot cook from (10), cannot see (11), and never imported in the first place (12). Proposals need a second person who cares about your recipe, and every slice ahead of it is what produces that person. Nothing here is blocked by the delay — the merge engine is pure and self-contained, and `node-diff3` is already a dependency, carried in for Slice 6's diff.
+
 ### Sequencing at a glance
 
 ```
-S0 ─ S1 ─ S2 ─ S3 ═ MVP-1 ─ S4 ─ S5 ═ LIVE ─ S6 ─ S7 ─ S8 ═ FULL VCS ─ S9 ─ S10 ─ S11 ─ S12
-     └── pure core, heavily tested ──┘                 └── the git-like heart ──┘
+S0 ─ S1 ─ S2 ─ S3 ═ MVP-1 ─ S4 ─ S5 ═ LIVE ─ S6 ─ S7 ─ S9 ─ S10 ─ S11 ─ S12 ─ S8 ═ FULL VCS
+     └── pure core, heavily tested ──┘         └─ versioning ─┘   └── the app people use ──┘
 ```
-Roughly 3–4 weeks of focused solo work to the end of Slice 8.
+
+**Numbers are identities, not positions.** Slice 8 moved to the end of the queue and kept its number, because commit messages, code comments and §5.1's rule numbering all reference these. Read the diagram for order, the heading for identity.
+
+Roughly 3–4 weeks of focused solo work to the end of Slice 12, then Slice 8 closes out Objective 3.
 
 ---
 
@@ -415,7 +420,7 @@ Paid subscriptions and subscriber access to others' private recipes (the `visibi
 2. **Handle namespace** — reserve `api`, `about`, `settings`, `new`, `search`, `raw` etc. before launch, not after.
 
 ### Resolved
-- ~~**Slug collisions on fork**~~ → auto-suffix `-2`, `-3`, … (Slice 6).
+- ~~**Slug collisions on fork**~~ → auto-suffix `-2`, `-3`, … (Slice 7).
 - ~~**Anonymous suggestions**~~ → deferred; proposals require an account.
 - ~~**Private recipes**~~ → shipped in Slice 3, binary `visibility` field. See §5.1.
 - ~~**Runtime**~~ → Node 24 + npm workspaces.
