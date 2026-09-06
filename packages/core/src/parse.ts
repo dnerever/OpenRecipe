@@ -126,6 +126,9 @@ export function parseRecipe(text: string): RecipeDoc {
  * Zod can only say "unrecognized key", which tells the author nothing. The
  * tell is that a comma-split fragment has no value at all, where a genuine typo
  * (`quantity: 100`) does — so we can separate the two and say what to fix.
+ *
+ * The key names come from `issue.keys` rather than Zod's own message, which
+ * carries no names under `zod/mini` — and naming them is the whole point.
  */
 function explain(
   issue: { code: string; message: string; keys?: string[] },
@@ -134,15 +137,21 @@ function explain(
 ): string {
   if (issue.code !== 'unrecognized_keys') return issue.message;
 
-  const parent = valueAt(raw, path);
-  if (parent === undefined) return issue.message;
+  const keys = issue.keys ?? [];
+  if (keys.length === 0) return issue.message;
+  const named = keys.map((k) => `\`${k}\``).join(', ');
+  const notFields =
+    keys.length === 1 ? `${named} is not a recipe field` : `${named} are not recipe fields`;
 
-  const orphans = (issue.keys ?? []).filter((k) => {
+  const parent = valueAt(raw, path);
+  if (parent === undefined) return `${notFields}.`;
+
+  const orphans = keys.filter((k) => {
     const value = (parent as Record<string, unknown>)[k];
     return value === null || value === undefined;
   });
   if (orphans.length === 0) {
-    return `${issue.message}. Check the spelling, or remove it.`;
+    return `${notFields}. Check the spelling, or remove it.`;
   }
 
   const fragment = orphans.join(', ');

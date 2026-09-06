@@ -39,7 +39,7 @@ const UpdateBody = z.object({
   message: z.string().trim().max(200).optional(),
 });
 
-const RevertBody = z.object({ toVersionId: z.string().uuid() });
+const RevertBody = z.object({ toVersionId: z.uuid() });
 
 /** Visibility is inherited, never chosen here — §5.1 rule 5. */
 const ForkBody = z.object({ slug: z.string().optional() }).optional();
@@ -57,8 +57,8 @@ const SearchQuery = z.object({
 /** Keyset cursor, passed back verbatim from the previous page. */
 const IndexQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),
-  cursorUpdatedAt: z.string().datetime().optional(),
-  cursorId: z.string().uuid().optional(),
+  cursorUpdatedAt: z.iso.datetime().optional(),
+  cursorId: z.uuid().optional(),
 });
 
 /** Parse failures are the user's problem to fix, so they come back as 422 with positions. */

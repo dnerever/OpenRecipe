@@ -5,9 +5,9 @@ import { z } from 'zod';
  *
  * The wrapped schema must already be `.optional()` — preprocess runs *before*
  * validation, so an outer `.optional()` never sees the undefined this produces
- * and the value fails as `Required`.
+ * and the value fails as a missing-value error.
  */
-function emptyAsUndefined<T extends z.ZodTypeAny>(optionalSchema: T) {
+function emptyAsUndefined<T extends z.ZodType>(optionalSchema: T) {
   return z.preprocess((value) => (value === '' ? undefined : value), optionalSchema);
 }
 
@@ -27,10 +27,10 @@ const EnvSchema = z
      *
      * `.default()` only fires on a *missing* key, and hosts routinely inject
      * declared-but-unset variables as empty strings, so empty is normalized to
-     * undefined first. Otherwise the failure is a bare "Invalid url" instead of
+     * undefined first. Otherwise the failure is a bare invalid-URL error instead of
      * the guidance below.
      */
-    APP_URL: emptyAsUndefined(z.string().url().optional()),
+    APP_URL: emptyAsUndefined(z.url().optional()),
 
     /**
      * Injected by Render. A convenience fallback only — `APP_URL` always wins,
@@ -38,14 +38,14 @@ const EnvSchema = z
      * costs no portability; it just removes a deploy-then-configure-then-
      * redeploy round trip on the first launch.
      */
-    RENDER_EXTERNAL_URL: emptyAsUndefined(z.string().url().optional()),
+    RENDER_EXTERNAL_URL: emptyAsUndefined(z.url().optional()),
 
     /**
      * Where the built SPA lives. Unset in development (Vite serves it); set in
      * the container so Hono serves the same origin as the API.
      */
     SERVE_STATIC_DIR: z.string().min(1).optional(),
-    DATABASE_URL: z.string().url(),
+    DATABASE_URL: z.url(),
 
     /** Signs session cookies. A fixed dev value keeps logins alive across restarts. */
     BETTER_AUTH_SECRET: z
@@ -64,7 +64,7 @@ const EnvSchema = z
      * configured runs fine and simply refuses image uploads, which is better
      * than refusing to boot over a feature most pages never touch.
      */
-    S3_ENDPOINT: emptyAsUndefined(z.string().url().optional()),
+    S3_ENDPOINT: emptyAsUndefined(z.url().optional()),
     S3_REGION: emptyAsUndefined(z.string().min(1).optional()),
     S3_BUCKET: emptyAsUndefined(z.string().min(1).optional()),
     S3_ACCESS_KEY: emptyAsUndefined(z.string().min(1).optional()),
@@ -80,7 +80,7 @@ const EnvSchema = z
 
     if (env.BETTER_AUTH_SECRET.startsWith('dev-only-')) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['BETTER_AUTH_SECRET'],
         message: 'Set a real BETTER_AUTH_SECRET in production.',
       });
@@ -91,7 +91,7 @@ const EnvSchema = z
     // to boot. Fail here instead.
     if (env.APP_URL.includes('localhost')) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['APP_URL'],
         message:
           "APP_URL is unset, so it fell back to localhost. Set it to the public URL this app is served from — the one shown at the top of your host's service page, e.g. https://openrecipe.onrender.com",
@@ -99,7 +99,7 @@ const EnvSchema = z
     }
     if (!env.APP_URL.startsWith('https://')) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['APP_URL'],
         message:
           'APP_URL must be https in production, or session cookies will not be marked Secure.',

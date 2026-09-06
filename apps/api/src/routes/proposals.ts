@@ -17,7 +17,7 @@ import { NotFoundError } from '../services/authorization.ts';
 import { loadRecipe } from '../services/recipes.ts';
 
 const OpenBody = z.object({
-  sourceRecipeId: z.string().uuid(),
+  sourceRecipeId: z.uuid(),
   title: z.string().trim().min(1, 'A proposal needs a title.').max(200),
   body: z.string().trim().max(10000).optional(),
 });
