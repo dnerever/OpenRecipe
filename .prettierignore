@@ -1,0 +1,8 @@
+dist/
+node_modules/
+*.tsbuildinfo
+apps/api/src/db/migrations/
+# Test data — the formatting is the thing under test.
+packages/core/src/__fixtures__/
+# Hand-formatted prose and tables.
+docs/

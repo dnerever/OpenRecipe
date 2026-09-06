@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: openrecipe
+          POSTGRES_PASSWORD: openrecipe
+          POSTGRES_DB: openrecipe
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U openrecipe -d openrecipe"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://openrecipe:openrecipe@localhost:5432/openrecipe
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build (typechecks core + api)
+        run: npm run build
+
+      - name: Typecheck web
+        run: npm run typecheck -w @openrecipe/web
+
+      - name: Migrate
+        run: npm run db:migrate
+
+      - name: Test
+        run: npm test

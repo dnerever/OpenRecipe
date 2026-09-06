@@ -1,0 +1,35 @@
+{
+  "name": "openrecipe",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n core,api,web -c magenta,cyan,green \"npm:dev:core\" \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:core": "npm run dev -w @openrecipe/core",
+    "dev:api": "npm run dev -w @openrecipe/api",
+    "dev:web": "npm run dev -w @openrecipe/web",
+    "build": "tsc -b packages/core apps/api && npm run build -w @openrecipe/web",
+    "typecheck": "npm run typecheck -w @openrecipe/core && tsc -b apps/api && npm run typecheck -w @openrecipe/web",
+    "test": "npm run test -w @openrecipe/core && npm run test -w @openrecipe/api",
+    "clean": "tsc -b --clean packages/core apps/api && rm -rf apps/web/dist",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:generate": "npm run db:generate -w @openrecipe/api",
+    "db:migrate": "npm run db:migrate -w @openrecipe/api",
+    "db:studio": "npm run db:studio -w @openrecipe/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.4.2",
+    "typescript": "^5.8.2",
+    "@types/node": "^24.0.0"
+  }
+}
