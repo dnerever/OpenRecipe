@@ -24,7 +24,8 @@
     "db:down": "docker compose down",
     "db:generate": "npm run db:generate -w @openrecipe/api",
     "db:migrate": "npm run db:migrate -w @openrecipe/api",
-    "db:studio": "npm run db:studio -w @openrecipe/api"
+    "db:studio": "npm run db:studio -w @openrecipe/api",
+    "db:backfill": "npm run db:backfill -w @openrecipe/api"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

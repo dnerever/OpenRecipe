@@ -122,6 +122,8 @@ export const recipes = pgTable(
     // Listing pages must never parse YAML.
     titleCache: text('title_cache').notNull().default(''),
     descriptionCache: text('description_cache'),
+    tagsCache: text('tags_cache').array().notNull().default([]),
+    totalTimeMinutes: integer('total_time_minutes'),
 
     // Nullable only in the window between INSERT recipe and INSERT root version,
     // which always happens inside one transaction.
@@ -150,8 +152,10 @@ export const recipes = pgTable(
     uniqueIndex('recipes_owner_slug_idx').on(t.ownerId, t.slug),
     index('recipes_owner_idx').on(t.ownerId),
     index('recipes_fork_parent_idx').on(t.forkParentRecipeId),
-    // Every public listing filters on this first.
-    index('recipes_visibility_updated_idx').on(t.visibility, t.updatedAt),
+    // The browse index pages on (visibility, updated_at desc, id desc); this is
+    // the index that keyset pagination walks.
+    index('recipes_visibility_updated_idx').on(t.visibility, t.updatedAt, t.id),
+    index('recipes_tags_idx').using('gin', t.tagsCache),
   ],
 );
 

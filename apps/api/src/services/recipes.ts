@@ -5,7 +5,7 @@ import {
   serializeRecipe,
   type RecipeDoc,
 } from '@openrecipe/core';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, lt, or, sql as raw } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import { recipes, users, versions, type Recipe, type User, type Visibility } from '../db/schema.ts';
 import {
@@ -39,7 +39,13 @@ const ownerColumns = {
   image: users.image,
 };
 
-/** Canonicalize, hash, and pull out the fields the listing pages cache. */
+/**
+ * Canonicalize, hash, and pull out the fields listing pages cache.
+ *
+ * Everything a browse card needs comes from here, because a listing page must
+ * never parse YAML — that rule is why `title_cache` exists, and `tags_cache`
+ * and `total_time_minutes` follow the same logic.
+ */
 function normalize(content: string) {
   const doc = parseRecipe(content);
   const canonical = serializeRecipe(doc);
@@ -48,6 +54,8 @@ function normalize(content: string) {
     canonical,
     title: doc.frontmatter.title,
     description: doc.frontmatter.description ?? null,
+    tags: doc.frontmatter.tags ?? [],
+    totalTimeMinutes: doc.frontmatter.time?.total ?? null,
   };
 }
 
@@ -56,7 +64,7 @@ export async function createRecipe(
   author: User,
   input: { content: string; slug?: string | undefined; visibility?: Visibility | undefined },
 ): Promise<LoadedRecipe> {
-  const { doc, canonical, title, description } = normalize(input.content);
+  const { doc, canonical, title, description, tags, totalTimeMinutes } = normalize(input.content);
   const contentSha256 = await hashContent(canonical);
 
   // One transaction: the slug claim, the recipe row, its root version, and the
@@ -71,6 +79,8 @@ export async function createRecipe(
         slug,
         titleCache: title,
         descriptionCache: description,
+        tagsCache: tags,
+        totalTimeMinutes,
         visibility: input.visibility ?? 'public',
       })
       .returning();
@@ -224,8 +234,74 @@ export function serializeRecipeSummary(recipe: Recipe) {
     slug: recipe.slug,
     title: recipe.titleCache,
     description: recipe.descriptionCache,
+    tags: recipe.tagsCache,
+    totalTimeMinutes: recipe.totalTimeMinutes,
     visibility: recipe.visibility,
     forkCount: recipe.forkCount,
     updatedAt: recipe.updatedAt.toISOString(),
   };
+}
+
+export type IndexCursor = { updatedAt: Date; id: string };
+
+/**
+ * The public browse index.
+ *
+ * Deliberately takes no viewer: this endpoint returns public recipes and
+ * nothing else, ever. Making it viewer-aware would mean one careless change
+ * away from leaking someone's private drafts onto the front page, and an
+ * owner's own private recipes are already reachable through their profile.
+ *
+ * Keyset pagination on `(updated_at desc, id desc)` rather than OFFSET, so a
+ * recipe updated mid-scroll can't shift rows across a page boundary and hide
+ * one from the reader.
+ */
+export async function listPublicRecipes(
+  db: Db,
+  options: { limit?: number; cursor?: IndexCursor | undefined } = {},
+) {
+  const limit = Math.min(Math.max(options.limit ?? 24, 1), 50);
+  const cursor = options.cursor;
+
+  const rows = await db
+    .select({ recipe: recipes, owner: ownerColumns })
+    .from(recipes)
+    .innerJoin(users, eq(users.id, recipes.ownerId))
+    .where(
+      cursor
+        ? and(
+            eq(recipes.visibility, 'public'),
+            or(
+              lt(recipes.updatedAt, cursor.updatedAt),
+              and(eq(recipes.updatedAt, cursor.updatedAt), lt(recipes.id, cursor.id)),
+            ),
+          )
+        : eq(recipes.visibility, 'public'),
+    )
+    .orderBy(desc(recipes.updatedAt), desc(recipes.id))
+    // One extra row tells us whether another page exists without a second query.
+    .limit(limit + 1);
+
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+
+  return {
+    recipes: page.map((row) => ({
+      ...serializeRecipeSummary(row.recipe),
+      owner: { handle: row.owner.handle, name: row.owner.name, image: row.owner.image },
+    })),
+    nextCursor:
+      rows.length > limit && last
+        ? { updatedAt: last.recipe.updatedAt.toISOString(), id: last.recipe.id }
+        : null,
+  };
+}
+
+/** Total public recipes, for the index header. */
+export async function countPublicRecipes(db: Db): Promise<number> {
+  const [row] = await db
+    .select({ count: raw<number>`count(*)::int` })
+    .from(recipes)
+    .where(eq(recipes.visibility, 'public'));
+  return row?.count ?? 0;
 }

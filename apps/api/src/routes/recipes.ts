@@ -4,7 +4,9 @@ import { z } from 'zod';
 import { db } from '../db/index.ts';
 import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
 import {
+  countPublicRecipes,
   createRecipe,
+  listPublicRecipes,
   listRecipesForOwner,
   loadRecipe,
   serializeRecipeResponse,
@@ -21,6 +23,13 @@ const CreateBody = z.object({
 
 const VisibilityBody = z.object({ visibility: z.enum(['public', 'private']) });
 
+/** Keyset cursor, passed back verbatim from the previous page. */
+const IndexQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  cursorUpdatedAt: z.string().datetime().optional(),
+  cursorId: z.string().uuid().optional(),
+});
+
 /** Parse failures are the user's problem to fix, so they come back as 422 with positions. */
 function parseErrorResponse(err: RecipeParseError) {
   return {
@@ -35,6 +44,29 @@ function parseErrorResponse(err: RecipeParseError) {
 }
 
 export const recipeRoutes = new Hono<AppEnv>()
+  /**
+   * The public browse index. No auth, and no viewer is threaded through — the
+   * service only ever returns public recipes. Declared before
+   * `/recipes/:handle/:slug` so the static path wins.
+   */
+  .get('/recipes', async (c) => {
+    const parsed = IndexQuery.safeParse(c.req.query());
+    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
+
+    const { limit, cursorUpdatedAt, cursorId } = parsed.data;
+    const cursor =
+      cursorUpdatedAt && cursorId
+        ? { updatedAt: new Date(cursorUpdatedAt), id: cursorId }
+        : undefined;
+
+    const [page, total] = await Promise.all([
+      listPublicRecipes(db, { ...(limit ? { limit } : {}), cursor }),
+      cursor ? Promise.resolve(null) : countPublicRecipes(db),
+    ]);
+
+    return c.json(total === null ? page : { ...page, total });
+  })
+
   .post('/recipes', requireUser, async (c) => {
     const parsed = CreateBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) {

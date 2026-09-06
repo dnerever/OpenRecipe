@@ -119,7 +119,7 @@ Node 24.20 locally. Built-in test runner (`node --test`), native TS type-strippi
 | Web | Vite + React 19 + TypeScript |
 | Routing/data | TanStack Router + TanStack Query |
 | UI | Tailwind + shadcn/ui |
-| Editor | textarea + core's line-numbered validation; CodeMirror 6 lands in Slice 5, where decorations start paying for themselves |
+| Editor | textarea + core's line-numbered validation; CodeMirror 6 lands in Slice 6, where decorations start paying for themselves |
 | Objects | MinIO locally → S3/R2 in prod |
 | Tests | `node --test` (core + api), Playwright (2–3 critical flows) |
 | CI | GitHub Actions: typecheck → lint → unit → api-integration |
@@ -293,50 +293,61 @@ Also lands `canRead` / `canWrite` and the optional-viewer middleware that every 
 
 **Two corrections to this plan came out of the slice:**
 - **Recipes live at `/{handle}/{slug}`, not `/r/{owner}/{slug}`.** The reserved-handle blocklist from Slice 2 only makes sense if handles are top-level, and they should be — it is the GitHub shape people already know.
-- **The editor is a textarea, not CodeMirror.** CodeMirror earns its weight through decorations — diff gutters and conflict markers — and neither exists before Slices 5 and 7. Until then the parser's own line numbers give identical feedback for a fraction of the bundle. It lands in Slice 5.
+- **The editor is a textarea, not CodeMirror.** CodeMirror earns its weight through decorations — diff gutters and conflict markers — and neither exists before Slices 6 and 8. Until then the parser's own line numbers give identical feedback for a fraction of the bundle. It lands in Slice 6.
 
-### Slice 4 — Deploy · ~1 day
+### Slice 4 — Public index ✅ **done** · ~1 day
+The site's front door. `GET /api/recipes` returns every **public** recipe, newest activity first, keyset-paginated — no auth required. `/` becomes a real browse page: a grid of recipe cards showing title, description, owner, tags and total time, with "Load more". Sign-in moves to its own `/signin` route instead of squatting on the home page.
+
+Two denormalized columns land with it — `tags_cache` and `total_time_minutes` — for the same reason `title_cache` exists: **a listing page must never parse YAML**. They also set up tag browse and full-text search in Slice 9.
+
+**Done when:** a signed-out stranger can land on `/`, browse every public recipe, page through them, and click into one — and no private recipe appears anywhere in the index, including on the page boundary after one is made private.
+*Pulled forward from Discovery at your request.* Search, tag browse, stars and profile polish stay in Slice 9; this is only the browse surface.
+*Shipped:* `GET /api/recipes` with keyset pagination, `tags_cache`/`total_time_minutes` plus a backfill script, a card grid on `/`, and sign-in relocated to `/signin`. 96 API tests.
+
+**The index takes no viewer at all.** It could have been viewer-aware — showing you your own private recipes inline — but that puts the front page one careless `or` away from leaking someone's drafts. An owner's private recipes are already reachable from their profile, so the index stays categorically public.
+
+### Slice 5 — Deploy · ~1 day
 Fly.io (or Railway) for API + Postgres, Cloudflare Pages/Vercel for the SPA, R2/S3 for objects, migrations on release, `main` → production via Actions, Sentry + structured logs.
 **Done when:** MVP-1 is live on a real domain and every subsequent slice deploys on merge.
 *Pulled this far forward deliberately — you asked to deploy shortly after local works, and continuous deployment from here is far cheaper than a big-bang launch later.*
 
-### Slice 5 — Edit, history, diff, revert · ~2 days
+### Slice 6 — Edit, history, diff, revert · ~2 days
 `PUT` creates a version and advances head (no-op guard on identical hash). History timeline. Diff view: unified/split text diff plus a **semantic layer** — "hydration 75% → 78%", "added: 20g fine sea salt", "step 3 reworded". Revert creates a *new* version restoring old content; history is never rewritten.
 **Done when:** you can edit a recipe five times, read the history, diff any two points, and revert — and the semantic diff tells you something a text diff wouldn't.
 
-### Slice 6 — Fork 🎯 **Objective 2** · ~1 day
+### Slice 7 — Fork 🎯 **Objective 2** · ~1 day
 `POST /fork` creates a recipe under the caller with `fork_parent_recipe_id` + `fork_point_version_id`; the new head's `parent_version_id` points at the upstream version. "Forked from @owner/slug" attribution on the read view, fork counts, a fork list.
 
 **Slug collisions auto-suffix** — `country-loaf` → `country-loaf-2` → `country-loaf-3`, resolved in a transaction against the caller's own namespace so two concurrent forks can't claim the same slug. Forks inherit visibility per §5.1 rule 5, and attribution degrades per rule 3.
 **Done when:** you fork, edit, and both recipes evolve independently while ancestry remains queryable in both directions — and forking the same recipe twice yields `-2` and `-3` without an error.
 
-### Slice 7 — Proposals 🎯 **Objective 3** · ~3–4 days *(the big one)*
+### Slice 8 — Proposals 🎯 **Objective 3** · ~3–4 days *(the big one)*
 Merge-base computation, `node-diff3` three-way merge, mergeability status recomputed on view. Open a proposal from a fork or from an inline "suggest an edit". Review UI: diff, discussion thread, merge/close. Merging commits a version with `merge_parent_version_id` set and advances the target head. Conflicts render with markers in the editor for the owner to resolve, then merge with `resolvedContent`.
 **Done when:** two accounts collaborate — fork, edit, propose, discuss, merge — and the target's history shows a merge version with both parents. Also: force a real conflict (both edit the same ingredient line) and resolve it.
-*Break this into 7a (merge engine + tests in `packages/core`) and 7b (API + UI). The engine is pure and should be fully tested before any UI exists.*
+*Break this into 8a (merge engine + tests in `packages/core`) and 7b (API + UI). The engine is pure and should be fully tested before any UI exists.*
 
-### Slice 8 — Discovery · ~1–2 days
-Home feed (recent/popular), Postgres FTS search, tag browse, profile pages, stars.
-**Done when:** you can find a recipe you didn't already know the URL of.
+### Slice 9 — Search & discovery · ~1–2 days
+Postgres FTS search over the cached title, description and tags, tag browse, sort by popularity, stars, and profile polish. The browse index itself shipped in Slice 4.
+**Done when:** you can find a recipe by typing a word from it, not just by scrolling.
 
-### Slice 9 — Cook mode & scaling · ~1–2 days
+### Slice 10 — Cook mode & scaling · ~1–2 days
 Scale by yield or by a single ingredient (baker's percentage for doughs), unit conversion, a step-by-step full-screen cooking view with wake-lock and inline timers parsed from step text, printable view, shopping-list export.
 **Done when:** you cook something from your phone using it. *This is the slice that makes people actually use it — do not let it slip indefinitely.*
 
-### Slice 10 — Images · ~1 day
+### Slice 11 — Images · ~1 day
 Presigned uploads to S3/R2, a hero image plus per-step images referenced from frontmatter, EXIF stripping, size/type limits, thumbnails.
 
-### Slice 11 — Import · ~1–2 days
+### Slice 12 — Import · ~1–2 days
 Paste a URL → extract JSON-LD `schema.org/Recipe` (most food sites publish it) → map to `schema: 1` → drop the author into the editor to clean up. Paste-plain-text fallback. Import provenance recorded in `source`.
 **Done when:** three major recipe sites import cleanly. *Biggest adoption lever in the plan — nobody hand-types their existing collection.*
 
 ### Sequencing at a glance
 
 ```
-S0 ─ S1 ─ S2 ─ S3 ═ MVP-1 ─ S4 ═ LIVE ─ S5 ─ S6 ─ S7 ═ FULL VCS ─ S8 ─ S9 ─ S10 ─ S11
-     └── pure core, heavily tested ──┘         └── the git-like heart ──┘
+S0 ─ S1 ─ S2 ─ S3 ═ MVP-1 ─ S4 ─ S5 ═ LIVE ─ S6 ─ S7 ─ S8 ═ FULL VCS ─ S9 ─ S10 ─ S11 ─ S12
+     └── pure core, heavily tested ──┘                 └── the git-like heart ──┘
 ```
-Roughly 3–4 weeks of focused solo work to the end of Slice 7.
+Roughly 3–4 weeks of focused solo work to the end of Slice 8.
 
 ---
 
@@ -351,10 +362,10 @@ Roughly 3–4 weeks of focused solo work to the end of Slice 7.
 
 | Risk | Mitigation |
 |---|---|
-| Merge engine is the hardest code here | Slice 7a is pure and test-first, before any UI |
+| Merge engine is the hardest code here | Slice 8a is pure and test-first, before any UI |
 | Frontmatter schema churns after launch | `schema: 1` + a versioned migration function in core from day one |
 | Semantic diff scope-creeps | Ship text diff first; semantic layer is additive |
-| Nobody hand-types recipes | Slice 11 import — consider pulling earlier if early users stall |
+| Nobody hand-types recipes | Slice 12 import — consider pulling earlier if early users stall |
 | Free-text ingredients block scaling | Structured `qty/unit/item` from the start; normalize units in core |
 | A read path forgets the visibility check | Authorization lives in services, not routes; §5.1's seven cases become explicit API tests in Slice 3 |
 

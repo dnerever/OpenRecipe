@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=../../.env src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "clean": "tsc -b --clean"
+    "clean": "tsc -b --clean",
+    "db:backfill": "node --env-file-if-exists=../../.env src/db/backfill-caches.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",

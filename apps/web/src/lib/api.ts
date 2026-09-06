@@ -24,9 +24,20 @@ export type RecipeSummary = {
   slug: string;
   title: string;
   description: string | null;
+  tags: string[];
+  totalTimeMinutes: number | null;
   visibility: Visibility;
   forkCount: number;
   updatedAt: string;
+};
+
+export type IndexCursor = { updatedAt: string; id: string };
+
+export type IndexPage = {
+  recipes: (RecipeSummary & { owner: { handle: string; name: string; image: string | null } })[];
+  nextCursor: IndexCursor | null;
+  /** Present on the first page only — recounting on every page is wasted work. */
+  total?: number;
 };
 
 export type RecipeResponse = {
@@ -94,6 +105,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const fetchHealth = () => request<Health>('/api/health');
+
+export const fetchPublicIndex = (cursor?: IndexCursor | null) => {
+  const params = new URLSearchParams({ limit: '24' });
+  if (cursor) {
+    params.set('cursorUpdatedAt', cursor.updatedAt);
+    params.set('cursorId', cursor.id);
+  }
+  return request<IndexPage>(`/api/recipes?${params.toString()}`);
+};
 export const fetchMe = () => request<{ user: PublicUser | null }>('/api/me');
 
 export const fetchRecipe = (handle: string, slug: string) =>

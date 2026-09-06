@@ -1,9 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
+import { RecipeCard } from '../components/RecipeCard.tsx';
 import { ApiError, fetchUserRecipes } from '../lib/api.ts';
+import { useSession } from '../lib/auth.ts';
 
 export function ProfilePage() {
   const { handle } = useParams({ from: '/$handle' });
+  const { data: session } = useSession();
+  const isSelf = (session?.user as { handle?: string } | undefined)?.handle === handle;
 
   const { data, isPending, error } = useQuery({
     queryKey: ['user-recipes', handle],
@@ -25,21 +29,29 @@ export function ProfilePage() {
 
   return (
     <section>
-      <h1>@{data.owner.handle}</h1>
-      {data.owner.name && <p className="lede">{data.owner.name}</p>}
+      <header className="profile-head">
+        <h1>@{data.owner.handle}</h1>
+        {data.owner.name && <p className="lede">{data.owner.name}</p>}
+        {isSelf && (
+          <Link className="button" to="/new">
+            New recipe
+          </Link>
+        )}
+      </header>
 
       {data.recipes.length === 0 ? (
-        <p className="muted">No recipes yet.</p>
+        <p className="muted">
+          No recipes yet. {isSelf && <Link to="/new">Write your first one.</Link>}
+        </p>
       ) : (
-        <ul className="recipe-list">
+        <ul className="cards">
           {data.recipes.map((recipe) => (
-            <li key={recipe.slug}>
-              <Link to="/$handle/$slug" params={{ handle: data.owner.handle, slug: recipe.slug }}>
-                {recipe.title}
-              </Link>
-              {recipe.visibility === 'private' && <span className="badge">Private</span>}
-              {recipe.description && <p className="muted">{recipe.description}</p>}
-            </li>
+            <RecipeCard
+              key={recipe.slug}
+              recipe={recipe}
+              handle={data.owner.handle}
+              showOwner={false}
+            />
           ))}
         </ul>
       )}
