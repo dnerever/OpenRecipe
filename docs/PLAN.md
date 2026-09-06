@@ -92,6 +92,12 @@ Rules:
 - **Steps are derived, not authored** — `##` headings become phases, paragraphs/list items become steps. Authors write prose; cook mode gets structure for free.
 - `schema: 1` is the migration escape hatch. Never remove it.
 
+**Three rules learned while implementing it (Slice 1):**
+
+- **Canonical output never emits days.** `24h`, not `1d` — every baker alive writes the former, and canonicalizing to `1d` reads as a bug. `2d` is still *accepted* on input.
+- **Output is quoted under YAML 1.1 rules**, not 1.2. Our parser is 1.2 and reads either identically, but `title: yes` is a boolean to the many tools still on 1.1 — and `/raw` is a portability promise, so we pay the extra quotes.
+- **The unquoted comma is the format's one real trap.** In `note: full fat, unshaken`, YAML reads `unshaken` as a new field. The parser detects it (a comma-split fragment has *no value*, where a genuine typo does) and says what to fix, rather than reporting a phantom key.
+
 ### ADR-004 — Runtime: Node 24 + npm workspaces
 Node 24.20 locally. Built-in test runner (`node --test`), native TS type-stripping, npm 11 workspaces — no extra toolchain.
 **Why not Bun:** the only argument for it was that local Node was past EOL. That's gone, and one boring runtime across local/CI/prod beats a marginally faster install.
@@ -260,14 +266,15 @@ GET    /recipes/:owner/:slug/raw                text/markdown — the archive pr
 
 Each slice is **vertical and demoable**. Do not start the next one until the current one is merged and working end to end.
 
-### Slice 0 — Foundations · ~½–1 day
+### Slice 0 — Foundations ✅ **done** · ~½–1 day
 Bun workspaces, `docker-compose up` → Postgres + MinIO, Drizzle configured with one migration, Hono serving `GET /health`, Vite app rendering a page that fetches it, GitHub Actions running typecheck + tests, `.env.example`, README with a `bun install && bun dev` quickstart.
 **Done when:** a fresh clone reaches a working local stack in under five minutes.
+*Shipped:* npm workspaces, Compose (Postgres 17 + MinIO), Drizzle with the `users`/`recipes`/`versions` migration applied, Hono `/health` round-tripping through the Vite proxy to Postgres, `node --test` wired up, CI green.
 
-### Slice 1 — Recipe document core · ~1–2 days
+### Slice 1 — Recipe document core ✅ **done** · ~1–2 days
 `packages/core` with no I/O: Zod `schema: 1`, `parse`, `serialize`, `hash`, `steps` derivation, `scale`, duration parsing, friendly validation errors with line numbers.
 **Done when:** `parse(serialize(doc))` round-trips to identity across a fixture corpus of ~20 real recipes, and invalid documents produce errors you'd be happy to show a user.
-*This slice de-risks everything after it. Do not rush it.*
+*Shipped:* 197 tests green over a 20-recipe corpus — round-trip identity, serializer fixed-point, hash stability across reformatting, and derived steps for every fixture.
 
 ### Slice 2 — Identity · ~1 day
 better-auth wired into Hono, email/password + GitHub OAuth, cookie sessions, `users.handle` claimed at signup with reserved-word blocklist, `/me`, protected-route middleware, sign-in/sign-up/profile UI shells.

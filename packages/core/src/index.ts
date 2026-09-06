@@ -6,5 +6,23 @@
  * to test and reusable by a future CLI. Keep it that way.
  */
 
-/** Schema version stamped into every document's frontmatter. */
-export const SCHEMA_VERSION = 1 as const;
+export { SCHEMA_VERSION, FrontmatterSchema, type ParsedFrontmatter } from './schema.ts';
+export { RecipeParseError, type Position, type RecipeIssue } from './errors.ts';
+export { parseRecipe, safeParseRecipe, type ParseResult } from './parse.ts';
+export { serializeRecipe } from './serialize.ts';
+export { hashContent, hashRecipe } from './hash.ts';
+export { deriveSteps, countSteps } from './steps.ts';
+export { scaleRecipe, scaleToYield, scaleToIngredient, formatQuantity } from './scale.ts';
+export { parseDuration, formatDuration, humanizeDuration } from './duration.ts';
+export { normalizeUnit, unitSystem, prefersFractions, type UnitSystem } from './units.ts';
+export { normalizeBody } from './body.ts';
+export type {
+  Frontmatter,
+  Ingredient,
+  Phase,
+  RecipeDoc,
+  Source,
+  Step,
+  Times,
+  Yield,
+} from './types.ts';
