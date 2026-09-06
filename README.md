@@ -73,6 +73,7 @@ suffix `-2`, `-3`, … on collision. Anything that could become a top-level rout
 | `/{handle}`                        | A cook's recipes                |
 | `/{handle}/{slug}`                 | A recipe                        |
 | `/{handle}/{slug}/cook`            | Cook mode — one step at a time  |
+| `/{handle}/{slug}/proposals`       | Proposals against this recipe   |
 | `/new`                             | Write a recipe                  |
 | `/api/recipes/{handle}/{slug}/raw` | The recipe as portable Markdown |
 

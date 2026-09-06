@@ -10,8 +10,10 @@ import { sql as rawSql } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { withViewer, type AppEnv } from './middleware/session.ts';
 import { meRoutes } from './routes/me.ts';
+import { proposalRoutes } from './routes/proposals.ts';
 import { recipeRoutes, userRoutes } from './routes/recipes.ts';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/authorization.ts';
+import { ProposalError } from './services/proposals.ts';
 import { NoChangesError } from './services/recipes.ts';
 
 /**
@@ -74,6 +76,9 @@ export function createApp() {
   });
 
   api.route('/', meRoutes);
+  // Before the recipe routes: `/recipes/:handle/:slug/proposals` must not be
+  // matched as a recipe named "proposals" by a looser pattern.
+  api.route('/', proposalRoutes);
   api.route('/', recipeRoutes);
   api.route('/', userRoutes);
 
@@ -95,6 +100,7 @@ export function createApp() {
     if (err instanceof ForbiddenError) return c.json({ error: 'forbidden' }, 403);
     if (err instanceof UnauthorizedError) return c.json({ error: 'unauthorized' }, 401);
     if (err instanceof NoChangesError) return c.json({ error: 'no_changes' }, 409);
+    if (err instanceof ProposalError) return c.json({ error: err.code }, err.status);
 
     console.error(err);
     return c.json({ error: 'internal_error' }, 500);

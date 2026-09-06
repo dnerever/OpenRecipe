@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useMemo, useState } from 'react';
 import { ForkButton } from '../components/ForkButton.tsx';
 import { ForkedFrom } from '../components/ForkedFrom.tsx';
+import { ProposeForm } from '../components/ProposeForm.tsx';
 import { RecipeView } from '../components/RecipeView.tsx';
 import { ScaleControl } from '../components/ScaleControl.tsx';
 import { ShoppingList } from '../components/ShoppingList.tsx';
@@ -23,6 +24,7 @@ export function RecipePage() {
   const search = useSearch({ from: '/$handle/$slug' });
   const navigate = useNavigate();
   const [showShopping, setShowShopping] = useState(false);
+  const [proposing, setProposing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const { data, isPending, error } = useQuery({
@@ -115,6 +117,16 @@ export function RecipePage() {
             starred={recipe.viewerHasStarred}
             count={recipe.starCount}
           />
+          {recipe.canEdit && recipe.forkedFrom?.visible && (
+            <button
+              type="button"
+              className="secondary"
+              aria-expanded={proposing}
+              onClick={() => setProposing((was) => !was)}
+            >
+              Propose changes
+            </button>
+          )}
 
           <details
             className="more"
@@ -144,6 +156,13 @@ export function RecipePage() {
               >
                 Print
               </button>
+              <Link
+                className="button secondary"
+                to="/$handle/$slug/proposals"
+                params={{ handle, slug }}
+              >
+                Proposals
+              </Link>
               <Link
                 className="button secondary"
                 to="/$handle/$slug/history"
@@ -183,6 +202,15 @@ export function RecipePage() {
           <p className="notice">Only you can see this recipe.</p>
         )}
       </header>
+
+      {proposing && recipe.forkedFrom && (
+        <ProposeForm
+          sourceRecipeId={recipe.id}
+          forkedFrom={recipe.forkedFrom}
+          defaultTitle={version.message === 'Update recipe' ? recipe.title : version.message}
+          onCancel={() => setProposing(false)}
+        />
+      )}
 
       <RecipeView
         frontmatter={shown}

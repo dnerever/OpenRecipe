@@ -1258,3 +1258,136 @@ button.star.on {
     break-inside: avoid;
   }
 }
+
+/* --- proposals --- */
+textarea {
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  resize: vertical;
+}
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.proposal-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 2rem;
+}
+.proposal-list li {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--rule);
+}
+.proposal-list li:first-child {
+  border-top: none;
+}
+.proposal-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0;
+  font-weight: 600;
+}
+.proposal-title a {
+  text-decoration: none;
+}
+.settled-head {
+  margin-top: 2rem;
+}
+/* The one word that says where a proposal stands, coloured like its outcome. */
+.state {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+.state.open {
+  color: var(--good);
+}
+.state.merged {
+  color: var(--accent);
+}
+.state.closed {
+  color: var(--ink-2);
+}
+.proposal h1 {
+  font-size: 2rem;
+}
+.proposal-number {
+  font-weight: 400;
+}
+.proposal .lede {
+  margin: 0.5rem 0 0;
+  font-size: 1rem;
+}
+.proposal-body {
+  margin: 1rem 0 0;
+  white-space: pre-wrap;
+}
+.section-head {
+  margin: 2.5rem 0 1rem;
+}
+.mergebox {
+  margin-top: 1.5rem;
+  padding: 1rem 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left-width: 3px;
+  border-radius: 0 7px 7px 0;
+}
+.mergebox p {
+  margin: 0 0 0.75rem;
+}
+.mergebox.clean {
+  border-left-color: var(--good);
+}
+.mergebox.conflicted {
+  border-left-color: var(--bad);
+}
+.conflict-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+.conflict-list li + li {
+  margin-top: 0.75rem;
+}
+.conflict-list .entry-meta {
+  margin: 0 0 0.25rem;
+}
+.resolution {
+  margin-top: 1rem;
+}
+.resolution .hint {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.thread {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.thread li {
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--rule);
+}
+.thread li:first-child {
+  border-top: none;
+}
+.comment-body {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+}
+.comment-form {
+  margin-top: 1.5rem;
+}
+.propose {
+  margin-bottom: 1.5rem;
+}

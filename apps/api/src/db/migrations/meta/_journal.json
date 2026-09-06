@@ -43,6 +43,13 @@
       "when": 1788676716701,
       "tag": "0005_melted_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788683719614,
+      "tag": "0006_exotic_gamma_corps",
+      "breakpoints": true
     }
   ]
 }

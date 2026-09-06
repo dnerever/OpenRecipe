@@ -26,6 +26,9 @@ const tsvector = customType<{ data: string; driverData: string }>({
  */
 export const recipeVisibility = pgEnum('recipe_visibility', ['public', 'private']);
 
+/** A proposal is open until somebody merges it or gives up on it. */
+export const proposalState = pgEnum('proposal_state', ['open', 'merged', 'closed']);
+
 /**
  * Shaped to match what better-auth expects (Slice 2) so wiring auth in later is
  * additive — it brings its own session/account/verification tables and adopts
@@ -280,9 +283,87 @@ export const versions = pgTable(
   ],
 );
 
+/**
+ * A proposal is a pull request: this source recipe's head, offered to that
+ * target recipe.
+ *
+ * `baseVersionId` and `headVersionId` are snapshots of what the merge was
+ * computed against when the proposal was opened, and both are **recomputed on
+ * view** — the target head moves as its owner keeps cooking, and the source
+ * head moves as the author keeps editing their fork. Storing them anyway gives
+ * a listing something to show without walking the version graph for every row.
+ */
+export const proposals = pgTable(
+  'proposals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Per-target sequence, so a proposal has a number a person can say aloud. */
+    number: integer('number').notNull(),
+
+    targetRecipeId: uuid('target_recipe_id')
+      .notNull()
+      .references((): AnyPgColumn => recipes.id, { onDelete: 'cascade' }),
+    sourceRecipeId: uuid('source_recipe_id')
+      .notNull()
+      .references((): AnyPgColumn => recipes.id, { onDelete: 'cascade' }),
+
+    baseVersionId: uuid('base_version_id')
+      .notNull()
+      .references((): AnyPgColumn => versions.id, { onDelete: 'restrict' }),
+    headVersionId: uuid('head_version_id')
+      .notNull()
+      .references((): AnyPgColumn => versions.id, { onDelete: 'restrict' }),
+
+    authorId: text('author_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+
+    title: text('title').notNull(),
+    body: text('body'),
+    state: proposalState('state').notNull().default('open'),
+
+    /** The merge version this produced, once it has produced one. */
+    mergedVersionId: uuid('merged_version_id').references((): AnyPgColumn => versions.id, {
+      onDelete: 'set null',
+    }),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('proposals_target_number_idx').on(t.targetRecipeId, t.number),
+    index('proposals_target_state_idx').on(t.targetRecipeId, t.state, t.createdAt),
+    index('proposals_source_idx').on(t.sourceRecipeId),
+    index('proposals_author_idx').on(t.authorId),
+  ],
+);
+
+/**
+ * Discussion, which is half of what a proposal is for. Threaded only by time —
+ * a recipe argument is short enough to read top to bottom.
+ */
+export const comments = pgTable(
+  'comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    proposalId: uuid('proposal_id')
+      .notNull()
+      .references((): AnyPgColumn => proposals.id, { onDelete: 'cascade' }),
+    authorId: text('author_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('comments_proposal_created_idx').on(t.proposalId, t.createdAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Recipe = typeof recipes.$inferSelect;
 export type Version = typeof versions.$inferSelect;
 export type Star = typeof stars.$inferSelect;
+export type Proposal = typeof proposals.$inferSelect;
+export type Comment = typeof comments.$inferSelect;
+export type ProposalState = (typeof proposalState.enumValues)[number];
 export type Visibility = (typeof recipeVisibility.enumValues)[number];

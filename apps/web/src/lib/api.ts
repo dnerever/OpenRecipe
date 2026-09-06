@@ -53,6 +53,8 @@ export type RecipeOwner = { handle: string; name: string; image: string | null }
 
 export type RecipeResponse = {
   recipe: {
+    /** Needed to name this recipe as a proposal's source. */
+    id: string;
     owner: RecipeOwner;
     slug: string;
     title: string;
@@ -261,3 +263,111 @@ export const fetchStarredBy = (handle: string) =>
   request<{ owner: RecipeOwner; recipes: (RecipeSummary & { owner: RecipeOwner })[] }>(
     `/api/users/${handle}/stars`,
   );
+
+/* ------------------------------------------------------------- proposals -- */
+
+export type ProposalState = 'open' | 'merged' | 'closed';
+
+export type ProposalRef = { owner: RecipeOwner; slug: string; title: string };
+
+export type ProposalSummary = {
+  id: string;
+  number: number;
+  title: string;
+  state: ProposalState;
+  createdAt: string;
+  updatedAt: string;
+  author: RecipeOwner;
+  source: ProposalRef;
+};
+
+export type ConflictHunkWire = {
+  startLine: number;
+  endLine: number;
+  ours: string[];
+  base: string[];
+  theirs: string[];
+};
+
+export type Mergeability = {
+  kind: 'identical' | 'fast-forward' | 'no-op' | 'merged' | 'conflicted';
+  clean: boolean;
+  conflicts: ConflictHunkWire[];
+  /** The marked-up document, present only when the merge conflicts. */
+  content: string | null;
+};
+
+export type Proposal = ProposalSummary & {
+  body: string | null;
+  target: ProposalRef;
+  baseVersionId: string;
+  headVersionId: string;
+  mergedVersionId: string | null;
+  canMerge: boolean;
+  canClose: boolean;
+  /** `null` once a proposal is settled — it is a record, not a live question. */
+  mergeability: Mergeability | null;
+  comments: ProposalComment[];
+};
+
+export type ProposalComment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: RecipeOwner;
+};
+
+export type ProposalDiff = {
+  from: { id: string };
+  to: { id: string };
+  identical: boolean;
+  hunks: LineChange[];
+  semantic: SemanticChange[];
+};
+
+const proposalPath = (handle: string, slug: string, number: number) =>
+  `/api/recipes/${handle}/${slug}/proposals/${number}`;
+
+export const fetchProposals = (handle: string, slug: string, state?: ProposalState) =>
+  request<{ proposals: ProposalSummary[] }>(
+    `/api/recipes/${handle}/${slug}/proposals${state ? `?state=${state}` : ''}`,
+  );
+
+export const fetchProposal = (handle: string, slug: string, number: number) =>
+  request<Proposal>(proposalPath(handle, slug, number));
+
+export const fetchProposalDiff = (handle: string, slug: string, number: number) =>
+  request<ProposalDiff>(`${proposalPath(handle, slug, number)}/diff`);
+
+export const openProposal = (
+  handle: string,
+  slug: string,
+  input: { sourceRecipeId: string; title: string; body?: string },
+) =>
+  request<Proposal>(`/api/recipes/${handle}/${slug}/proposals`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+
+export const mergeProposal = (
+  handle: string,
+  slug: string,
+  number: number,
+  input: { resolvedContent?: string; message?: string } = {},
+) =>
+  request<Proposal>(`${proposalPath(handle, slug, number)}/merge`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+
+export const closeProposal = (handle: string, slug: string, number: number) =>
+  request<Proposal>(`${proposalPath(handle, slug, number)}/close`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+
+export const commentOnProposal = (handle: string, slug: string, number: number, body: string) =>
+  request<ProposalComment>(`${proposalPath(handle, slug, number)}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });

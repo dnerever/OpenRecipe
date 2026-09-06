@@ -275,6 +275,9 @@ export function serializeRecipeResponse(loaded: LoadedRecipe, viewer: Viewer) {
   const { recipe, version, content, doc } = loaded;
   return {
     recipe: {
+      // Exposed because a proposal names its source by id, and the browser has
+      // no other way to say "this fork" — see routes/proposals.ts.
+      id: recipe.id,
       owner: { handle: recipe.owner.handle, name: recipe.owner.name, image: recipe.owner.image },
       slug: recipe.slug,
       title: recipe.titleCache,

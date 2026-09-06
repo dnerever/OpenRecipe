@@ -180,6 +180,21 @@ const historyRoute = createRoute({
   path: '/$handle/$slug/history',
   component: lazyRouteComponent(() => import('./pages/HistoryPage.tsx'), 'HistoryPage'),
 });
+/**
+ * Proposals are lazy for the same reason the editor is: the review page pulls
+ * in the diff machinery, and a conflict resolution pulls in CodeMirror behind
+ * that. A reader who never opens one pays for neither.
+ */
+const proposalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$handle/$slug/proposals',
+  component: lazyRouteComponent(() => import('./pages/ProposalsPage.tsx'), 'ProposalsPage'),
+});
+const proposalRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$handle/$slug/proposals/$number',
+  component: lazyRouteComponent(() => import('./pages/ProposalPage.tsx'), 'ProposalPage'),
+});
 const forksRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$handle/$slug/forks',
@@ -197,6 +212,8 @@ const routeTree = rootRoute.addChildren([
   editRoute,
   historyRoute,
   forksRoute,
+  proposalsRoute,
+  proposalRoute,
 ]);
 
 export const router = createRouter({

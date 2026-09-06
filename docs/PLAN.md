@@ -225,6 +225,8 @@ Paths that must check: recipe read, `/raw`, version list, single version, diff, 
 6. **Proposals against a private recipe** are visible to the target owner and the proposal author only.
 7. **Public counts exclude private children.** `fork_count` shown on a public recipe counts public forks only.
 
+8. **A proposal is visible to whoever can read *both* sides**, plus the two people in it — the target's owner and the proposal's author, always. That single predicate covers rule 6 (a proposal against a private recipe is not public) and the case rule 6 does not reach: a proposal quotes its *source's* content, so an author who makes their fork private afterwards must stop showing it to strangers while the conversation itself survives. It also forces a rule at open time — **a private source cannot be proposed onto a public target**, because doing so would publish the fork to everyone who can see the proposal. Refuse, and let the author decide to publish rather than deciding for them.
+
 New recipes default to **public** — the open archive is the default path, and going private is a deliberate act.
 
 ---
@@ -424,12 +426,12 @@ Presigned uploads to S3/R2, a hero image plus per-step images referenced from fr
 Paste a URL → extract JSON-LD `schema.org/Recipe` (most food sites publish it) → map to `schema: 1` → drop the author into the editor to clean up. Paste-plain-text fallback. Import provenance recorded in `source`.
 **Done when:** three major recipe sites import cleanly. *Biggest adoption lever in the plan — nobody hand-types their existing collection.*
 
-### Slice 8 — Proposals 🎯 **Objective 3** · ~3–4 days *(the big one, and now the last one)*
+### Slice 8 — Proposals ✅ **done** 🎯 **Objective 3** · ~3–4 days *(the big one, and now the last one)*
 Merge-base computation, `node-diff3` three-way merge, mergeability status recomputed on view. Open a proposal from a fork or from an inline "suggest an edit". Review UI: diff, discussion thread, merge/close. Merging commits a version with `merge_parent_version_id` set and advances the target head. Conflicts render with markers in the editor for the owner to resolve, then merge with `resolvedContent`.
 **Done when:** two accounts collaborate — fork, edit, propose, discuss, merge — and the target's history shows a merge version with both parents. Also: force a real conflict (both edit the same ingredient line) and resolve it.
 *Break this into 8a (merge engine + tests in `packages/core`) and 8b (API + UI). The engine is pure and should be fully tested before any UI exists.*
 
-**8a is done.** `merge.ts` (three-way merge, conflict hunks, marker guard) and `ancestry.ts` (ancestors, `isAncestor`, `mergeBase`) — 31 tests, no I/O, nothing that knows what a proposal is. 8b is the API and the review UI.
+*Shipped:* **8a** — `merge.ts` (three-way merge, conflict hunks, marker guard) and `ancestry.ts` (ancestors, `isAncestor`, `mergeBase`), 31 tests, no I/O and nothing that knows what a proposal is. **8b** — the `proposals` and `comments` tables, eleven endpoints, and a review UI: a list per recipe, a detail page with the semantic diff, the discussion, and merge/close, plus a conflict resolution editor. 17 API tests. Driven end to end in a browser by two accounts: fork → edit → propose → discuss → merge, then a forced conflict on the same ingredient line, resolved in the editor and merged.
 
 **Adjacent lines are not a conflict, whatever `diff3` says.** The library groups hunks whose base ranges merely *touch*, so two people editing consecutive lines come back as one contested region — and an ingredient list is nothing but consecutive lines, which would make the common case of two cooks tweaking two ingredients unmergeable. Where such a region is a straight substitution — every side the same number of lines — each line is an independent three-way merge, so it is resolved line by line and only the lines both sides actually rewrote stay contested. Git merges these without comment; so does this. Regions that insert or delete are left exactly as `diff3` made them, because the line-for-line correspondence the refinement relies on is not there.
 
@@ -438,6 +440,16 @@ Merge-base computation, `node-diff3` three-way merge, mergeability status recomp
 **An incomplete version graph throws.** `ancestorsOf` refuses to answer when something points at a version the caller did not load, because a merge base computed from half a graph is wrong in a way nothing downstream can detect. Loudly wrong beats quietly wrong when the output is somebody's recipe — which makes it 8b's job to load ancestry transitively, not to load one recipe's versions and hope.
 
 **`containsConflictMarkers` is the guard on the resolution.** A human resolving in a text editor can very easily leave a `=======` behind, and the merge endpoint has to refuse that content rather than store a recipe nobody can cook.
+
+**Mergeability is recomputed on every view, and the stored columns are a cache.** The target head moves while a proposal sits open, so an answer computed at open time is stale by the second view — `base_version_id` and `head_version_id` are written down only so a listing has something to show without walking the graph, and the page always states what merging would do *now*. A settled proposal is the exception: it is a record of something that happened, and recomputing it would answer a question nobody asked.
+
+**The merge writes an ordinary version with a second parent — including on a fast-forward.** Taking the source's document verbatim would be simpler and would lose the fact that it came from somewhere: the second pointer is what makes the target's history say where the change came from, and what lets every later merge base see through it.
+
+**Two guards stand between a resolution and the recipe.** `containsConflictMarkers` refuses content with a `=======` still in it, which is the one mistake a human resolving in a text editor actually makes; and the content is parsed and re-serialized before it is committed, because a *clean* text merge can still produce YAML that means nothing. A merge is the one write path where the document arrives from an algorithm rather than an author, so it is the one that most needs both.
+
+**The recipe response now carries its `id`.** A proposal names its source recipe, and the browser had no way to say "this fork" — every other surface addresses recipes by `@handle/slug`, but a proposal's source is a *thing*, not a path, and it must not change meaning if the fork is later renamed.
+
+**Proposals are numbered per target.** `#3` is what a person says out loud, and it belongs to the recipe being proposed *to* — the same number under two different recipes is two different conversations, which is why the unique index is on the pair.
 
 **Deliberately resequenced to the end.** It was originally next after Fork, on the logic that it completes the git-like model. That logic was about the architecture, not about the app: nobody proposes a change to a recipe they cannot find (9), cannot cook from (10), cannot see (11), and never imported in the first place (12). Proposals need a second person who cares about your recipe, and every slice ahead of it is what produces that person. Nothing here is blocked by the delay — the merge engine is pure and self-contained, and `node-diff3` is already a dependency, carried in for Slice 6's diff.
 
