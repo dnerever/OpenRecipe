@@ -1,6 +1,7 @@
 import { humanizeDuration } from '@openrecipe/core';
 import { Link } from '@tanstack/react-router';
 import type { RecipeSummary } from '../lib/api.ts';
+import { TagList } from './TagList.tsx';
 
 /**
  * Everything here comes from denormalized columns — no YAML is parsed to render
@@ -34,16 +35,11 @@ export function RecipeCard({
         {recipe.totalTimeMinutes !== null && (
           <span className="card-time">{humanizeDuration(recipe.totalTimeMinutes)}</span>
         )}
+        {recipe.starCount > 0 && <span className="card-stars">★ {recipe.starCount}</span>}
         {recipe.visibility === 'private' && <span className="badge">Private</span>}
       </div>
 
-      {recipe.tags.length > 0 && (
-        <ul className="tags small">
-          {recipe.tags.slice(0, 4).map((tag) => (
-            <li key={tag}>{tag}</li>
-          ))}
-        </ul>
-      )}
+      <TagList tags={recipe.tags.slice(0, 4)} small />
     </li>
   );
 }

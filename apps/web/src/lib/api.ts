@@ -28,6 +28,7 @@ export type RecipeSummary = {
   totalTimeMinutes: number | null;
   visibility: Visibility;
   forkCount: number;
+  starCount: number;
   updatedAt: string;
 };
 
@@ -63,6 +64,7 @@ export type RecipeResponse = {
     updatedAt: string;
     canEdit: boolean;
     forkedFrom: ForkAttribution | null;
+    viewerHasStarred: boolean;
   };
   version: { id: string; message: string; createdAt: string };
   content: string;
@@ -132,7 +134,7 @@ export const fetchRecipe = (handle: string, slug: string) =>
 
 export const fetchUserRecipes = (handle: string) =>
   request<{
-    owner: { handle: string; name: string; image: string | null };
+    owner: RecipeOwner & { bio: string | null; createdAt: string };
     recipes: RecipeSummary[];
   }>(`/api/users/${handle}/recipes`);
 
@@ -214,4 +216,48 @@ export const forkRecipe = (handle: string, slug: string, into?: string) =>
 export const fetchForks = (handle: string, slug: string) =>
   request<{ forks: (RecipeSummary & { owner: RecipeOwner })[] }>(
     `/api/recipes/${handle}/${slug}/forks`,
+  );
+
+/* ------------------------------------------------------ search & stars -- */
+
+export type SearchSort = 'relevance' | 'recent' | 'popular';
+
+export type SearchParams = {
+  q?: string | undefined;
+  tags?: string[] | undefined;
+  sort?: SearchSort | undefined;
+  offset?: number | undefined;
+};
+
+export type SearchPage = {
+  recipes: (RecipeSummary & { owner: RecipeOwner })[];
+  total: number;
+  sort: SearchSort;
+  nextOffset: number | null;
+};
+
+export function searchQueryString({ q, tags, sort, offset }: SearchParams): string {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  for (const tag of tags ?? []) params.append('tag', tag);
+  if (sort) params.set('sort', sort);
+  if (offset) params.set('offset', String(offset));
+  return params.toString();
+}
+
+export const searchRecipes = (params: SearchParams) =>
+  request<SearchPage>(`/api/search?${searchQueryString(params)}`);
+
+export const fetchTags = (limit = 40) =>
+  request<{ tags: { tag: string; count: number }[] }>(`/api/tags?limit=${limit}`);
+
+export const setStarred = (handle: string, slug: string, starred: boolean) =>
+  request<{ starred: boolean; starCount: number }>(
+    `/api/recipes/${handle}/${slug}/${starred ? 'star' : 'unstar'}`,
+    { method: 'POST' },
+  );
+
+export const fetchStarredBy = (handle: string) =>
+  request<{ owner: RecipeOwner; recipes: (RecipeSummary & { owner: RecipeOwner })[] }>(
+    `/api/users/${handle}/stars`,
   );

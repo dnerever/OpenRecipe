@@ -5,11 +5,14 @@ import {
   lazyRouteComponent,
   Link,
   Outlet,
+  useNavigate,
 } from '@tanstack/react-router';
+import { useState } from 'react';
 import { BrowsePage } from './pages/BrowsePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
 import { useCurrentUser, useSignOut } from './lib/session.ts';
+import type { SearchSort } from './lib/api.ts';
 
 /**
  * Handles live at the top level (`/chad-robertson/country-loaf`), which is
@@ -28,6 +31,7 @@ function RootLayout() {
         <Link to="/" className="brand">
           OpenRecipe
         </Link>
+        <TopSearch />
         <span className="spacer" />
         {handle ? (
           <>
@@ -50,7 +54,63 @@ function RootLayout() {
   );
 }
 
+/**
+ * The search box lives in the chrome because search is the front door for
+ * anyone who did not arrive on a link. It navigates rather than filtering in
+ * place — the results page owns the query, and the URL owns the results page.
+ */
+function TopSearch() {
+  const navigate = useNavigate();
+  const [q, setQ] = useState('');
+
+  return (
+    <form
+      className="topsearch"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void navigate({ to: '/search', search: { q: q.trim(), tag: [] } });
+      }}
+    >
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search recipes"
+        aria-label="Search recipes"
+        autoComplete="off"
+      />
+    </form>
+  );
+}
+
 const rootRoute = createRootRoute({ component: RootLayout });
+
+/**
+ * The query string is the search's only state, so it is parsed once, here.
+ * `tag` arrives as a bare string when there is one and an array when there are
+ * several, which is a URLSearchParams fact the page should never have to know.
+ */
+const SORTS = new Set<SearchSort>(['relevance', 'recent', 'popular']);
+
+const searchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/search',
+  validateSearch: (search: Record<string, unknown>) => {
+    const raw = search['tag'];
+    const tag = (Array.isArray(raw) ? raw : raw === undefined ? [] : [raw])
+      .map(String)
+      .filter(Boolean);
+    const sort = search['sort'];
+    return {
+      q: typeof search['q'] === 'string' ? search['q'] : '',
+      tag,
+      ...(typeof sort === 'string' && SORTS.has(sort as SearchSort)
+        ? { sort: sort as SearchSort }
+        : {}),
+    };
+  },
+  component: lazyRouteComponent(() => import('./pages/SearchPage.tsx'), 'SearchPage'),
+});
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -109,6 +169,7 @@ const forksRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  searchRoute,
   signInRoute,
   newRoute,
   profileRoute,

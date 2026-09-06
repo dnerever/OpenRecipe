@@ -747,3 +747,86 @@ main {
 .forked-from a {
   text-decoration: none;
 }
+
+/* --- search --- */
+.topsearch input {
+  width: 12rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.88rem;
+  background: var(--paper);
+}
+@media (max-width: 34rem) {
+  .topsearch {
+    display: none;
+  }
+}
+.searchbar {
+  flex-direction: row;
+  gap: 0.5rem;
+  margin: 0 0 1.5rem;
+}
+.searchbar input {
+  flex: 1;
+  font-size: 1rem;
+  padding: 0.6rem 0.8rem;
+}
+.result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.result-head p {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.tags button {
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.15rem 0.55rem;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.tags button.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.tags a {
+  text-decoration: none;
+  color: inherit;
+}
+.active-tags {
+  margin-bottom: 1rem;
+}
+.active-tags button {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.card-stars {
+  font-variant-numeric: tabular-nums;
+}
+button.star.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* --- profile --- */
+.bio {
+  margin: 0 0 0.5rem;
+  max-width: 34rem;
+}
+.profile-meta {
+  margin: 0 0 1.5rem;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}

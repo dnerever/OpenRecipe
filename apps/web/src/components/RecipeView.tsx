@@ -1,4 +1,5 @@
 import { formatQuantity, humanizeDuration, type Frontmatter, type Phase } from '@openrecipe/core';
+import { TagList } from './TagList.tsx';
 
 /**
  * The read view renders the *derived* step list the API sends, not the raw
@@ -78,13 +79,7 @@ export function RecipeView({ frontmatter, phases }: { frontmatter: Frontmatter; 
         </section>
       </div>
 
-      {frontmatter.tags?.length ? (
-        <ul className="tags">
-          {frontmatter.tags.map((tag) => (
-            <li key={tag}>{tag}</li>
-          ))}
-        </ul>
-      ) : null}
+      {frontmatter.tags?.length ? <TagList tags={frontmatter.tags} /> : null}
 
       {(frontmatter.source || frontmatter.license) && (
         <p className="source muted">

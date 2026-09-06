@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { ForkButton } from '../components/ForkButton.tsx';
 import { ForkedFrom } from '../components/ForkedFrom.tsx';
 import { RecipeView } from '../components/RecipeView.tsx';
+import { StarButton } from '../components/StarButton.tsx';
 import { VisibilityToggle } from '../components/VisibilityToggle.tsx';
 import { ApiError, fetchRecipe, rawUrl } from '../lib/api.ts';
 
@@ -54,6 +55,12 @@ export function RecipePage() {
               Edit
             </Link>
           )}
+          <StarButton
+            handle={handle}
+            slug={slug}
+            starred={recipe.viewerHasStarred}
+            count={recipe.starCount}
+          />
           <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
           <Link className="button secondary" to="/$handle/$slug/history" params={{ handle, slug }}>
             History

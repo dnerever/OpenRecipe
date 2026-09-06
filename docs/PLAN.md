@@ -367,9 +367,22 @@ Four rules keep the host swappable, because the free plan's cold starts will eve
 
 **Forking your own recipe is allowed**, which is a departure from the tool this borrows its shape from. For code a self-fork is pointless; for recipes it is the common case — the same loaf with rye, the half batch, the one for the oven that runs hot. It collides with itself and comes back `-2`, which is exactly right.
 
-### Slice 9 — Search & discovery · ~1–2 days
+### Slice 9 — Search & discovery ✅ **done** · ~1–2 days
 Postgres FTS search over the cached title, description and tags, tag browse, sort by popularity, stars, and profile polish. The browse index itself shipped in Slice 4.
 **Done when:** you can find a recipe by typing a word from it, not just by scrolling.
+*Shipped:* `GET /search` (query, tag filter, three sorts, offset paging), `GET /tags`, star/unstar with a `viewerHasStarred` flag, `GET /users/:handle/stars`, a `/search` page whose state is entirely the URL, clickable tags everywhere, and a profile with bio, counts and a Starred tab. 25 API tests.
+
+**The search vector is a GENERATED column, not one we maintain.** It cannot drift from the row it describes, because there is no write path that could forget to update it — which is precisely the failure mode of a hand-maintained index column.
+
+**Postgres made three demands, and the third changed the design.** A generation expression must be IMMUTABLE, so: bare column names only; `to_tsvector`'s two-argument form (the one-argument form is STABLE — it reads `default_text_search_config` at runtime); and `array_to_tsvector` for the tags rather than `to_tsvector(array_to_string(…))`, because `array_to_string` is polymorphic over `anyarray` and therefore marked STABLE for every element type, `text[]` included.
+
+That last substitution has a consequence: `array_to_tsvector` emits lexemes with **no positions**, `setweight` only marks positions, and so every `ts_rank` came back `0`. **Ranking therefore happens at query time**, over a fully positional weighted vector built from the rows the GIN index has already selected. The index does the selective work; the ranking expression only ever runs on what matched. It also means tags are matched as exact lexemes rather than stemmed — which is the right semantics for a tag, and keeps `gluten-free` one token.
+
+**`websearch_to_tsquery`, not `plainto_tsquery`.** It handles quoted phrases and a leading `-` to exclude, and — the part that matters for a box on a public page — it never raises on malformed input. Someone typing `(((` gets no results, not a 500.
+
+**Search takes no viewer at all**, like the browse index. A search that could be talked into returning a private recipe is a worse leak than a listing that could, because the attacker chooses the query.
+
+**Stars count everything, unlike `fork_count`.** A star says something about a *person*, not about a child recipe, so there is no hidden row whose existence the number could betray — the only recipes carrying private stars are private ones, which only their owner can see or star. Starring is idempotent, and the count moves only when a row actually appeared; without that guard a double-click inflates a number nothing brings back down.
 
 ### Slice 10 — Cook mode & scaling · ~1–2 days
 Scale by yield or by a single ingredient (baker's percentage for doughs), unit conversion, a step-by-step full-screen cooking view with wake-lock and inline timers parsed from step text, printable view, shopping-list export.

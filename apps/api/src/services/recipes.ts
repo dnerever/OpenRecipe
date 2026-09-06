@@ -70,6 +70,13 @@ const ownerColumns = {
   image: users.image,
 };
 
+/** A profile header needs more than a listing card does. */
+const profileColumns = {
+  ...ownerColumns,
+  bio: users.bio,
+  createdAt: users.createdAt,
+};
+
 /**
  * Canonicalize, hash, and pull out the fields listing pages cache.
  *
@@ -244,7 +251,7 @@ export async function setVisibility(
  */
 export async function listRecipesForOwner(db: Db, ownerHandle: string, viewer: Viewer) {
   const [owner] = await db
-    .select(ownerColumns)
+    .select(profileColumns)
     .from(users)
     .where(eq(users.handle, ownerHandle.toLowerCase()))
     .limit(1);
@@ -300,6 +307,7 @@ export function serializeRecipeSummary(recipe: Recipe) {
     totalTimeMinutes: recipe.totalTimeMinutes,
     visibility: recipe.visibility,
     forkCount: recipe.forkCount,
+    starCount: recipe.starCount,
     updatedAt: recipe.updatedAt.toISOString(),
   };
 }
