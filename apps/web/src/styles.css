@@ -537,19 +537,76 @@ a.button.secondary {
 }
 
 /* --- browse index --- */
-.hero {
-  padding: 2rem 0 2.5rem;
+/**
+ * The browse-page pitch. `main` already opens with 4rem of air, so this adds
+ * none of its own on top — the two together were pushing the headline most of
+ * a screen down.
+ *
+ * Two columns on wide viewports so the call to action occupies the space the
+ * measure deliberately leaves empty: the heading is capped at 16ch and the
+ * lede at 46ch because that is what reads well, which used to mean the right
+ * half of the row was doing nothing at all.
+ */
+.intro {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  padding: 0 0 1.75rem;
   border-bottom: 1px solid var(--rule);
   margin-bottom: 2rem;
 }
-.hero h1 {
+@media (min-width: 46rem) {
+  .intro {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2rem;
+  }
+  /* Clear of the dismiss control in the corner. */
+  .intro-actions {
+    padding-right: 2rem;
+  }
+}
+.intro h1 {
   font-size: clamp(1.9rem, 5vw, 2.75rem);
   line-height: 1.08;
   letter-spacing: -0.03em;
   max-width: 16ch;
+  margin-top: 0;
 }
-.hero .lede {
+.intro .lede {
   max-width: 46ch;
+  margin-bottom: 0;
+}
+.intro-dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--ink-2);
+  background: none;
+  border: 1px solid transparent;
+}
+.intro-dismiss:hover {
+  color: var(--ink);
+  border-color: var(--rule);
+}
+
+/* What is left once the pitch is dismissed: one line, and a way back to it. */
+.intro-collapsed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 1.5rem;
+}
+.intro-collapsed p {
+  margin: 0;
 }
 .narrow {
   max-width: 30rem;
@@ -572,6 +629,13 @@ a.button.secondary {
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  /**
+   * Each card is as tall as what is in it. Stretching them to match the
+   * tallest in the row, which is the grid default, put a hole between the
+   * description and the footer of every card without a photo — `.card-foot`
+   * anchors to the bottom, so the slack all collected in one place.
+   */
+  align-items: start;
   gap: 1rem;
   list-style: none;
   padding: 0;
