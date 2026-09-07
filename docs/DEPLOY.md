@@ -203,33 +203,79 @@ only when both are present, so until then nothing changes.
 ## Object storage
 
 Images (Slice 11) need a bucket. Cloudflare R2's free tier is the target — 10 GB
-of storage and, more to the point, **no egress charges**, which is what makes
-serving images through the app affordable on a plan that costs nothing.
+of storage and, more to the point, **no egress charges**. Every image view is a
+fresh read out of the bucket, because the app proxies images rather than handing
+out bucket URLs, so egress is the line item that would otherwise decide the
+bill.
 
-Locally, MinIO from `docker-compose.yml` speaks the same S3 API, and the app
-creates the bucket on first use.
+Locally, MinIO from `docker-compose.yml` speaks the same S3 API and the app
+creates the bucket on first use. In production it does not: `ensureBucket()`
+tries `HeadBucket`, then `CreateBucket`, and swallows both failures, because a
+correctly scoped production token can do neither. Create the bucket yourself.
 
-1. In the Cloudflare dashboard, **R2 → Create bucket**, named `openrecipe-media`.
-   Leave public access off: the app streams objects itself so it can apply the
-   recipe's visibility to them, and a publicly-readable bucket would route
-   around that check entirely.
-2. **Manage R2 API Tokens → Create API token**, Object Read & Write, scoped to
-   that bucket. Copy the access key id, the secret, and the S3 endpoint
-   (`https://<account-id>.r2.cloudflarestorage.com`).
-3. Set five variables on the Render service:
+1. **Enable R2 on the account.** It is a separate activation from the rest of
+   Cloudflare, and nothing below is reachable until it is done. There is no CLI
+   path for this one.
+2. **R2 → Create bucket**, named `openrecipe-media`. Leave public access off,
+   add no custom domain, and leave the Public Development URL disabled: the app
+   streams objects itself so it can apply the recipe's visibility to them, and
+   anything publicly reachable routes around that check entirely.
+
+   Skip the CORS policy as well. The browser never talks to the bucket — uploads
+   go through the API so EXIF can be stripped, reads are proxied — so a CORS
+   rule here configures a conversation that never happens.
+3. **Manage R2 API Tokens → Create API token**, Object Read & Write, scoped to
+   that bucket. This lives on the R2 *overview* page, not in the bucket's own
+   Settings tab — which is the natural place to look and does not have it.
+
+   The screen then shows three secrets and the app wants two: copy the **Access
+   Key ID** and the **Secret Access Key**. The **token value** above them is for
+   Cloudflare's own REST API and for Wrangler, and is not used here. All three
+   are shown once.
+4. Set the variables on the Render service:
 
    ```
    S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
    S3_REGION=auto
    S3_BUCKET=openrecipe-media
-   S3_ACCESS_KEY=…
-   S3_SECRET_KEY=…
+   S3_ACCESS_KEY=…   # Access Key ID
+   S3_SECRET_KEY=…   # Secret Access Key
    ```
 
-**All five are optional, together.** With none of them set the app boots and
-every page works; image uploads answer `503 storage_unavailable`. That is
-deliberate — a clone should run without anyone signing up for object storage,
-and a missing bucket should not be a reason the site is down.
+**`S3_ENDPOINT` must not contain the bucket.** The bucket's General tab displays
+its S3 API as `https://<account-id>.r2.cloudflarestorage.com/openrecipe-media`,
+and pasting that verbatim is the easiest mistake available here. `storage.ts`
+sets `forcePathStyle`, so the client appends the bucket to the path itself —
+leave it on the end and every upload addresses
+`…/openrecipe-media/openrecipe-media/…` and fails with `NoSuchBucket`. Trim it
+back to the origin.
+
+**Four of them are what actually matter, together.** `objectStore` in `env.ts`
+switches on `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY`.
+`S3_REGION` is optional and falls back to `auto`, which is right for R2 and
+wrong for real S3, where it has to name the bucket's own region. With none of
+them set the app boots and every page works; image uploads answer
+`503 storage_unavailable`. That is deliberate — a clone should run without
+anyone signing up for object storage, and a missing bucket should not be a
+reason the site is down. An empty value counts as unset rather than invalid, so
+a declared-but-blank variable behaves exactly like a missing one.
+
+**Verify with an upload, not with a health check.** Neither one touches storage
+— `/health` is a bare liveness ping and `/api/health` reports the database — so
+both stay green whether or not the bucket works. Sign in, add a photo to a
+recipe you own, and look for two objects under `recipes/<recipe-id>/`: the image
+and its thumbnail, both `image/webp` whatever was uploaded. If the editor says
+"Image storage is not configured on this server", one of the four variables is
+missing or blank; for anything else the Render log carries the underlying S3
+error.
+
+**Nothing deletes objects.** `deleteObject` exists in `storage.ts` with no
+callers and there is no delete route, so removing an image from a recipe leaves
+its two objects behind for good. Do not reach for a lifecycle rule to tidy that
+up: an age-based expiry deletes images that are still on live recipes, because a
+recipe photo is meant to outlast any window you would set. The fix, when it
+matters, is wiring up `deleteObject` — until then the bucket only grows, and on
+10 GB that takes a long time to become a problem.
 
 **The image pipeline is native code.** `sharp` carries libvips as a platform
 package under `@img/`, which npm treats as *optional* — and the runtime stage

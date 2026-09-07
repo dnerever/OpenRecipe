@@ -52,8 +52,10 @@ resolve through symlinks there. `npm run dev` keeps `tsc -b --watch` running so
 | `npm run format`            | Prettier                                              |
 
 Local services: Postgres on `:5432`, MinIO on `:9000` (console `:9001`,
-user/password `openrecipe` / `openrecipe-dev-secret`). Image uploads need the
-five `S3_*` variables; without them everything else works and uploads answer 503.
+user/password `openrecipe` / `openrecipe-dev-secret`). Image uploads need
+`S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` (`S3_REGION` is
+optional, defaulting to `auto`); without them everything else works and uploads
+answer 503.
 
 ## Sign-in
 
