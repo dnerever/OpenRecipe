@@ -507,9 +507,9 @@ Paid subscriptions and subscriber access to others' private recipes (the `visibi
 ## 10. Open questions
 
 1. **Licensing** — recipes are famously thin on copyright, but attribution matters. Default to `CC-BY-SA-4.0` per recipe with a picker?
-2. **Handle namespace** — reserve `api`, `about`, `settings`, `new`, `search`, `raw` etc. before launch, not after.
 
 ### Resolved
+- ~~**Handle namespace**~~ → `RESERVED_HANDLES` in `services/handles.ts`, `RESERVED_SLUGS` in `services/slugs.ts`, and `namespace.test.ts` reading both route tables so the lists cannot drift from the routes again. The audit that closed this found three the hand-maintained list had missed — `health` and `assets` were live top-level routes anyone could have been assigned as a handle at signup, and `cook` was the one recipe sub-route absent from the slug list. Reserving is only free before someone holds the name, so the guard fails the build rather than trusting the next person to remember.
 - ~~**Slug collisions on fork**~~ → auto-suffix `-2`, `-3`, … (Slice 7).
 - ~~**Anonymous suggestions**~~ → deferred; proposals require an account.
 - ~~**Private recipes**~~ → shipped in Slice 3, binary `visibility` field. See §5.1.

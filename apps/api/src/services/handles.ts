@@ -6,31 +6,47 @@ import { users } from '../db/schema.ts';
  * Handles share a namespace with top-level routes (`/settings`, `/search`,
  * `/@me`), so anything that could ever become a path segment has to be reserved
  * *before* launch — reclaiming a handle someone already owns is not an option.
+ *
+ * Two groups live here. The first is every segment the app actually serves
+ * today, and `namespace.test.ts` reads the route tables and fails if one of
+ * them is missing — that guard exists because `health` and `assets` were both
+ * absent until it was written. The second is the words a service like this
+ * predictably grows into later; they cost a handle nobody wants and buy back
+ * the option to add the route.
  */
 export const RESERVED_HANDLES = new Set([
   'about',
   'account',
   'admin',
   'api',
+  'assets',
+  'atom',
   'auth',
   'blog',
+  'cdn',
   'contact',
   'dashboard',
   'docs',
   'explore',
   'export',
   'faq',
+  'favicon',
   'feed',
   'fork',
   'forks',
+  'health',
+  'healthz',
   'help',
   'home',
   'import',
   'legal',
   'license',
+  'livez',
   'login',
   'logout',
+  'manifest',
   'me',
+  'metrics',
   'new',
   'notifications',
   'oauth',
@@ -40,12 +56,16 @@ export const RESERVED_HANDLES = new Set([
   'privacy',
   'proposal',
   'proposals',
+  'public',
   'raw',
+  'readyz',
   'recipe',
   'recipes',
   'register',
   'reset',
+  'robots',
   'root',
+  'rss',
   'search',
   'security',
   'session',
@@ -53,6 +73,7 @@ export const RESERVED_HANDLES = new Set([
   'signin',
   'signout',
   'signup',
+  'sitemap',
   'star',
   'starred',
   'stars',

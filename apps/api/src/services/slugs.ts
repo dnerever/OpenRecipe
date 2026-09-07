@@ -8,6 +8,7 @@ import { recipes } from '../db/schema.ts';
  * recipe owns.
  */
 export const RESERVED_SLUGS = new Set([
+  'cook',
   'edit',
   'fork',
   'forks',
