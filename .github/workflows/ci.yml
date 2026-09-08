@@ -28,6 +28,16 @@ jobs:
     env:
       DATABASE_URL: postgres://openrecipe:openrecipe@localhost:5432/openrecipe
       NODE_ENV: test
+      # Matches docker-compose.yml, so the image tests run against here is the
+      # one they run against locally. Production is R2; the point of the S3
+      # protocol is that the app cannot tell the difference, and pointing CI at
+      # the real bucket would mean live credentials in Actions and a test suite
+      # that uploads and deletes objects in production storage.
+      S3_ENDPOINT: http://127.0.0.1:9000
+      S3_BUCKET: openrecipe-ci
+      S3_ACCESS_KEY: openrecipe
+      S3_SECRET_KEY: openrecipe-dev-secret
+      S3_REGION: auto
 
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +48,26 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Not a service container: those cannot override an image's command, and
+      # `minio/minio` does nothing without `server /data`. The app creates the
+      # bucket itself on first use, so there is nothing to provision here.
+      - name: Object storage
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=openrecipe \
+            -e MINIO_ROOT_PASSWORD=openrecipe-dev-secret \
+            minio/minio:latest server /data
+          for _ in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:9000/minio/health/live > /dev/null; then
+              echo "minio ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "minio never became ready" >&2
+          docker logs minio >&2
+          exit 1
 
       - name: Format check
         run: npm run format:check
