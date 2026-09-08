@@ -1,8 +1,10 @@
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -97,4 +99,70 @@ export async function getObject(key: string) {
 export async function deleteObject(key: string): Promise<void> {
   const { client: s3, bucket } = mustHaveStore();
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+/**
+ * Delete many keys in as few round trips as the protocol allows.
+ *
+ * Deleting a recipe with a dozen photos should not be a dozen requests, and
+ * `DeleteObjects` caps at 1000 keys per call in both S3 and R2.
+ *
+ * Returns the keys it could not delete rather than throwing. A recipe row that
+ * is already gone must not come back because its photos would not, and an
+ * object nobody references is a bucket-sweeping problem, not a request-time
+ * one — see `db/sweep-media.ts`.
+ */
+export async function deleteObjects(keys: string[]): Promise<{ failed: string[] }> {
+  if (keys.length === 0) return { failed: [] };
+  const { client: s3, bucket } = mustHaveStore();
+
+  const failed: string[] = [];
+  for (let i = 0; i < keys.length; i += 1000) {
+    const batch = keys.slice(i, i + 1000);
+    try {
+      const result = await s3.send(
+        new DeleteObjectsCommand({
+          Bucket: bucket,
+          Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+        }),
+      );
+      for (const error of result.Errors ?? []) if (error.Key) failed.push(error.Key);
+    } catch {
+      failed.push(...batch);
+    }
+  }
+  return { failed };
+}
+
+/**
+ * Every key under a prefix, following the continuation tokens.
+ *
+ * Only the sweeper needs this, and only ever against `recipes/` — a listing is
+ * the one operation whose cost grows with the bucket, so nothing on a request
+ * path should call it.
+ */
+export async function listObjects(
+  prefix: string,
+): Promise<{ key: string; size: number; lastModified: Date | null }[]> {
+  const { client: s3, bucket } = mustHaveStore();
+  const out: { key: string; size: number; lastModified: Date | null }[] = [];
+
+  let token: string | undefined;
+  do {
+    const page = await s3.send(
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }),
+    );
+    for (const object of page.Contents ?? []) {
+      if (object.Key) {
+        out.push({
+          key: object.Key,
+          size: object.Size ?? 0,
+          lastModified: object.LastModified ?? null,
+        });
+      }
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+
+  return out;
 }

@@ -41,6 +41,8 @@ export const RESERVED_HANDLES = new Set([
   'import',
   'legal',
   'license',
+  'list',
+  'lists',
   'livez',
   'login',
   'logout',

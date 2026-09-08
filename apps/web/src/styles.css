@@ -132,6 +132,12 @@ input:focus-visible {
 }
 .row {
   display: flex;
+  /**
+   * Explicit, because `form` and `label` are both column-flex above and a
+   * `.row` on either would otherwise stack — the class says row, so it is one
+   * whatever element wears it.
+   */
+  flex-direction: row;
   flex-wrap: wrap;
   gap: 0.6rem;
   margin-top: 0.4rem;
@@ -537,19 +543,76 @@ a.button.secondary {
 }
 
 /* --- browse index --- */
-.hero {
-  padding: 2rem 0 2.5rem;
+/**
+ * The browse-page pitch. `main` already opens with 4rem of air, so this adds
+ * none of its own on top — the two together were pushing the headline most of
+ * a screen down.
+ *
+ * Two columns on wide viewports so the call to action occupies the space the
+ * measure deliberately leaves empty: the heading is capped at 16ch and the
+ * lede at 46ch because that is what reads well, which used to mean the right
+ * half of the row was doing nothing at all.
+ */
+.intro {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  padding: 0 0 1.75rem;
   border-bottom: 1px solid var(--rule);
   margin-bottom: 2rem;
 }
-.hero h1 {
+@media (min-width: 46rem) {
+  .intro {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2rem;
+  }
+  /* Clear of the dismiss control in the corner. */
+  .intro-actions {
+    padding-right: 2rem;
+  }
+}
+.intro h1 {
   font-size: clamp(1.9rem, 5vw, 2.75rem);
   line-height: 1.08;
   letter-spacing: -0.03em;
   max-width: 16ch;
+  margin-top: 0;
 }
-.hero .lede {
+.intro .lede {
   max-width: 46ch;
+  margin-bottom: 0;
+}
+.intro-dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--ink-2);
+  background: none;
+  border: 1px solid transparent;
+}
+.intro-dismiss:hover {
+  color: var(--ink);
+  border-color: var(--rule);
+}
+
+/* What is left once the pitch is dismissed: one line, and a way back to it. */
+.intro-collapsed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 1.5rem;
+}
+.intro-collapsed p {
+  margin: 0;
 }
 .narrow {
   max-width: 30rem;
@@ -572,6 +635,13 @@ a.button.secondary {
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  /**
+   * Each card is as tall as what is in it. Stretching them to match the
+   * tallest in the row, which is the grid default, put a hole between the
+   * description and the footer of every card without a photo — `.card-foot`
+   * anchors to the bottom, so the slack all collected in one place.
+   */
+  align-items: start;
   gap: 1rem;
   list-style: none;
   padding: 0;
@@ -1434,4 +1504,124 @@ textarea:focus-visible {
   .recipe .hero {
     max-height: 12rem;
   }
+}
+
+/* --- lists --- */
+/**
+ * The picker is the `.more` drawer with checkboxes in it, so it inherits the
+ * popover's positioning and shadow rather than inventing a second one.
+ */
+.picker-menu {
+  min-width: 16rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  gap: 0.15rem;
+}
+.picker-row {
+  display: flex;
+  /* `label` is column-flex; a picker row is not. */
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 400;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.picker-row:hover {
+  background: var(--paper);
+}
+.picker-row input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.picker-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-new {
+  display: flex;
+  flex-direction: row;
+  gap: 0.4rem;
+  margin: 0.35rem 0 0;
+  padding: 0.5rem 0.6rem 0.35rem;
+  border-top: 1px solid var(--rule);
+}
+.picker-new input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9rem;
+}
+.picker-new button {
+  flex: none;
+  width: auto;
+  text-align: center;
+  padding: 0.4rem 0.7rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+}
+.picker-menu .muted {
+  padding: 0.35rem 0.6rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.card-action {
+  margin-left: auto;
+}
+.card-action .linkish {
+  font-size: 0.8rem;
+}
+
+.share {
+  margin-top: 2rem;
+}
+.collaborators {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+.collaborators li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.collaborators li:last-child {
+  border-bottom: none;
+}
+.collab-handle {
+  flex: 1;
+  min-width: 8rem;
+  font-weight: 500;
+}
+.collaborators select,
+.share select {
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+/**
+ * The only destructive control in the app. Reads as ordinary until the pointer
+ * is on it — a delete button that shouts from across the page gets clicked by
+ * people who were not looking for it.
+ */
+.danger:hover,
+.more-menu .danger:hover {
+  color: var(--bad);
+  background: color-mix(in oklab, var(--bad) 12%, transparent);
 }

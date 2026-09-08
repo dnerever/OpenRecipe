@@ -9,6 +9,7 @@ import { auth } from './auth.ts';
 import { sql as rawSql } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { withViewer, type AppEnv } from './middleware/session.ts';
+import { listRoutes } from './routes/lists.ts';
 import { mediaRoutes } from './routes/media.ts';
 import { meRoutes } from './routes/me.ts';
 import { proposalRoutes } from './routes/proposals.ts';
@@ -17,7 +18,7 @@ import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/aut
 import { UploadError } from './services/media.ts';
 import { ProposalError } from './services/proposals.ts';
 import { StorageUnavailableError } from './services/storage.ts';
-import { NoChangesError } from './services/recipes.ts';
+import { NoChangesError, RecipeHasDescendantsError } from './services/recipes.ts';
 
 /**
  * Everything the browser talks to lives under `/api`, matching the path the web
@@ -46,7 +47,7 @@ export function createApp() {
         origin: env.APP_URL,
         credentials: true,
         allowHeaders: ['Content-Type', 'Authorization'],
-        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       }),
     );
   }
@@ -83,6 +84,9 @@ export function createApp() {
   // matched as a recipe named "proposals" by a looser pattern.
   api.route('/', proposalRoutes);
   api.route('/', mediaRoutes);
+  // Before the recipe routes for the same reason proposals are: nothing under
+  // `/lists/...` may be matched as a recipe by a looser pattern.
+  api.route('/', listRoutes);
   api.route('/', recipeRoutes);
   api.route('/', userRoutes);
 
@@ -104,6 +108,7 @@ export function createApp() {
     if (err instanceof ForbiddenError) return c.json({ error: 'forbidden' }, 403);
     if (err instanceof UnauthorizedError) return c.json({ error: 'unauthorized' }, 401);
     if (err instanceof NoChangesError) return c.json({ error: 'no_changes' }, 409);
+    if (err instanceof RecipeHasDescendantsError) return c.json({ error: err.code }, err.status);
     if (err instanceof ProposalError) return c.json({ error: err.code }, err.status);
     if (err instanceof UploadError) return c.json({ error: err.code }, err.status);
     if (err instanceof StorageUnavailableError) {

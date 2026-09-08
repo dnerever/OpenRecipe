@@ -6,6 +6,7 @@ import {
   Link,
   Outlet,
   useNavigate,
+  useParams,
 } from '@tanstack/react-router';
 import { useState } from 'react';
 import { BrowsePage } from './pages/BrowsePage.tsx';
@@ -139,7 +140,28 @@ const newRoute = createRoute({
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$handle',
-  component: ProfilePage,
+  component: function Profile() {
+    const { handle } = useParams({ from: '/$handle' });
+    return <ProfilePage handle={handle} />;
+  },
+});
+/**
+ * `lists` is reserved in both namespaces — no recipe and no person can hold it —
+ * so these two static segments can never shadow a real page. Without the
+ * reservation `/{handle}/lists` would be ambiguous with a recipe called "lists".
+ */
+const listsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$handle/lists',
+  component: function Lists() {
+    const { handle } = useParams({ from: '/$handle/lists' });
+    return <ProfilePage handle={handle} initialTab="lists" />;
+  },
+});
+const listRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/$handle/lists/$listSlug',
+  component: lazyRouteComponent(() => import('./pages/ListPage.tsx'), 'ListPage'),
 });
 /**
  * Scale and units are search params on the read route and inherited by cook
@@ -218,6 +240,8 @@ const routeTree = rootRoute.addChildren([
   signInRoute,
   newRoute,
   profileRoute,
+  listsRoute,
+  listRoute,
   recipeRoute,
   cookRoute,
   editRoute,

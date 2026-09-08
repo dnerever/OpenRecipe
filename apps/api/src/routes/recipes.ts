@@ -6,6 +6,7 @@ import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts'
 import {
   countPublicRecipes,
   createRecipe,
+  deleteRecipe,
   diffVersions,
   forkRecipe,
   listForks,
@@ -339,6 +340,15 @@ export const recipeRoutes = new Hono<AppEnv>()
     return c.json(result);
   })
 
+  /**
+   * Refused once anyone has forked it — see `deleteRecipe`. The alternative
+   * the owner actually wants in that case is going private, and the web says
+   * so rather than leaving them at a dead end.
+   */
+  .delete('/recipes/:handle/:slug', requireUser, async (c) =>
+    c.json(await deleteRecipe(db, c.req.param('handle'), c.req.param('slug'), c.get('viewer'))),
+  )
+
   .post('/recipes/:handle/:slug/visibility', requireUser, async (c) => {
     const parsed = VisibilityBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
@@ -361,7 +371,17 @@ export const userRoutes = new Hono<AppEnv>()
       c.get('viewer'),
     );
     return c.json({
-      owner: { handle: owner.handle, name: owner.name, image: owner.image },
+      // `bio` and `createdAt` are what a profile header needs beyond a listing
+      // card — which is why `listRecipesForOwner` selects them. Omitting them
+      // here left the page rendering `new Date(undefined)` as "Invalid Date",
+      // and silently dropped every bio.
+      owner: {
+        handle: owner.handle,
+        name: owner.name,
+        image: owner.image,
+        bio: owner.bio,
+        createdAt: owner.createdAt.toISOString(),
+      },
       recipes: recipes.map(serializeRecipeSummary),
     });
   })

@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
-import { recipes } from '../db/schema.ts';
+import { lists, recipes } from '../db/schema.ts';
 
 /**
  * Slugs sit under a handle (`/@owner/slug`), so they only collide within one
@@ -13,6 +13,8 @@ export const RESERVED_SLUGS = new Set([
   'fork',
   'forks',
   'history',
+  'list',
+  'lists',
   'new',
   'proposal',
   'proposals',
@@ -80,6 +82,30 @@ export async function claimUniqueSlug(db: Db, ownerId: string, base: string): Pr
       .select({ id: recipes.id })
       .from(recipes)
       .where(and(eq(recipes.ownerId, ownerId), eq(recipes.slug, attempt)))
+      .limit(1);
+
+    if (!taken) return attempt;
+  }
+
+  return `${root.slice(0, 45)}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+/**
+ * The same claim, against a list owner's namespace. Lists and recipes do not
+ * share a namespace — a list lives at `/{handle}/lists/{slug}` — so the two
+ * loops are separate on purpose rather than by omission.
+ */
+export async function claimUniqueListSlug(db: Db, ownerId: string, base: string): Promise<string> {
+  const root = slugify(base);
+
+  for (let n = 1; n < 1000; n++) {
+    const attempt = n === 1 ? root : `${root.slice(0, SLUG_MAX - String(n).length - 1)}-${n}`;
+    if (RESERVED_SLUGS.has(attempt)) continue;
+
+    const [taken] = await db
+      .select({ id: lists.id })
+      .from(lists)
+      .where(and(eq(lists.ownerId, ownerId), eq(lists.slug, attempt)))
       .limit(1);
 
     if (!taken) return attempt;

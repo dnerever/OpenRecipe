@@ -8,9 +8,13 @@ import {
   summarizeDiff,
   type RecipeDoc,
 } from '@openrecipe/core';
-import { and, desc, eq, lt, or, sql as raw } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, or, sql as raw } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import {
+  comments,
+  listItems,
+  media,
+  proposals,
   recipes,
   stars,
   users,
@@ -27,6 +31,7 @@ import {
   NotFoundError,
   type Viewer,
 } from './authorization.ts';
+import { deleteObjects } from './storage.ts';
 import { claimUniqueSlug } from './slugs.ts';
 
 /**
@@ -101,7 +106,13 @@ function normalize(content: string) {
 export async function createRecipe(
   db: Db,
   author: User,
-  input: { content: string; slug?: string | undefined; visibility?: Visibility | undefined },
+  input: {
+    content: string;
+    slug?: string | undefined;
+    visibility?: Visibility | undefined;
+    /** What the root version records. Defaults to `Create recipe`. */
+    message?: string | undefined;
+  },
 ): Promise<LoadedRecipe> {
   const { doc, canonical, title, description, image, tags, totalTimeMinutes } = normalize(
     input.content,
@@ -138,7 +149,7 @@ export async function createRecipe(
           content: canonical,
           contentSha256,
           authorId: author.id,
-          message: 'Create recipe',
+          message: input.message?.trim() || 'Create recipe',
         })
         .returning();
       if (!version) throw new Error('failed to insert root version');
@@ -751,4 +762,131 @@ async function withSlugRetry<T>(run: () => Promise<T>, attempts = 3): Promise<T>
       if (code !== UNIQUE_VIOLATION || attempt >= attempts) throw err;
     }
   }
+}
+
+/**
+ * The keys the bucket still holds for a recipe, read *before* the rows that
+ * name them are gone — a key nobody recorded is a key nobody can delete.
+ *
+ * Lives here rather than in `media.ts` for the same reason `hasStarred` does:
+ * media already depends on this module for `loadRecipe`, and importing back
+ * would make the two mutually dependent for five lines of query.
+ */
+async function mediaKeysForRecipe(db: Db, recipeId: string): Promise<string[]> {
+  const rows = await db
+    .select({ storageKey: media.storageKey, thumbKey: media.thumbKey })
+    .from(media)
+    .where(eq(media.recipeId, recipeId));
+  return rows.flatMap((row) => [row.storageKey, row.thumbKey]);
+}
+
+/**
+ * Raised when a recipe cannot be deleted because other recipes descend from it.
+ *
+ * Deliberately carries no number. `fork_count` on a public recipe counts public
+ * forks only — §5.1 rule 7 — and a private fork blocks a delete just as hard as
+ * a public one, so saying *how many* forks stand in the way would announce the
+ * existence of children the owner is not allowed to know about.
+ */
+export class RecipeHasDescendantsError extends Error {
+  readonly status = 409 as const;
+  readonly code = 'has_descendants' as const;
+  constructor() {
+    super('has_descendants');
+    this.name = 'RecipeHasDescendantsError';
+  }
+}
+
+/**
+ * Does any version outside this recipe descend from a version inside it?
+ *
+ * That is the exact question `versions.parent_version_id`'s `restrict` asks,
+ * asked early so the answer is a 409 with an explanation rather than a raw
+ * foreign-key violation. A fork's root version points at the version it was
+ * taken from, which is the whole mechanism forking runs on, so this is true for
+ * any recipe anyone has ever forked.
+ */
+async function hasDescendants(db: Db, recipeId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: versions.id })
+    .from(versions)
+    .where(
+      raw`${versions.recipeId} <> ${recipeId} and (
+        ${versions.parentVersionId} in (select id from ${versions} where recipe_id = ${recipeId})
+        or ${versions.mergeParentVersionId} in (select id from ${versions} where recipe_id = ${recipeId})
+      )`,
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
+/**
+ * Delete a recipe, its history, and the photos that belong to it.
+ *
+ * **Refused once anyone has forked it.** The version graph crosses recipe
+ * boundaries — that is what makes forks and proposals work — and erasing a
+ * recipe somebody built on would take their ancestry with it. The database says
+ * so too, with `restrict` on the parent pointer; this only says it earlier and
+ * in words. Going private is the escape hatch, and it is the honest one: §5.1
+ * rule 4 already says going private does not retract copies people made.
+ *
+ * The bucket is cleaned *after* the transaction commits. Deleting objects
+ * inside it would delete photos for a transaction that might still roll back,
+ * and an object with no row is recoverable — `db/sweep-media.ts` finds it —
+ * whereas a row with no object is a broken image nobody can fix.
+ */
+export async function deleteRecipe(db: Db, ownerHandle: string, slug: string, viewer: Viewer) {
+  const [row] = await db
+    .select({ recipe: recipes, owner: ownerColumns })
+    .from(recipes)
+    .innerJoin(users, eq(users.id, recipes.ownerId))
+    .where(and(eq(users.handle, ownerHandle.toLowerCase()), eq(recipes.slug, slug.toLowerCase())))
+    .limit(1);
+
+  const recipe = assertCanWrite(row ? { ...row.recipe, owner: row.owner } : undefined, viewer);
+
+  if (await hasDescendants(db, recipe.id)) throw new RecipeHasDescendantsError();
+
+  // Read the keys while the rows that name them still exist.
+  const keys = await mediaKeysForRecipe(db, recipe.id);
+
+  await db.transaction(async (tx) => {
+    // The conversation first: a proposal pins the versions it was computed
+    // against with `restrict`, and its comments pin their author the same way.
+    const threads = await tx
+      .select({ id: proposals.id })
+      .from(proposals)
+      .where(or(eq(proposals.targetRecipeId, recipe.id), eq(proposals.sourceRecipeId, recipe.id)));
+    const threadIds = threads.map((t) => t.id);
+    if (threadIds.length > 0) {
+      await tx.delete(comments).where(inArray(comments.proposalId, threadIds));
+      await tx.delete(proposals).where(inArray(proposals.id, threadIds));
+    }
+
+    // These would cascade, but doing it here keeps the order visible and means
+    // a future `restrict` on any of them fails loudly rather than silently.
+    await tx.delete(listItems).where(eq(listItems.recipeId, recipe.id));
+    await tx.delete(stars).where(eq(stars.recipeId, recipe.id));
+    await tx.delete(media).where(eq(media.recipeId, recipe.id));
+
+    // Drop the head pointer so the versions become deletable — the recipe row
+    // is the one thing pointing at the version it is about to lose.
+    await tx.update(recipes).set({ headVersionId: null }).where(eq(recipes.id, recipe.id));
+    await tx.delete(versions).where(eq(versions.recipeId, recipe.id));
+    await tx.delete(recipes).where(eq(recipes.id, recipe.id));
+  });
+
+  // Best effort, and deliberately not fatal: the recipe is already gone, and a
+  // leftover object is exactly what the sweeper exists to find.
+  let orphanedObjects = 0;
+  if (keys.length > 0) {
+    try {
+      const { failed } = await deleteObjects(keys);
+      orphanedObjects = failed.length;
+    } catch {
+      orphanedObjects = keys.length;
+    }
+  }
+
+  return { deleted: true as const, slug: recipe.slug, orphanedObjects };
 }

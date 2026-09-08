@@ -75,6 +75,27 @@ async function index(query = ''): Promise<IndexPage> {
   return (await res.json()) as IndexPage;
 }
 
+/**
+ * Every row in the index, following the cursor.
+ *
+ * "Is my recipe in the index" must not be asked of the first page only. Test
+ * files run in parallel, each writing public recipes, so a row that was on
+ * page one when it was written can be on page two by the time it is read —
+ * which failed intermittently and looked like a bug in the index rather than
+ * in the question.
+ */
+async function walkIndex(): Promise<IndexPage['recipes']> {
+  const all: IndexPage['recipes'] = [];
+  let cursor = '';
+  for (let i = 0; i < 20; i++) {
+    const page = await index(`?limit=50${cursor}`);
+    all.push(...page.recipes);
+    if (!page.nextCursor) break;
+    cursor = `&cursorUpdatedAt=${encodeURIComponent(page.nextCursor.updatedAt)}&cursorId=${page.nextCursor.id}`;
+  }
+  return all;
+}
+
 let alice: Session;
 let bob: Session;
 
@@ -88,8 +109,7 @@ describe('public index', () => {
 
   it('is readable with no session at all', async () => {
     await create(alice, `anon-${run}`);
-    const page = await index();
-    assert.ok(page.recipes.some((r) => r.slug === `anon-${run}`));
+    assert.ok((await walkIndex()).some((r) => r.slug === `anon-${run}`));
   });
 
   it('never includes a private recipe', async () => {
@@ -115,7 +135,7 @@ describe('public index', () => {
   it('drops a recipe out of the index the moment it goes private', async () => {
     const slug = `vanishing-${run}`;
     await create(alice, slug);
-    assert.ok((await index('?limit=50')).recipes.some((r) => r.slug === slug));
+    assert.ok((await walkIndex()).some((r) => r.slug === slug));
 
     const res = await app.request(`/api/recipes/${alice.handle}/${slug}/visibility`, {
       method: 'POST',
@@ -124,21 +144,20 @@ describe('public index', () => {
     });
     assert.equal(res.status, 200);
 
-    assert.ok(!(await index('?limit=50')).recipes.some((r) => r.slug === slug));
+    assert.ok(!(await walkIndex()).some((r) => r.slug === slug));
   });
 
   it('shows recipes from every owner, not just one', async () => {
     await create(alice, `both-a-${run}`);
     await create(bob, `both-b-${run}`);
-    const page = await index('?limit=50');
-    const handles = new Set(page.recipes.map((r) => r.owner.handle));
+    const handles = new Set((await walkIndex()).map((r) => r.owner.handle));
     assert.ok(handles.has(alice.handle) && handles.has(bob.handle));
   });
 
   it('serves the cached tags and total time, so no card parses YAML', async () => {
     const slug = `cached-${run}`;
     await create(alice, slug, { tags: 'sourdough, slow', total: '24h' });
-    const found = (await index('?limit=50')).recipes.find((r) => r.slug === slug);
+    const found = (await walkIndex()).find((r) => r.slug === slug);
     assert.ok(found);
     assert.deepEqual(found.tags, ['sourdough', 'slow']);
     assert.equal(found.totalTimeMinutes, 1440);

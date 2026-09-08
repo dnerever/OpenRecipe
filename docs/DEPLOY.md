@@ -282,3 +282,31 @@ package under `@img/`, which npm treats as *optional* — and the runtime stage
 installs with `--omit=optional` to keep drizzle-kit out. The Dockerfile
 therefore copies `node_modules/@img` from the build stage. If a deploy ever
 fails with "Could not load the sharp module", that COPY is what went missing.
+
+### Sweeping orphaned objects
+
+Deleting a recipe or an image deletes its objects, but the two stores are not
+atomic with each other: the rows go inside a transaction and the bucket is
+cleaned after it commits, so a crash in between leaves an object nobody
+references. That direction is deliberate — an orphan costs a fraction of a cent,
+while a row pointing at a deleted object is a broken image nobody can repair.
+
+`db:sweep-media` finds them. It lists everything under `recipes/`, subtracts
+every key a `media` row names, and reports what is left:
+
+```bash
+npm run db:sweep-media                     # report, changes nothing
+npm run db:sweep-media -- --delete         # act
+npm run db:sweep-media -- --older-than 5   # minutes to leave alone, default 60
+```
+
+Point `DATABASE_URL` and the five `S3_*` variables at production to sweep R2 —
+MinIO and R2 speak the same protocol and this asks nothing of either beyond list
+and delete. **Run it dry there first.** It treats every unreferenced key under
+`recipes/` as an orphan, so a bucket shared with anything else would have that
+other thing reported as garbage. `--older-than` exists because an upload writes
+its row before its objects: a key younger than the cutoff may belong to a
+request still in flight.
+
+It is worth running after any manual surgery on the database. Nothing schedules
+it, and nothing needs to — an orphan is a storage cost, not a correctness one.

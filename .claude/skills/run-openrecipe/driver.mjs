@@ -13,15 +13,22 @@
  *   node .claude/skills/run-openrecipe/driver.mjs
  *   node .claude/skills/run-openrecipe/driver.mjs --recipe marguerite/carbonara
  *   node .claude/skills/run-openrecipe/driver.mjs --seed-only
+ *   node .claude/skills/run-openrecipe/driver.mjs --keep        # leave the data behind
  *
  * Exits non-zero on the first failed assertion, so it works in CI.
+ *
+ * Every account it creates is deleted again on the way out, pass or fail. A
+ * driver that seeds its own data and leaves it there turns a local database
+ * into a graveyard of `smoke-*` cooks within a week, which is what makes it
+ * hard to find your own. `--keep` opts out when a failure needs inspecting.
  */
 import { chromium } from 'playwright-core';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, '..', '..', '..');
 const OUT = process.env.SHOTS_DIR ?? join(HERE, 'shots');
 const WEB = process.env.WEB_URL ?? 'http://localhost:5173';
 
@@ -33,6 +40,17 @@ const flag = (name) => {
 const existing = flag('--recipe');
 const seedOnly = args.includes('--seed-only');
 const proposalsMode = args.includes('--proposals');
+const keep = args.includes('--keep');
+
+/**
+ * One token per run, carried in every email this driver signs up with, so the
+ * teardown can delete exactly what this run made and nothing a parallel run or
+ * a human is using. Handles keep their own random suffix — they are what shows
+ * up in screenshots, and `smoke-q85sm4` reads better there than the token.
+ */
+const RUN = Math.random().toString(36).slice(2, 7);
+const EMAIL_PREFIX = `dr-${RUN}-`;
+let seeded = false;
 
 mkdirSync(OUT, { recursive: true });
 
@@ -96,11 +114,12 @@ async function signUp(prefix = 'smoke') {
 
   // better-auth rejects a cross-origin-looking POST with MISSING_OR_NULL_ORIGIN,
   // and bare fetch sends no Origin at all. Send the app's own origin.
+  seeded = true;
   const signup = await fetch(`${WEB}/api/auth/sign-up/email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Origin: WEB },
     body: JSON.stringify({
-      email: `${handle}@example.com`,
+      email: `${EMAIL_PREFIX}${handle}@example.com`,
       password: 'smoke-password-123',
       name: handle,
       handle,
@@ -337,4 +356,39 @@ async function main() {
   }
 }
 
-await main();
+/**
+ * Delete this run's accounts and everything hanging off them.
+ *
+ * Reuses the API suite's own `cleanupRun` rather than writing a second delete
+ * order: the foreign keys here are deliberately `restrict` in several places
+ * (a version pins its author, a list item pins whoever filed it), so the order
+ * is fiddly and there should be exactly one copy of it. Importing it needs
+ * `DATABASE_URL`, which the driver otherwise never reads.
+ */
+async function cleanup() {
+  if (!seeded || keep) return;
+
+  try {
+    process.loadEnvFile(join(ROOT, '.env'));
+  } catch {
+    // No .env is fine if DATABASE_URL is already in the environment.
+  }
+
+  try {
+    const { cleanupRun } = await import(
+      pathToFileURL(join(ROOT, 'apps', 'api', 'src', 'test-support.ts')).href
+    );
+    await cleanupRun(EMAIL_PREFIX);
+    ok(`cleaned up this run (${EMAIL_PREFIX}*)`);
+  } catch (err) {
+    // Never fail a green run over teardown — say so and leave the rows.
+    console.error(`  warn  could not clean up ${EMAIL_PREFIX}*: ${err?.message ?? err}`);
+    console.error('        delete them by hand, or re-run with a working DATABASE_URL.');
+  }
+}
+
+try {
+  await main();
+} finally {
+  await cleanup();
+}

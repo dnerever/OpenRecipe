@@ -4,7 +4,7 @@ import type { Db } from '../db/index.ts';
 import { media, recipes, type Media, type User } from '../db/schema.ts';
 import { assertCanRead, assertCanWrite, NotFoundError, type Viewer } from './authorization.ts';
 import { loadRecipe } from './recipes.ts';
-import { putObject } from './storage.ts';
+import { deleteObjects, putObject } from './storage.ts';
 
 /**
  * Images go *through* the API rather than straight to the bucket.
@@ -158,4 +158,38 @@ export async function listMediaForRecipe(db: Db, recipeId: string) {
     .where(eq(media.recipeId, recipeId))
     .orderBy(media.createdAt);
   return rows.map(describeMedia);
+}
+
+/**
+ * Delete one image: the row, then both objects.
+ *
+ * Authorized as a *write to the recipe*, because that is what it is — a photo
+ * has no permissions of its own, and going through `assertCanWrite` is what
+ * keeps that from drifting.
+ *
+ * Versions are immutable, so a document that referenced this image still does.
+ * That is the honest outcome — the history says what it said — but the
+ * denormalized `image_cache` is not history, and leaving it pointing at a
+ * deleted object would show every listing a broken thumbnail. So it is cleared
+ * when it is the image that just went.
+ */
+export async function deleteMedia(db: Db, id: string, viewer: Viewer) {
+  const [row] = await db
+    .select({ media, recipe: recipes })
+    .from(media)
+    .innerJoin(recipes, eq(recipes.id, media.recipeId))
+    .where(eq(media.id, id))
+    .limit(1);
+
+  if (!row) throw new NotFoundError();
+  assertCanWrite(row.recipe, viewer);
+
+  await db.delete(media).where(eq(media.id, id));
+
+  if (row.recipe.imageCache && row.recipe.imageCache === mediaUrl(id)) {
+    await db.update(recipes).set({ imageCache: null }).where(eq(recipes.id, row.recipe.id));
+  }
+
+  const { failed } = await deleteObjects([row.media.storageKey, row.media.thumbKey]);
+  return { deleted: true as const, id, orphanedObjects: failed.length };
 }
