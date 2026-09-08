@@ -264,6 +264,30 @@ Continuing §5.1's numbering, because these are the same kind of rule:
 18. **Nobody can remove or demote the owner.** The owner is `lists.owner_id` and never a `list_collaborators` row, so this is a fact about the schema rather than a check somebody can forget. Anyone else may always show themselves out.
 19. **Losing a role is immediate.** A demoted admin's next write is refused and a removed collaborator's next read of a private list 404s.
 
+### 5.3 Deletion
+
+**A recipe with descendants cannot be deleted.** `versions.parent_version_id` is
+`restrict` and the version graph crosses recipe boundaries, so a fork's root
+version points into the recipe it came from — erasing that recipe would erase
+somebody else's ancestry. The service asks the question before the database has
+to, and answers `409 has_descendants`. Going private is the escape hatch, and
+rule 4 already says what it does and does not do.
+
+**The refusal carries no number.** A private fork blocks a delete exactly as
+hard as a public one, and rule 7 says a public count excludes private children —
+so reporting *how many* forks stand in the way would announce the existence of
+children the parent's owner is not entitled to know about.
+
+**Rows first, objects second, and never the reverse.** The row goes inside a
+transaction; the bucket is cleaned after it commits. A crash in between leaves an
+object nobody references, which costs storage and is findable — `npm run
+db:sweep-media`. The other order leaves a row pointing at a deleted object, which
+is a broken image nobody can repair. Deleting an image clears `image_cache` when
+it was the hero, because a cache is not history; the versions that referenced it
+still do, and still say so.
+
+---
+
 **Phase 2, deliberately not built:** list membership granting read on the *private* recipes inside a list you can read. That is the sharing layer §9 rules out, and it is a change to rule 12's single predicate — which is why that predicate is a named function with nothing else depending on its shape. §9 and this section both move when it lands.
 
 ---
@@ -280,7 +304,7 @@ GET    /users/:handle/recipes
 POST   /recipes                                 { slug, content, message } → recipe + root version
 GET    /recipes/:owner/:slug                    head version, parsed doc, fork/star counts
 PUT    /recipes/:owner/:slug                    { content, message } → new version, advance head
-DELETE /recipes/:owner/:slug
+DELETE /recipes/:owner/:slug                    409 `has_descendants` once anyone has forked it
 
 GET    /recipes/:owner/:slug/versions           paginated history
 GET    /recipes/:owner/:slug/versions/:id
@@ -314,6 +338,7 @@ GET    /users/:handle/lists
 GET    /me/lists?recipe=:handle/:slug           the add-to-list picker, in one request
 
 GET    /search?q=&tag=&sort=
+DELETE /media/:id                               the row, then both objects
 GET    /recipes/:owner/:slug/raw                text/markdown — the archive promise
 ```
 

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { AddToListButton } from '../components/AddToListButton.tsx';
+import { DeleteRecipeButton } from '../components/DeleteRecipeButton.tsx';
 import { ForkButton } from '../components/ForkButton.tsx';
 import { ForkedFrom } from '../components/ForkedFrom.tsx';
 import { ProposeButton } from '../components/ProposeButton.tsx';
@@ -206,6 +207,18 @@ export function RecipePage() {
                   slug={slug}
                   visibility={recipe.visibility}
                   forkCount={recipe.forkCount}
+                />
+              )}
+              {/*
+                Last in the drawer, and the only destructive thing in the app.
+                A refused delete points at the visibility toggle directly above
+                it, which is the thing the owner actually wanted.
+              */}
+              {recipe.canEdit && (
+                <DeleteRecipeButton
+                  handle={handle}
+                  slug={slug}
+                  onBlocked={() => setMenuOpen(true)}
                 />
               )}
             </div>

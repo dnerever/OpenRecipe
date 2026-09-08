@@ -18,7 +18,7 @@ import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/aut
 import { UploadError } from './services/media.ts';
 import { ProposalError } from './services/proposals.ts';
 import { StorageUnavailableError } from './services/storage.ts';
-import { NoChangesError } from './services/recipes.ts';
+import { NoChangesError, RecipeHasDescendantsError } from './services/recipes.ts';
 
 /**
  * Everything the browser talks to lives under `/api`, matching the path the web
@@ -108,6 +108,7 @@ export function createApp() {
     if (err instanceof ForbiddenError) return c.json({ error: 'forbidden' }, 403);
     if (err instanceof UnauthorizedError) return c.json({ error: 'unauthorized' }, 401);
     if (err instanceof NoChangesError) return c.json({ error: 'no_changes' }, 409);
+    if (err instanceof RecipeHasDescendantsError) return c.json({ error: err.code }, err.status);
     if (err instanceof ProposalError) return c.json({ error: err.code }, err.status);
     if (err instanceof UploadError) return c.json({ error: err.code }, err.status);
     if (err instanceof StorageUnavailableError) {

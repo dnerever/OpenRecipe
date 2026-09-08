@@ -154,6 +154,19 @@ export const setVisibility = (handle: string, slug: string, visibility: Visibili
 
 export const rawUrl = (handle: string, slug: string) => `/api/recipes/${handle}/${slug}/raw`;
 
+/**
+ * Refused with `has_descendants` once anyone has forked it — the version graph
+ * crosses recipe boundaries, so erasing this would erase their history too.
+ */
+export const deleteRecipe = (handle: string, slug: string) =>
+  request<{ deleted: true; slug: string; orphanedObjects: number }>(
+    `/api/recipes/${handle}/${slug}`,
+    { method: 'DELETE' },
+  );
+
+export const deleteMedia = (id: string) =>
+  request<{ deleted: true; id: string }>(`/api/media/${id}`, { method: 'DELETE' });
+
 /* ------------------------------------------------------- versions & diff -- */
 
 export type VersionSummary = {

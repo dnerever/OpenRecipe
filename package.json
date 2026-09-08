@@ -26,7 +26,8 @@
     "db:migrate": "npm run db:migrate -w @openrecipe/api",
     "db:studio": "npm run db:studio -w @openrecipe/api",
     "db:backfill": "npm run db:backfill -w @openrecipe/api",
-    "db:password": "npm run db:password -w @openrecipe/api --"
+    "db:password": "npm run db:password -w @openrecipe/api --",
+    "db:sweep-media": "npm run db:sweep-media -w @openrecipe/api --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

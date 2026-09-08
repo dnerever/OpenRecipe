@@ -230,8 +230,91 @@ describe('the image on the recipe', () => {
     assert.equal(put.status, 200, await put.clone().text());
     assert.equal(((await put.json()) as any).recipe.imageUrl, body.url);
 
-    const listed = (await (await app.request('/api/recipes?limit=50')).json()) as any;
+    // The owner's listing rather than the browse index: both are listings and
+    // both prove the point, but only one of them is a global page that a
+    // parallel test file can push this row off the end of.
+    const listed = (await (await app.request(`/api/users/${alice.handle}/recipes`)).json()) as any;
     const card = listed.recipes.find((r: any) => r.slug === slug);
     assert.equal(card.imageUrl, body.url);
+  });
+});
+
+describe('deleting an image', () => {
+  it('removes the row and the objects behind it', async () => {
+    const slug = `loaf-delete-${run}`;
+    await create(alice, slug);
+    const { body } = await upload(alice, alice.handle, slug, await photoWithExif(), 'image/jpeg');
+    const id = body.id as string;
+
+    assert.equal((await app.request(`/api/media/${id}`, { headers: auth(alice) })).status, 200);
+
+    const gone = await app.request(`/api/media/${id}`, { method: 'DELETE', headers: auth(alice) });
+    assert.equal(gone.status, 200, await gone.clone().text());
+    assert.deepEqual(await gone.json(), { deleted: true, id, orphanedObjects: 0 });
+
+    // Both sizes, and the row itself.
+    assert.equal((await app.request(`/api/media/${id}`, { headers: auth(alice) })).status, 404);
+    assert.equal(
+      (await app.request(`/api/media/${id}/thumb`, { headers: auth(alice) })).status,
+      404,
+    );
+    const listed = (await (
+      await app.request(`/api/recipes/${alice.handle}/${slug}/media`, { headers: auth(alice) })
+    ).json()) as any;
+    assert.equal(listed.media.length, 0);
+  });
+
+  it('clears the cached hero rather than leaving a broken thumbnail', async () => {
+    const slug = `loaf-hero-delete-${run}`;
+    await create(alice, slug);
+    const { body } = await upload(alice, alice.handle, slug, await photoWithExif(), 'image/jpeg');
+
+    const withHero = LOAF.replace('title: Country Loaf', `title: Country Loaf\nimage: ${body.url}`);
+    await app.request(`/api/recipes/${alice.handle}/${slug}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...auth(alice) },
+      body: JSON.stringify({ content: withHero, message: 'Add a photo' }),
+    });
+
+    await app.request(`/api/media/${body.id}`, { method: 'DELETE', headers: auth(alice) });
+
+    const read = (await (
+      await app.request(`/api/recipes/${alice.handle}/${slug}`, { headers: auth(alice) })
+    ).json()) as any;
+    assert.equal(read.recipe.imageUrl, null);
+  });
+
+  it('is the owner’s to delete, nobody else’s', async () => {
+    const slug = `loaf-delete-guard-${run}`;
+    await create(alice, slug);
+    const { body } = await upload(alice, alice.handle, slug, await photoWithExif(), 'image/jpeg');
+
+    assert.equal(
+      (await app.request(`/api/media/${body.id}`, { method: 'DELETE', headers: auth(bob) })).status,
+      403,
+    );
+    assert.equal((await app.request(`/api/media/${body.id}`, { method: 'DELETE' })).status, 401);
+    assert.equal(
+      (await app.request(`/api/media/${body.id}`, { headers: auth(alice) })).status,
+      200,
+    );
+  });
+
+  it('takes the photos with the recipe', async () => {
+    const slug = `loaf-cascade-${run}`;
+    await create(alice, slug);
+    const { body } = await upload(alice, alice.handle, slug, await photoWithExif(), 'image/jpeg');
+
+    const deleted = await app.request(`/api/recipes/${alice.handle}/${slug}`, {
+      method: 'DELETE',
+      headers: auth(alice),
+    });
+    assert.equal(deleted.status, 200, await deleted.clone().text());
+    // Nothing left behind in the bucket for the sweeper to find.
+    assert.equal(((await deleted.json()) as any).orphanedObjects, 0);
+    assert.equal(
+      (await app.request(`/api/media/${body.id}`, { headers: auth(alice) })).status,
+      404,
+    );
   });
 });

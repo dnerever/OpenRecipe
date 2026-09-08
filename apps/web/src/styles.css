@@ -1614,3 +1614,14 @@ textarea:focus-visible {
   border: 1px solid var(--rule);
   border-radius: 4px;
 }
+
+/**
+ * The only destructive control in the app. Reads as ordinary until the pointer
+ * is on it — a delete button that shouts from across the page gets clicked by
+ * people who were not looking for it.
+ */
+.danger:hover,
+.more-menu .danger:hover {
+  color: var(--bad);
+  background: color-mix(in oklab, var(--bad) 12%, transparent);
+}

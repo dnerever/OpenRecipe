@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono';
 import { db } from '../db/index.ts';
 import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
 import {
+  deleteMedia,
   listMediaForRecipe,
   loadMediaForRead,
   MAX_UPLOAD_BYTES,
@@ -50,6 +51,14 @@ export const mediaRoutes = new Hono<AppEnv>()
     );
     return c.json({ media: await listMediaForRecipe(db, recipe.id) });
   })
+
+  /**
+   * Authorized as a write to the recipe the photo belongs to, because that is
+   * what it is — an image has no permissions of its own.
+   */
+  .delete('/media/:id', requireUser, async (c) =>
+    c.json(await deleteMedia(db, c.req.param('id'), c.get('viewer'))),
+  )
 
   .get('/media/:id', async (c) => serveObject(c, c.req.param('id'), 'full'))
   .get('/media/:id/thumb', async (c) => serveObject(c, c.req.param('id'), 'thumb'));
