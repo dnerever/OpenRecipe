@@ -422,3 +422,123 @@ export async function uploadImage(
   }
   return (await res.json()) as UploadedImage;
 }
+
+/* --- lists --- */
+
+/** `null` for a stranger. The owner is a role here, not a separate flag. */
+export type ListRole = 'owner' | 'admin' | 'editor' | 'viewer';
+export type CollaboratorRole = 'admin' | 'editor' | 'viewer';
+
+export type ListSummary = {
+  slug: string;
+  title: string;
+  description: string | null;
+  visibility: Visibility;
+  owner: RecipeOwner;
+  /**
+   * What *you* can see in it. Not denormalized and not the same for everyone —
+   * a list counts only the recipes its reader is allowed to read.
+   */
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+  viewerRole: ListRole | null;
+  canEdit: boolean;
+  canAdmin: boolean;
+  isOwner: boolean;
+};
+
+export type ListCollaborator = {
+  handle: string;
+  name: string;
+  image: string | null;
+  role: CollaboratorRole;
+  since: string;
+};
+
+export type ListItem = RecipeSummary & { id: string; owner: RecipeOwner; addedAt: string };
+
+export type ListResponse = ListSummary & {
+  recipes: ListItem[];
+  collaborators: ListCollaborator[];
+};
+
+/** A row in the add-to-list picker: a list, plus whether it already holds this recipe. */
+export type PickerList = ListSummary & { contains: boolean };
+
+export const fetchList = (handle: string, slug: string) =>
+  request<ListResponse>(`/api/lists/${handle}/${slug}`);
+
+export const fetchUserLists = (handle: string) =>
+  request<{ owner: RecipeOwner; lists: ListSummary[] }>(`/api/users/${handle}/lists`);
+
+/**
+ * Every list you can act on, and — given a recipe — whether each already holds
+ * it. One request, so opening the picker costs one round trip rather than one
+ * per list.
+ */
+export const fetchMyLists = (recipe?: { handle: string; slug: string }) =>
+  request<{ lists: PickerList[] }>(
+    `/api/me/lists${recipe ? `?recipe=${encodeURIComponent(`${recipe.handle}/${recipe.slug}`)}` : ''}`,
+  );
+
+export const createList = (input: { title: string; visibility?: Visibility }) =>
+  request<ListSummary>('/api/lists', { method: 'POST', body: JSON.stringify(input) });
+
+export const renameList = (
+  handle: string,
+  slug: string,
+  input: { title?: string; description?: string },
+) =>
+  request<ListSummary>(`/api/lists/${handle}/${slug}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+
+export const deleteList = (handle: string, slug: string) =>
+  request<{ deleted: true }>(`/api/lists/${handle}/${slug}`, { method: 'DELETE' });
+
+export const setListVisibility = (handle: string, slug: string, visibility: Visibility) =>
+  request<{ slug: string; visibility: Visibility }>(`/api/lists/${handle}/${slug}/visibility`, {
+    method: 'POST',
+    body: JSON.stringify({ visibility }),
+  });
+
+/** The recipe is named the way its URL names it — never by a bare id. */
+export const addToList = (handle: string, slug: string, recipe: { handle: string; slug: string }) =>
+  request<{ added: true; recipeId: string }>(`/api/lists/${handle}/${slug}/items`, {
+    method: 'POST',
+    body: JSON.stringify(recipe),
+  });
+
+export const removeFromList = (handle: string, slug: string, recipeId: string) =>
+  request<{ removed: true; recipeId: string }>(`/api/lists/${handle}/${slug}/items/${recipeId}`, {
+    method: 'DELETE',
+  });
+
+export const shareList = (
+  handle: string,
+  slug: string,
+  input: { handle: string; role?: CollaboratorRole },
+) =>
+  request<{ collaborators: ListCollaborator[] }>(`/api/lists/${handle}/${slug}/collaborators`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+
+export const setCollaboratorRole = (
+  handle: string,
+  slug: string,
+  target: string,
+  role: CollaboratorRole,
+) =>
+  request<{ collaborators: ListCollaborator[] }>(
+    `/api/lists/${handle}/${slug}/collaborators/${target}`,
+    { method: 'PATCH', body: JSON.stringify({ role }) },
+  );
+
+export const unshareList = (handle: string, slug: string, target: string) =>
+  request<{ collaborators: ListCollaborator[] }>(
+    `/api/lists/${handle}/${slug}/collaborators/${target}`,
+    { method: 'DELETE' },
+  );

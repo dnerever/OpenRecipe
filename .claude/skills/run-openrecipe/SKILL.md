@@ -85,8 +85,22 @@ Other modes:
 node .claude/skills/run-openrecipe/driver.mjs --proposals                    # cross-account proposal rules
 node .claude/skills/run-openrecipe/driver.mjs --recipe marguerite/carbonara  # drive an existing recipe
 node .claude/skills/run-openrecipe/driver.mjs --seed-only                    # just make data, no browser
+node .claude/skills/run-openrecipe/driver.mjs --keep                         # leave the seeded data behind
 SHOTS_DIR=/tmp/shots WEB_URL=http://localhost:5173 node .claude/skills/run-openrecipe/driver.mjs
 ```
+
+**It cleans up after itself.** Every account a run signs up carries a per-run
+token in its email (`dr-<run>-…`), and on the way out — pass _or_ fail — the
+driver deletes them and everything hanging off them, reusing the API suite's own
+`cleanupRun` so there is one copy of the delete order rather than two. It has to
+be an order: several foreign keys here are deliberately `restrict` (a version
+pins its author, a list item pins whoever filed it), so a plain
+`delete from users` throws.
+
+Pass `--keep` to leave the data in place when a failure needs poking at. If
+teardown itself fails it warns and leaves the rows rather than failing a green
+run; `DATABASE_URL` is the usual reason, since it is the only thing the driver
+reads from `.env`.
 
 **Look at the screenshots.** A green run with a blank frame is still a failure.
 

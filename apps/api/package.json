@@ -13,6 +13,7 @@
     "db:studio": "drizzle-kit studio",
     "clean": "tsc -b --clean",
     "db:backfill": "node --env-file-if-exists=../../.env src/db/backfill-caches.ts",
+    "db:password": "node --env-file-if-exists=../../.env src/db/set-password.ts",
     "build": "tsc -b"
   },
   "dependencies": {

@@ -1,17 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { RecipeCard } from '../components/RecipeCard.tsx';
-import { ApiError, fetchStarredBy, fetchUserRecipes } from '../lib/api.ts';
+import { ApiError, fetchStarredBy, fetchUserLists, fetchUserRecipes } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 
-type Tab = 'recipes' | 'starred';
+type Tab = 'recipes' | 'starred' | 'lists';
 
-export function ProfilePage() {
-  const { handle } = useParams({ from: '/$handle' });
+/**
+ * `/{handle}/lists` renders this page with the lists tab already open, which is
+ * why the handle and the starting tab arrive as props rather than being read
+ * from one fixed route.
+ */
+export function ProfilePage({
+  handle,
+  initialTab = 'recipes',
+}: {
+  handle: string;
+  initialTab?: Tab;
+}) {
   const { user } = useCurrentUser();
   const isSelf = user?.handle === handle;
-  const [tab, setTab] = useState<Tab>('recipes');
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   const { data, isPending, error } = useQuery({
     queryKey: ['user-recipes', handle],
@@ -24,6 +34,13 @@ export function ProfilePage() {
     queryKey: ['starred', handle],
     queryFn: () => fetchStarredBy(handle),
     enabled: tab === 'starred',
+    retry: false,
+  });
+
+  const lists = useQuery({
+    queryKey: ['user-lists', handle],
+    queryFn: () => fetchUserLists(handle),
+    enabled: tab === 'lists',
     retry: false,
   });
 
@@ -80,6 +97,13 @@ export function ProfilePage() {
         >
           Starred
         </button>
+        <button
+          type="button"
+          className={`tab${tab === 'lists' ? ' active' : ''}`}
+          onClick={() => setTab('lists')}
+        >
+          Lists
+        </button>
       </div>
 
       {tab === 'recipes' &&
@@ -98,6 +122,40 @@ export function ProfilePage() {
               />
             ))}
           </ul>
+        ))}
+
+      {tab === 'lists' &&
+        (lists.isPending ? (
+          <p className="muted">Loading…</p>
+        ) : lists.data && lists.data.lists.length > 0 ? (
+          <ul className="cards">
+            {lists.data.lists.map((list) => (
+              <li key={list.slug} className="card">
+                <h3>
+                  <Link to="/$handle/lists/$listSlug" params={{ handle, listSlug: list.slug }}>
+                    {list.title}
+                  </Link>
+                </h3>
+                {list.description && <p className="card-desc">{list.description}</p>}
+                <div className="card-foot">
+                  <span>
+                    {list.itemCount} {list.itemCount === 1 ? 'recipe' : 'recipes'}
+                  </span>
+                  {list.visibility === 'private' && <span className="badge">Private</span>}
+                  {/* Only worth saying when it is not your own doing. */}
+                  {!list.isOwner && list.viewerRole && (
+                    <span className="badge">Shared with you</span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">
+            {isSelf
+              ? 'No lists yet. Open any recipe and use “Add to list” to start one.'
+              : `@${handle} has no lists you can see.`}
+          </p>
         ))}
 
       {tab === 'starred' &&

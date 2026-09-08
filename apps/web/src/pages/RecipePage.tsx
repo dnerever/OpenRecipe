@@ -2,6 +2,7 @@ import { detectSystem } from '@openrecipe/core';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
+import { AddToListButton } from '../components/AddToListButton.tsx';
 import { ForkButton } from '../components/ForkButton.tsx';
 import { ForkedFrom } from '../components/ForkedFrom.tsx';
 import { ProposeButton } from '../components/ProposeButton.tsx';
@@ -93,10 +94,14 @@ export function RecipePage() {
         )}
 
         {/*
-         * Three actions and a drawer. Everything else a recipe can do is real
+         * Four actions and a drawer. Everything else a recipe can do is real
          * but occasional — forking, history, raw, visibility — and a reader who
          * came here to cook should not have to read past eight buttons to find
          * the ingredients.
+         *
+         * Saving to a list earns its place beside starring for the same reason
+         * starring did: it is a thought you have while reading, and burying it
+         * in the drawer is what would make people not bother.
          */}
         <div className="row">
           <Link
@@ -118,6 +123,7 @@ export function RecipePage() {
             starred={recipe.viewerHasStarred}
             count={recipe.starCount}
           />
+          <AddToListButton handle={handle} slug={slug} recipeId={recipe.id} />
           {/*
             Two ways in, because they are two different situations. On a fork
             you own, the change is already written and the only question left is

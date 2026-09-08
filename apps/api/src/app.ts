@@ -9,6 +9,7 @@ import { auth } from './auth.ts';
 import { sql as rawSql } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { withViewer, type AppEnv } from './middleware/session.ts';
+import { listRoutes } from './routes/lists.ts';
 import { mediaRoutes } from './routes/media.ts';
 import { meRoutes } from './routes/me.ts';
 import { proposalRoutes } from './routes/proposals.ts';
@@ -46,7 +47,7 @@ export function createApp() {
         origin: env.APP_URL,
         credentials: true,
         allowHeaders: ['Content-Type', 'Authorization'],
-        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       }),
     );
   }
@@ -83,6 +84,9 @@ export function createApp() {
   // matched as a recipe named "proposals" by a looser pattern.
   api.route('/', proposalRoutes);
   api.route('/', mediaRoutes);
+  // Before the recipe routes for the same reason proposals are: nothing under
+  // `/lists/...` may be matched as a recipe by a looser pattern.
+  api.route('/', listRoutes);
   api.route('/', recipeRoutes);
   api.route('/', userRoutes);
 

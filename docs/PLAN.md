@@ -230,6 +230,42 @@ Paths that must check: recipe read, `/raw`, version list, single version, diff, 
 
 New recipes default to **public** — the open archive is the default path, and going private is a deliberate act.
 
+### 5.2 Lists, sharing and roles
+
+A list is the first thing here that is *curated* rather than authored: the recipes in it are not the list owner's. So "can I read this list" and "can I read what is in it" are two questions, and the answer to the first never decides the second.
+
+```ts
+role(list, viewer)         = list.ownerId === viewer?.id ? 'owner' : collaboratorRole(list, viewer)
+canReadList(list, viewer)  = list.visibility === 'public' || role(list, viewer) !== null
+canEditList(list, viewer)  = role in ('owner', 'admin', 'editor')
+canAdminList(list, viewer) = role in ('owner', 'admin')
+```
+
+| | reads | adds & removes recipes | renames, visibility, manages viewers/editors | grants admin, deletes |
+|---|---|---|---|---|
+| **viewer** | ✅ | | | |
+| **editor** *(default on share)* | ✅ | ✅ | | |
+| **admin** | ✅ | ✅ | ✅ | |
+| **owner** | ✅ | ✅ | ✅ | ✅ |
+
+**Lists default to private**, which is the opposite of a recipe and deliberately so: a recipe is a contribution to the archive, a list is a working surface. **Sharing defaults to `editor`**, because sharing a collection is an invitation to fill it.
+
+Continuing §5.1's numbering, because these are the same kind of rule:
+
+9. **404, not 403,** for a list the viewer cannot read — rule 2, restated.
+10. **Adding a recipe you cannot read is a 404.** Items are added by `handle` + `slug` so the recipe's own `assertCanRead` is unavoidable; a bare `recipeId` would make skipping it possible.
+11. **A recipe that goes private after being added stays in the list** and stops rendering for everyone who cannot read it. The row survives, because the recipe may come back. Rule 4's logic pointed the other way.
+12. **A list read returns only the items the viewer can read.** One `where` clause, in `visibleItemsPredicate` — see the Phase 2 note below.
+13. **The item count is what the viewer can read, with no "n hidden" hint.** Rule 7 is the precedent: a count must never betray a row its reader cannot see. Owner and collaborator can therefore see different counts for the same list, and that is correct.
+14. **A private recipe's owner sees it in their own list, always** — which falls out of rule 12 being `canRead` rather than `visibility = 'public'`.
+15. **Collaborators are visible to anyone who can read the list.** Sharing is not a secret from the people it is shared with.
+16. **Nobody sets their own role**, and adding the owner as a collaborator is a no-op rather than an error.
+17. **Only the owner grants or revokes `admin`.** An admin manages viewers and editors; the moment they can mint another admin, two admins can demote each other and the list has no settled authority.
+18. **Nobody can remove or demote the owner.** The owner is `lists.owner_id` and never a `list_collaborators` row, so this is a fact about the schema rather than a check somebody can forget. Anyone else may always show themselves out.
+19. **Losing a role is immediate.** A demoted admin's next write is refused and a removed collaborator's next read of a private list 404s.
+
+**Phase 2, deliberately not built:** list membership granting read on the *private* recipes inside a list you can read. That is the sharing layer §9 rules out, and it is a change to rule 12's single predicate — which is why that predicate is a named function with nothing else depending on its shape. §9 and this section both move when it lands.
+
 ---
 
 ## 5. API surface
@@ -261,6 +297,21 @@ GET    /proposals/:id                           diff, mergeability, conflict hun
 POST   /proposals/:id/merge                     { resolvedContent? } when conflicted
 POST   /proposals/:id/close
 POST   /proposals/:id/comments
+
+POST   /lists                                   { title, description?, slug?, visibility? }
+                                                private by default, unlike a recipe
+GET    /lists/:owner/:slug                      the list, the items you may read, who it is shared with
+PATCH  /lists/:owner/:slug                      { title?, description? }
+DELETE /lists/:owner/:slug                      owner only
+POST   /lists/:owner/:slug/visibility           { visibility: 'public' | 'private' }
+POST   /lists/:owner/:slug/items                { handle, slug } — never a bare recipe id
+DELETE /lists/:owner/:slug/items/:recipeId
+GET    /lists/:owner/:slug/collaborators
+POST   /lists/:owner/:slug/collaborators        { handle, role? } — role defaults to 'editor'
+PATCH  /lists/:owner/:slug/collaborators/:handle{ role } — owner only when either side is 'admin'
+DELETE /lists/:owner/:slug/collaborators/:handle
+GET    /users/:handle/lists
+GET    /me/lists?recipe=:handle/:slug           the add-to-list picker, in one request
 
 GET    /search?q=&tag=&sort=
 GET    /recipes/:owner/:slug/raw                text/markdown — the archive promise
@@ -476,6 +527,13 @@ S0 ─ S1 ─ S2 ─ S3 ═ MVP-1 ─ S4 ─ S5 ═ LIVE ─ S6 ─ S7 ─ S9 �
      └── pure core, heavily tested ──┘         └─ versioning ─┘   └── the app people use ──┘
 ```
 
+### Slice 13 — Shared lists ✅ **done** · ~1–2 days
+A list is a named collection of recipes, private by default, shared with named collaborators. Add to a list from the recipe page without leaving it; open a list from a third tab on the profile; four levels of access, defaulting to `editor` on share.
+**Done when:** two accounts share a list, both fill it, and a recipe that goes private disappears from the other's view of it without disappearing from the owner's.
+*Shipped:* the `lists`, `list_items` and `list_collaborators` tables, thirteen endpoints, and the whole §5.2 rule set as 19 API tests. Web: an add-to-list picker on the recipe page that creates and files in one gesture, a list page with rename / visibility / delete and a share panel, and a Lists tab on the profile. `list` and `lists` reserved in **both** namespaces — a recipe slug and a handle — which is what lets `/{handle}/lists/{slug}` exist at all.
+
+**Two visibilities meeting is the whole of the design.** Everything hard about lists is the interaction between a list's visibility and its items', and the honest resolution is that list access grants access to the *list*. Publishing a collection publishes the collection, never what is in it.
+
 **Numbers are identities, not positions.** Slice 8 moved to the end of the queue and kept its number, because commit messages, code comments and §5.1's rule numbering all reference these. Read the diagram for order, the heading for identity.
 
 Roughly 3–4 weeks of focused solo work to the end of Slice 12, then Slice 8 closes out Objective 3.
@@ -502,7 +560,7 @@ Roughly 3–4 weeks of focused solo work to the end of Slice 12, then Slice 8 cl
 
 ## 9. Explicitly out of scope for now
 
-Paid subscriptions and subscriber access to others' private recipes (the `visibility` field is the foundation; the sharing/monetization layer is not MVP), **anonymous suggestions** — proposals require an account, named branches, real `git clone`, org/team accounts, comments on recipes themselves (only on proposals), mobile apps, meal planning, nutrition data, notifications beyond in-app.
+Paid subscriptions and subscriber access to others' private recipes (the `visibility` field is the foundation; the sharing/monetization layer is not MVP — **shared lists are its first half**, and they deliberately stop short of granting read on a private recipe: see §5.2's Phase 2 note), **anonymous suggestions** — proposals require an account, named branches, real `git clone`, org/team accounts, comments on recipes themselves (only on proposals), mobile apps, meal planning, nutrition data, notifications beyond in-app.
 
 ## 10. Open questions
 

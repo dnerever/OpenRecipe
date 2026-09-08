@@ -395,6 +395,113 @@ export const media = pgTable(
   (t) => [index('media_recipe_idx').on(t.recipeId), index('media_uploader_idx').on(t.uploaderId)],
 );
 
+/**
+ * A list is a *curated* collection, which is the thing that makes it new: the
+ * recipes in it are not yours. Ownership of the list and readability of its
+ * contents are therefore two separate questions, and `list_items` deliberately
+ * stores nothing about a recipe except the pointer — every read re-authorizes
+ * against the recipe itself.
+ *
+ * Its own enum rather than reusing `recipe_visibility`. The values coincide
+ * today, but a list is the likeliest surface here to grow an `unlisted`, and
+ * sharing the type would make that a migration on recipes too.
+ */
+export const listVisibility = pgEnum('list_visibility', ['public', 'private']);
+
+/**
+ * Four levels of access, of which only three are rows here — the owner is
+ * `lists.owner_id` and never appears in `list_collaborators`, which is what
+ * makes "nobody can demote the owner" a fact about the schema rather than a
+ * check somebody can forget.
+ */
+export const listRole = pgEnum('list_role', ['viewer', 'editor', 'admin']);
+
+export const lists = pgTable(
+  'lists',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+
+    /**
+     * Private by default — the opposite of a recipe, and deliberately so. A
+     * recipe is a contribution to the archive; a list is a working surface that
+     * starts out being nobody's business but yours.
+     */
+    visibility: listVisibility('visibility').notNull().default('private'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('lists_owner_slug_idx').on(t.ownerId, t.slug),
+    index('lists_owner_updated_idx').on(t.ownerId, t.updatedAt),
+  ],
+);
+
+/**
+ * No `position` column: ordering is `created_at` descending. Manual reordering
+ * wants a reindex path nothing yet asks for.
+ *
+ * There is no cached title here either. A recipe that goes private must stop
+ * rendering in every list holding it, and the only way to guarantee that is to
+ * have nothing to render without reading the recipe row.
+ */
+export const listItems = pgTable(
+  'list_items',
+  {
+    listId: uuid('list_id')
+      .notNull()
+      .references((): AnyPgColumn => lists.id, { onDelete: 'cascade' }),
+    recipeId: uuid('recipe_id')
+      .notNull()
+      .references((): AnyPgColumn => recipes.id, { onDelete: 'cascade' }),
+    /** A collaborator may have added it, so this is not the list's owner. */
+    addedById: text('added_by_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Adding twice is adding once.
+    primaryKey({ columns: [t.listId, t.recipeId] }),
+    index('list_items_list_created_idx').on(t.listId, t.createdAt),
+    index('list_items_recipe_idx').on(t.recipeId),
+  ],
+);
+
+export const listCollaborators = pgTable(
+  'list_collaborators',
+  {
+    listId: uuid('list_id')
+      .notNull()
+      .references((): AnyPgColumn => lists.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    /**
+     * Sharing a collection is an invitation to fill it, so the default is the
+     * role that can. A read-only share is the unusual case.
+     */
+    role: listRole('role').notNull().default('editor'),
+
+    invitedById: text('invited_by_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.listId, t.userId] }),
+    // "Lists shared with me", newest first.
+    index('list_collaborators_user_created_idx').on(t.userId, t.createdAt),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Recipe = typeof recipes.$inferSelect;
@@ -404,4 +511,9 @@ export type Proposal = typeof proposals.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type ProposalState = (typeof proposalState.enumValues)[number];
 export type Media = typeof media.$inferSelect;
+export type List = typeof lists.$inferSelect;
+export type ListItem = typeof listItems.$inferSelect;
+export type ListCollaborator = typeof listCollaborators.$inferSelect;
+export type ListRole = (typeof listRole.enumValues)[number];
+export type ListVisibility = (typeof listVisibility.enumValues)[number];
 export type Visibility = (typeof recipeVisibility.enumValues)[number];
