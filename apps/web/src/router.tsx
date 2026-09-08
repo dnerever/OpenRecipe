@@ -9,6 +9,7 @@ import {
   useParams,
 } from '@tanstack/react-router';
 import { useState } from 'react';
+import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { BrowsePage } from './pages/BrowsePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
@@ -35,6 +36,7 @@ function RootLayout() {
         </Link>
         <TopSearch />
         <span className="spacer" />
+        <ThemeToggle />
         {handle ? (
           <>
             <Link to="/new">Write</Link>
