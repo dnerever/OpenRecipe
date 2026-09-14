@@ -327,16 +327,54 @@ function singular(word: string): string {
   return rest ? `${base} ${rest}` : base;
 }
 
-/** The first usable image URL, whatever container it came in. */
+/**
+ * The largest image a page offers, whatever container it came in.
+ *
+ * Not the first: WordPress lists its crops smallest-first and the original
+ * last — `…-225x225.jpg`, `…-260x195.jpg`, `…-320x180.jpg`, `….jpg` — so
+ * taking the first gave seven recipes a 225-pixel thumbnail for a hero. The
+ * original is already in the list, so nothing has to be guessed or fetched:
+ * an ImageObject's own width and height count first, then a WordPress `-WxH`
+ * suffix or a `?w=` query, and a URL that states no size at all is taken to
+ * be the upload itself.
+ */
 export function imageFrom(value: unknown): string | undefined {
-  const stack: unknown[] = [value];
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (typeof node === 'string' && /^https?:\/\//.test(node)) return node;
-    if (Array.isArray(node)) stack.push(...[...node].reverse());
-    else if (isNode(node)) stack.push(node['url'], node['contentUrl']);
-  }
-  return undefined;
+  const candidates: { url: string; area: number }[] = [];
+
+  const visit = (node: unknown) => {
+    if (Array.isArray(node)) {
+      for (const child of node) visit(child);
+    } else if (typeof node === 'string') {
+      if (/^https?:\/\//.test(node)) candidates.push({ url: node, area: areaOf(node) });
+    } else if (isNode(node)) {
+      const url = [node['url'], node['contentUrl']].find(
+        (v): v is string => typeof v === 'string' && /^https?:\/\//.test(v),
+      );
+      if (!url) return;
+      const w = Number(node['width']);
+      const h = Number(node['height']);
+      candidates.push({
+        url,
+        area: Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0 ? w * h : areaOf(url),
+      });
+    }
+  };
+  visit(value);
+
+  // Strictly greater, so between equals — two unsized originals — the page's
+  // own order still decides.
+  let best: { url: string; area: number } | undefined;
+  for (const candidate of candidates) if (!best || candidate.area > best.area) best = candidate;
+  return best?.url;
+}
+
+/** Pixels a URL admits to, or infinity for one that names no size. */
+function areaOf(url: string): number {
+  const suffix = /-(\d+)x(\d+)\.[a-z0-9]+(?:[?#].*)?$/i.exec(url);
+  if (suffix) return Number(suffix[1]) * Number(suffix[2]);
+  const query = /[?&](?:w|width)=(\d+)/i.exec(url);
+  if (query) return Number(query[1]) ** 2;
+  return Number.POSITIVE_INFINITY;
 }
 
 /**
@@ -449,9 +487,12 @@ export function toRecipeDocument(
   if (!yieldValue) warnings.push('no yield published');
 
   const attribution = authorFrom(node) ?? attributionFor(options.url) ?? undefined;
-  const tags = [...new Set([...(options.tags ?? []), ...tagsFrom(node)])].map((t) =>
-    t.toLowerCase(),
-  );
+  // Lowercased *before* de-duplicating: a bookmark tagged `Vegan` and a page
+  // tagged `vegan` are one tag. The schema would fold them on save anyway, but
+  // a dry run has to show what a real run stores, not something close to it.
+  const tags = [
+    ...new Set([...(options.tags ?? []), ...tagsFrom(node)].map((t) => t.toLowerCase().trim())),
+  ].filter(Boolean);
 
   const frontmatter = {
     schema: 1,

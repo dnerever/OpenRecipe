@@ -225,6 +225,53 @@ describe('images and tags', () => {
     );
   });
 
+  it('takes the original over the crops WordPress lists first', () => {
+    assert.equal(
+      imageFrom([
+        'https://x.test/tofu-225x225.jpg',
+        'https://x.test/tofu-260x195.jpg',
+        'https://x.test/tofu-320x180.jpg',
+        'https://x.test/tofu.jpg',
+      ]),
+      'https://x.test/tofu.jpg',
+    );
+  });
+
+  it('takes the largest crop when no original is listed', () => {
+    assert.equal(
+      imageFrom([
+        'https://x.test/a-1200x675.jpg',
+        'https://x.test/a-1200x900.jpg',
+        'https://x.test/a-225x225.jpg',
+      ]),
+      'https://x.test/a-1200x900.jpg',
+    );
+  });
+
+  it('believes an ImageObject about its own size', () => {
+    assert.equal(
+      imageFrom([
+        { '@type': 'ImageObject', url: 'https://x.test/small.jpg', width: 300, height: 300 },
+        { '@type': 'ImageObject', url: 'https://x.test/big.jpg', width: 1200, height: 800 },
+      ]),
+      'https://x.test/big.jpg',
+    );
+  });
+
+  it('reads a CDN width parameter', () => {
+    assert.equal(
+      imageFrom(['https://cdn.test/i.jpg?w=225', 'https://cdn.test/i.jpg?w=1200']),
+      'https://cdn.test/i.jpg?w=1200',
+    );
+  });
+
+  it('keeps the page order between two originals', () => {
+    assert.equal(
+      imageFrom(['https://x.test/a.jpg', 'https://x.test/b.jpg']),
+      'https://x.test/a.jpg',
+    );
+  });
+
   it('splits keywords on commas and on semicolons', () => {
     assert.deepEqual(tagsFrom({ keywords: 'vegan, tofu' }), ['vegan', 'tofu']);
     assert.deepEqual(tagsFrom({ keywords: 'Layer cake;;Chocolate' }), ['layer cake', 'chocolate']);
@@ -264,6 +311,8 @@ describe('the document it produces', () => {
     assert.equal(fm.time?.total, 40);
     assert.match(parsed.doc.body, /^1\. Oven: Preheat/);
     assert.equal(parsed.doc.body.split(/\n\n/).length, 5);
+    // The real page's hero, not one of its crops.
+    assert.doesNotMatch(fm.image ?? '', /-\d+x\d+\.[a-z]+$/);
   });
 
   it('records where it came from, so attribution survives', () => {
@@ -303,6 +352,21 @@ describe('the document it produces', () => {
     const parsed = safeParseRecipe(content);
     assert.ok(parsed.ok);
     assert.equal(parsed.doc.frontmatter.title, 'Tofu Bites');
+  });
+
+  it('counts a tag once however the two sources capitalised it', () => {
+    const { content } = toRecipeDocument(
+      {
+        '@type': 'Recipe',
+        name: 'Tofu',
+        keywords: 'vegan, tofu',
+        recipeIngredient: ['1 block tofu'],
+        recipeInstructions: ['Press it.'],
+      },
+      { url: 'https://x.test/tofu', tags: ['Vegan'] },
+    );
+    // The serialized text, not the parsed doc: parsing would hide the bug.
+    assert.match(content, /^tags: \[vegan, tofu\]$/m);
   });
 
   it('keeps the tags the bookmark already carried', () => {
