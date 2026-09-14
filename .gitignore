@@ -7,3 +7,6 @@ dist/
 .DS_Store
 apps/web/dist/
 coverage/
+
+# Personal recipe exports and the bookmark list the Notion importer writes.
+import-data/
