@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { applyTheme, parseTheme, THEME_PREFERENCES, type ThemeRoot } from './theme.ts';
+import {
+  applyTheme,
+  PAPER,
+  parseTheme,
+  syncThemeColor,
+  THEME_PREFERENCES,
+  type ThemeRoot,
+} from './theme.ts';
 
 /** Records what a real root element would have had done to it. */
 function fakeRoot(): ThemeRoot & { theme: string | null } {
@@ -54,5 +61,44 @@ describe('applyTheme', () => {
       applyTheme(preference, root);
       assert.equal(root.theme, preference === 'system' ? null : preference);
     }
+  });
+});
+
+describe('syncThemeColor', () => {
+  const metas = () => ({ light: { content: PAPER.light }, dark: { content: PAPER.dark } });
+
+  it('leaves each meta to its own palette while the system decides', () => {
+    const m = metas();
+    syncThemeColor('system', m);
+    assert.equal(m.light.content, PAPER.light);
+    assert.equal(m.dark.content, PAPER.dark);
+  });
+
+  it('points both at the light paper when light is forced', () => {
+    const m = metas();
+    syncThemeColor('light', m);
+    // Whichever meta the OS matches now answers with the chosen colour, so a
+    // dark phone showing a light page gets a light address bar too.
+    assert.equal(m.light.content, PAPER.light);
+    assert.equal(m.dark.content, PAPER.light);
+  });
+
+  it('points both at the dark paper when dark is forced', () => {
+    const m = metas();
+    syncThemeColor('dark', m);
+    assert.equal(m.light.content, PAPER.dark);
+    assert.equal(m.dark.content, PAPER.dark);
+  });
+
+  it('goes back to following the system after an override', () => {
+    const m = metas();
+    syncThemeColor('dark', m);
+    syncThemeColor('system', m);
+    assert.equal(m.light.content, PAPER.light);
+    assert.equal(m.dark.content, PAPER.dark);
+  });
+
+  it('shrugs at a page that has no theme-color metas', () => {
+    assert.doesNotThrow(() => syncThemeColor('dark', { light: null, dark: null }));
   });
 });

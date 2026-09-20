@@ -50,6 +50,51 @@ export function applyTheme(preference: ThemePreference, root: ThemeRoot): void {
 }
 
 /**
+ * The two `theme-color` metas paint the browser's own chrome — the address bar
+ * on Android, the status bar of an installed app — and `index.html` picks
+ * between them with `media="(prefers-color-scheme: …)"`. A media attribute
+ * cannot see `data-theme`, so an override would leave a light page under a
+ * dark address bar, which is worse than either theme on its own.
+ *
+ * Rather than insert or delete metas (where the browser takes the *first*
+ * matching one, making order load-bearing), an override simply points both at
+ * the same colour: whichever one the OS matches, it now answers with the
+ * colour the reader actually chose. `system` puts each back to its own.
+ *
+ * The hexes mirror `--paper` in the two palettes above. They are duplicated
+ * because a meta tag cannot hold a `var()`, and they were already duplicated
+ * in `index.html` before this file existed — change one, change all three.
+ */
+export const PAPER = { light: '#f6f7f3', dark: '#141713' } as const;
+
+/** Just enough of a `<meta>` to set its colour, so this is testable bare. */
+export type ColorMeta = { content: string };
+
+export function syncThemeColor(
+  preference: ThemePreference,
+  metas: { light: ColorMeta | null; dark: ColorMeta | null },
+): void {
+  if (metas.light) metas.light.content = preference === 'dark' ? PAPER.dark : PAPER.light;
+  if (metas.dark) metas.dark.content = preference === 'light' ? PAPER.light : PAPER.dark;
+}
+
+/**
+ * Found by their `media` attribute rather than by an id, so this reaches into
+ * `index.html` without editing the tags it is reading.
+ */
+export function findThemeColorMetas(doc: Document): {
+  light: HTMLMetaElement | null;
+  dark: HTMLMetaElement | null;
+} {
+  const metas = [...doc.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')];
+  const isDark = (m: HTMLMetaElement) => /dark/.test(m.getAttribute('media') ?? '');
+  return {
+    light: metas.find((m) => !isDark(m)) ?? null,
+    dark: metas.find(isDark) ?? null,
+  };
+}
+
+/**
  * Reads and writes go through the same guard the rest of the app uses for
  * `localStorage`: the property lookup itself throws in a browser told to block
  * site data, so this is a try/catch and not a null check. A storage that
@@ -87,6 +132,7 @@ export function useTheme(): [ThemePreference, (next: ThemePreference) => void] {
 
   useEffect(() => {
     applyTheme(preference, document.documentElement);
+    syncThemeColor(preference, findThemeColorMetas(document));
   }, [preference]);
 
   const choose = useCallback((next: ThemePreference) => {
