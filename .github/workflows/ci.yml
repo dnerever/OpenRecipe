@@ -52,12 +52,14 @@ jobs:
       # Not a service container: those cannot override an image's command, and
       # `minio/minio` does nothing without `server /data`. The app creates the
       # bucket itself on first use, so there is nothing to provision here.
+      # From quay.io, MinIO's own registry: its Docker Hub repository was
+      # removed, and an anonymous pull of `minio/minio` is now refused.
       - name: Object storage
         run: |
           docker run -d --name minio -p 9000:9000 \
             -e MINIO_ROOT_USER=openrecipe \
             -e MINIO_ROOT_PASSWORD=openrecipe-dev-secret \
-            minio/minio:latest server /data
+            quay.io/minio/minio:latest server /data
           for _ in $(seq 1 60); do
             if curl -sf http://127.0.0.1:9000/minio/health/live > /dev/null; then
               echo "minio ready"
