@@ -165,10 +165,7 @@ describe('ingredient lines', () => {
       tidyIngredientLine('3 teaspoons lemon juice or plant-based milk*'),
       '3 teaspoons lemon juice or plant-based milk',
     );
-    assert.equal(
-      tidyIngredientLine('4 shallots (finely chopped)*'),
-      '4 shallots (finely chopped)',
-    );
+    assert.equal(tidyIngredientLine('4 shallots (finely chopped)*'), '4 shallots (finely chopped)');
   });
 
   it('gives the parser a line it can read end to end', () => {

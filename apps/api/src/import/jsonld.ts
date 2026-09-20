@@ -202,7 +202,10 @@ export function tidyIngredientLine(line: string): string {
   // lemon juice for a little tang") — WP Recipe Maker and similar plugins
   // print the marker right in the ingredient text, where it would otherwise
   // become part of the item name.
-  const text = line.trim().replace(/\*+\s*$/, '').trim();
+  const text = line
+    .trim()
+    .replace(/\*+\s*$/, '')
+    .trim();
   if (!text.endsWith(')')) return text;
 
   // The `(` that opens the line's final group, found by depth.
