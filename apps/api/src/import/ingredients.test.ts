@@ -141,6 +141,17 @@ describe('parseIngredientLine', () => {
     assert.deepEqual(parse('Salt, pepper and oil'), { qty: null, item: 'Salt, pepper and oil' });
   });
 
+  it('drops a comma left dangling once the trailing parenthetical becomes the note', () => {
+    // The trailing `(…)` is read as the note first, leaving `vegan butter,`
+    // as the item — a comma with nothing after it, not a prep clause.
+    assert.deepEqual(parse('1 cup vegan butter, (cut into small cubes)'), {
+      qty: 1,
+      unit: 'cup',
+      item: 'vegan butter',
+      note: 'cut into small cubes',
+    });
+  });
+
   it('records a range without pretending to a single number', () => {
     assert.deepEqual(parse('3-4 ounces snow peas'), {
       qty: 3,

@@ -198,7 +198,11 @@ export function plainText(input: string): string {
  * sees one note it can read instead of a line it has to give up on.
  */
 export function tidyIngredientLine(line: string): string {
-  const text = line.trim();
+  // A trailing `*` points at a footnote in the recipe's notes ("*I like using
+  // lemon juice for a little tang") — WP Recipe Maker and similar plugins
+  // print the marker right in the ingredient text, where it would otherwise
+  // become part of the item name.
+  const text = line.trim().replace(/\*+\s*$/, '').trim();
   if (!text.endsWith(')')) return text;
 
   // The `(` that opens the line's final group, found by depth.
