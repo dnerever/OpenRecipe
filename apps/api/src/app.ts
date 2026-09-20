@@ -15,6 +15,7 @@ import { mediaRoutes } from './routes/media.ts';
 import { meRoutes } from './routes/me.ts';
 import { proposalRoutes } from './routes/proposals.ts';
 import { recipeRoutes, userRoutes } from './routes/recipes.ts';
+import { ImportUrlError, NotARecipeError } from './import/fetch-recipe.ts';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/authorization.ts';
 import { UploadError } from './services/media.ts';
 import { ProposalError } from './services/proposals.ts';
@@ -145,6 +146,15 @@ export function createApp() {
       return c.json({ error: err.code, message: err.message }, err.status);
     }
     if (err instanceof RecipeHasDescendantsError) return c.json({ error: err.code }, err.status);
+    if (err instanceof ImportUrlError) {
+      return c.json({ error: err.code, message: err.message }, err.status);
+    }
+    // Loads fine, but the page itself has no ingredients or no method — the
+    // page's fault, not the URL's, so it gets its own code rather than
+    // `ImportUrlError`'s.
+    if (err instanceof NotARecipeError) {
+      return c.json({ error: 'not_a_recipe', message: err.message }, 422);
+    }
     if (err instanceof ProposalError) return c.json({ error: err.code }, err.status);
     if (err instanceof UploadError) return c.json({ error: err.code }, err.status);
     if (err instanceof StorageUnavailableError) {

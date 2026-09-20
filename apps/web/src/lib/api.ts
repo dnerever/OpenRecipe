@@ -151,6 +151,19 @@ export const fetchUserRecipes = (handle: string) =>
 export const createRecipe = (input: { content: string; slug?: string; visibility?: Visibility }) =>
   request<RecipeResponse>('/api/recipes', { method: 'POST', body: JSON.stringify(input) });
 
+/**
+ * Reads `schema.org/Recipe` data off the page at `url` and publishes it under
+ * the caller's own account — private by default, since it is someone else's
+ * page. `warnings` calls out anything the conversion could not read with
+ * confidence (an ingredient line with no quantity, say), worth a glance before
+ * trusting the result.
+ */
+export const importRecipeFromUrl = (input: { url: string; visibility?: Visibility }) =>
+  request<RecipeResponse & { warnings: string[] }>('/api/recipes/import', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+
 export const setVisibility = (handle: string, slug: string, visibility: Visibility) =>
   request<{ slug: string; visibility: Visibility }>(`/api/recipes/${handle}/${slug}/visibility`, {
     method: 'POST',
