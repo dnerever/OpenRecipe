@@ -49,6 +49,8 @@ resolve through symlinks there. `npm run dev` keeps `tsc -b --watch` running so
 | `npm run db:generate`       | generate a migration from `apps/api/src/db/schema.ts` |
 | `npm run db:migrate`        | apply pending migrations                              |
 | `npm run db:studio`         | Drizzle Studio                                        |
+| `npm run import:notion`     | Load a Notion recipe export — see below               |
+| `npm run import:urls`       | Fetch the recipe pages the Notion import bookmarked   |
 | `npm run format`            | Prettier                                              |
 
 Local services: Postgres on `:5432`, MinIO on `:9000` (console `:9001`,
@@ -56,6 +58,71 @@ user/password `openrecipe` / `openrecipe-dev-secret`). Image uploads need
 `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` (`S3_REGION` is
 optional, defaulting to `auto`); without them everything else works and uploads
 answer 503.
+
+## Importing from Notion
+
+`npm run import:notion` reads a Notion database export (the folder of `.md`
+files) and loads it as recipes. Notion rows come in two kinds and it treats them
+differently: a page with real content becomes a recipe, and a page that is only
+a saved link becomes a line in `import-data/notion-bookmarks.json` — gitignored,
+and shaped for a later pass that fetches those URLs. A page holding nothing but
+a photo counts as a bookmark too, because the attachment cannot come across.
+
+```bash
+npm run import:notion -- --dir "path/to/export/Recipes" --owner your-handle --dry-run
+```
+
+`--complete-only` narrows it to pages carrying both an ingredient list and a
+method — a recipe somebody could cook from. Most Notion pages have one or the
+other, so this is usually the flag you want.
+
+Drop `--dry-run` to write. It defaults to `--visibility private`, is safe to
+re-run (a slug that already exists under that owner is skipped), and never
+invents a quantity — an ingredient line it cannot read is kept whole as
+`{ qty: null, item: <the line> }` for you to fix in the editor.
+
+To load a deployed database, pass the connection string in the environment
+rather than putting it in `.env` — see [docs/DEPLOY.md](docs/DEPLOY.md) for why.
+A shell variable wins over `--env-file`, so this overrides the local `.env` the
+script would otherwise read:
+
+```bash
+read -rs -p "DATABASE_URL: " DATABASE_URL && export DATABASE_URL
+npm run import:notion -- --dir "…" --owner your-handle --complete-only --dry-run
+npm run import:notion -- --dir "…" --owner your-handle --complete-only --yes
+unset DATABASE_URL
+```
+
+The script prints the target host before writing and **refuses a non-local
+database unless you pass `--yes`**, on the same reasoning as
+`apps/api/src/test-guard.ts`: an import that lands in the wrong database looks
+exactly like one that worked. Only the host is ever printed, never the
+credential.
+
+## Importing from recipe sites
+
+`npm run import:urls` finishes what the Notion import starts. It reads
+`import-data/notion-bookmarks.json`, fetches each page, and turns the
+`schema.org/Recipe` JSON-LD in it into a recipe — the standard nearly every
+recipe site publishes, so there is no per-site code. Start with one site:
+
+```bash
+npm run import:urls -- --domain itdoesnttastelikechicken.com --dry-run
+npm run import:urls -- --domain itdoesnttastelikechicken.com --owner your-handle --yes
+```
+
+`--url` takes a single page instead of the bookmark file, and can be repeated.
+A dry run fetches and converts everything and writes nothing, so what it prints
+is exactly what a real run will create.
+
+It keeps the name you saved each bookmark under rather than the page's SEO
+title, merges the bookmark's tags with the site's, and records the page as the
+recipe's `source` along with the author's byline. Like the Notion import it
+defaults to `--visibility private` — these are other people's published
+recipes — skips a slug that already exists, and never invents a quantity. A page
+with no recipe data, or a roundup with no single method to import, is reported
+and skipped. It fetches one page at a time, 1.5 seconds apart (`--delay`), under
+a user agent that says what it is.
 
 ## Sign-in
 

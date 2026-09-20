@@ -27,7 +27,9 @@
     "db:studio": "npm run db:studio -w @openrecipe/api",
     "db:backfill": "npm run db:backfill -w @openrecipe/api",
     "db:password": "npm run db:password -w @openrecipe/api --",
-    "db:sweep-media": "npm run db:sweep-media -w @openrecipe/api --"
+    "db:sweep-media": "npm run db:sweep-media -w @openrecipe/api --",
+    "import:notion": "npm run import:notion -w @openrecipe/api --",
+    "import:urls": "npm run import:urls -w @openrecipe/api --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
