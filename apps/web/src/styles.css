@@ -1282,13 +1282,80 @@ button.star.on {
   background: var(--accent);
   transition: width 0.2s ease-out;
 }
+/* The box the step and the sheet share. `min-height: 0` because a flex child
+   that scrolls has to be told it may be shorter than its content. */
+.cook-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.cook-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  /* Barely there. It is a dismiss target and a hint that the step is behind
+     something, not a curtain: the reason to open this sheet is to read an
+     amount *against* the sentence that needs it, and a step dimmed to grey is
+     a step you have to close the sheet to read. */
+  background: rgb(0 0 0 / 0.14);
+  border: none;
+  border-radius: 0;
+  animation: scrim-in 0.16s ease-out;
+}
+.cook-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  /* Two thirds, so the step it was opened from is still readable above it —
+     an amount is checked against a sentence, not instead of one. */
+  max-height: 68%;
+  background: var(--surface);
+  border-top: 1px solid var(--rule);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -10px 30px rgb(0 0 0 / 0.22);
+  animation: sheet-up 0.18s ease-out;
+}
+.cook-sheet-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+.cook-sheet-head h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
 .cook-ingredients {
-  max-height: 40dvh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   margin: 0;
-  padding: 0.5rem 1.25rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--rule);
+  /* Past the home indicator: this is the bottom of the screen now. */
+  padding: 0.5rem max(1.25rem, env(safe-area-inset-right))
+    calc(0.75rem + env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
 }
 .cook-step {
   flex: 1;
@@ -1388,6 +1455,10 @@ button.star.on {
   .cook-progress span,
   .timer-tray .timer-bar {
     transition: none;
+  }
+  .cook-sheet,
+  .cook-scrim {
+    animation: none;
   }
 }
 .cook-foot {

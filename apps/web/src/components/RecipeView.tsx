@@ -5,7 +5,7 @@ import {
   type Frontmatter,
   type Phase,
 } from '@openrecipe/core';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { thumbUrlFor } from '../lib/api.ts';
 import { useTicked } from '../lib/use-ticked.ts';
 import { TagList } from './TagList.tsx';
@@ -43,14 +43,94 @@ function useActiveSection(): string {
   return active;
 }
 
-/** The jump is a scroll, not a link: a hash would put every glance at the
- *  ingredients on the back button, and the way out of a recipe should stay the
- *  way you came in. */
-function scrollToSection(id: string) {
-  const element = document.getElementById(id);
-  if (!element) return;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  element.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+/**
+ * Where the page has to be scrolled for this section to start just under the
+ * bar. Both halves below measure against it — record an offset from it, scroll
+ * back to it plus that offset — so they are exact inverses; measuring one from
+ * the section's top and the other from its anchor lands the reader a bar's
+ * height off every time, which is close enough to look like a bug and be one.
+ */
+function anchorOf(element: HTMLElement, bar: HTMLElement | null): number {
+  const top = element.getBoundingClientRect().top + window.scrollY;
+  return top - (bar?.getBoundingClientRect().height ?? 0);
+}
+
+/**
+ * Where the reader was in each section, so the switcher puts them back there
+ * rather than at the top. Halfway down the method, a glance at the ingredients
+ * and back should land where you left off: that glance is the whole reason the
+ * bar exists, and charging your place in the recipe for it makes the bar a
+ * worse deal than scrolling was.
+ *
+ * Offsets are kept relative to the section's own top, not as page coordinates,
+ * because everything above a section moves — the photo lands, the shopping
+ * list opens, `Adjust` grows the scale row. A page coordinate is stale the
+ * moment any of that happens; an offset into the section is not.
+ *
+ * The jump is a scroll rather than a link, for the reason the rest of this
+ * page avoids the history: a hash would put every glance at the ingredients on
+ * the back button, and the way out of a recipe should stay the way you came in.
+ */
+function useSectionMemory(active: string, bar: { current: HTMLElement | null }) {
+  const marks = useRef(new Map<string, number>());
+  /**
+   * Raised while *we* are the ones scrolling. The recorder below has to stand
+   * down for the duration: a smooth scroll crosses the destination on its way
+   * in, and would otherwise overwrite the very mark it is travelling to with
+   * every frame of the journey.
+   */
+  const settling = useRef(false);
+
+  useEffect(() => {
+    let frame = 0;
+    const record = () => {
+      frame = 0;
+      const element = document.getElementById(active);
+      if (element) marks.current.set(active, window.scrollY - anchorOf(element, bar.current));
+    };
+    const onScroll = () => {
+      if (settling.current || frame !== 0) return;
+      frame = requestAnimationFrame(record);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame !== 0) cancelAnimationFrame(frame);
+    };
+  }, [active, bar]);
+
+  return useCallback(
+    (id: string) => {
+      const target = document.getElementById(id);
+      if (!target) return;
+
+      // Tapping the section you are already in means "take me to the top of
+      // it", and forgets the mark, so coming back later agrees with that.
+      const remembered = id === active ? 0 : (marks.current.get(id) ?? 0);
+      if (id === active) marks.current.delete(id);
+
+      // A section that has shrunk since — a closed shopping list, a shorter
+      // scale — must not be scrolled off its own end.
+      const offset = Math.max(0, Math.min(remembered, target.offsetHeight - 120));
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      settling.current = true;
+      window.scrollTo({
+        top: anchorOf(target, bar.current) + offset,
+        behavior: reduced ? 'auto' : 'smooth',
+      });
+
+      const release = () => {
+        settling.current = false;
+      };
+      window.addEventListener('scrollend', release, { once: true });
+      // `scrollend` never comes when the page was already where it was asked
+      // to go, and is not everywhere yet. The timeout is the actual guarantee.
+      window.setTimeout(release, 1000);
+    },
+    [active, bar],
+  );
 }
 
 /**
@@ -81,6 +161,8 @@ export function RecipeView({
 }) {
   const groups = groupIngredients(frontmatter);
   const active = useActiveSection();
+  const bar = useRef<HTMLElement | null>(null);
+  const goToSection = useSectionMemory(active, bar);
   const { ticked, toggle, clear } = useTicked(storageKey, frontmatter.ingredients.length);
   const times = Object.entries(frontmatter.time ?? {}).filter(([, v]) => typeof v === 'number');
 
@@ -122,13 +204,13 @@ export function RecipeView({
         </ul>
       )}
 
-      <nav className="section-switch" aria-label="Recipe sections">
+      <nav className="section-switch" aria-label="Recipe sections" ref={bar}>
         {SECTIONS.map((id) => (
           <button
             key={id}
             type="button"
             aria-current={active === id ? 'true' : undefined}
-            onClick={() => scrollToSection(id)}
+            onClick={() => goToSection(id)}
           >
             {id === 'ingredients' ? 'Ingredients' : 'Method'}
           </button>
