@@ -158,6 +158,16 @@ describe('ingredient lines', () => {
     assert.equal(tidyIngredientLine('2 cups flour'), '2 cups flour');
   });
 
+  it('strips a trailing footnote marker', () => {
+    // WP Recipe Maker prints the `*` right in the ingredient text, pointing at
+    // a footnote elsewhere on the page ("*I like using lemon juice…").
+    assert.equal(
+      tidyIngredientLine('3 teaspoons lemon juice or plant-based milk*'),
+      '3 teaspoons lemon juice or plant-based milk',
+    );
+    assert.equal(tidyIngredientLine('4 shallots (finely chopped)*'), '4 shallots (finely chopped)');
+  });
+
   it('gives the parser a line it can read end to end', () => {
     const { content } = toRecipeDocument(
       {

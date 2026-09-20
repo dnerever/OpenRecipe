@@ -229,7 +229,12 @@ function splitPrep(item: string): { item: string; note?: string } {
   if (at === -1) return { item: item.trim() };
   const head = item.slice(0, at).trim();
   const tail = item.slice(at + 1).trim();
-  if (head === '' || tail === '') return { item: item.trim() };
+  if (head === '') return { item: item.trim() };
+  // `vegan butter, (cut into small cubes)` loses its parenthetical note
+  // upstream and arrives here as `vegan butter,` — a comma with nothing
+  // after it, not a real split. Drop it rather than leaving it dangling on
+  // the item name.
+  if (tail === '') return { item: head };
   return { item: head, note: tail };
 }
 
