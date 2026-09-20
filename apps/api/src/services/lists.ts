@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql as raw } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, sql as raw } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import {
   listCollaborators,
@@ -12,9 +12,16 @@ import {
   type Recipe,
   type User,
 } from '../db/schema.ts';
-import { assertCanRead, ForbiddenError, NotFoundError, type Viewer } from './authorization.ts';
+import {
+  assertCanRead,
+  ForbiddenError,
+  NotFoundError,
+  readableRecipes,
+  type Viewer,
+} from './authorization.ts';
 import { serializeRecipeSummary } from './recipes.ts';
 import { claimUniqueListSlug } from './slugs.ts';
+import { publicUser, publicUserColumns, userColumns, userRef, type UserRef } from './users.ts';
 
 /**
  * Lists are the first thing here that is curated rather than authored, and that
@@ -50,31 +57,8 @@ export function isListOwner(role: ViewerRole): boolean {
   return role === 'owner';
 }
 
-const ownerColumns = {
-  id: users.id,
-  handle: users.handle,
-  name: users.name,
-  image: users.image,
-};
-
-export type ListWithOwner = List & { owner: Pick<User, 'id' | 'handle' | 'name' | 'image'> };
+export type ListWithOwner = List & { owner: UserRef };
 export type LoadedList = { list: ListWithOwner; role: ViewerRole };
-
-/**
- * Which items a viewer may see inside a list.
- *
- * **This is the Phase 2 seam.** Today list membership grants nothing: a recipe
- * inside a list is readable exactly when it would be readable anywhere else,
- * which is `canRead` from services/authorization.ts expressed in SQL. Phase 2 —
- * "reading a list grants read on the private recipes in it" — is a change to
- * this one predicate and to nothing else, which is why it is a function rather
- * than an inlined `where`.
- */
-function visibleItemsPredicate(viewer: Viewer) {
-  return viewer
-    ? raw`(${recipes.visibility} = 'public' or ${recipes.ownerId} = ${viewer.id})`
-    : eq(recipes.visibility, 'public');
-}
 
 async function roleFor(
   db: Db,
@@ -101,7 +85,7 @@ export async function loadList(
   viewer: Viewer,
 ): Promise<LoadedList> {
   const [row] = await db
-    .select({ list: lists, owner: ownerColumns })
+    .select({ list: lists, owner: userColumns })
     .from(lists)
     .innerJoin(users, eq(users.id, lists.ownerId))
     .where(and(eq(users.handle, ownerHandle.toLowerCase()), eq(lists.slug, slug.toLowerCase())))
@@ -152,13 +136,7 @@ export async function createList(
 
   if (!created) throw new Error('list insert returned nothing');
 
-  return {
-    list: {
-      ...created,
-      owner: { id: actor.id, handle: actor.handle, name: actor.name, image: actor.image },
-    },
-    role: 'owner',
-  };
+  return { list: { ...created, owner: userRef(actor) }, role: 'owner' };
 }
 
 export async function updateList(
@@ -296,13 +274,13 @@ export async function readList(db: Db, ownerHandle: string, slug: string, viewer
     db
       .select({
         recipe: recipes,
-        owner: { handle: users.handle, name: users.name, image: users.image },
+        owner: publicUserColumns,
         addedAt: listItems.createdAt,
       })
       .from(listItems)
       .innerJoin(recipes, eq(recipes.id, listItems.recipeId))
       .innerJoin(users, eq(users.id, recipes.ownerId))
-      .where(and(eq(listItems.listId, loaded.list.id), visibleItemsPredicate(viewer)))
+      .where(and(eq(listItems.listId, loaded.list.id), readableRecipes(viewer)))
       .orderBy(desc(listItems.createdAt)),
     listCollaboratorsOf(db, loaded.list.id),
   ]);
@@ -327,7 +305,7 @@ export async function readList(db: Db, ownerHandle: string, slug: string, viewer
 async function listCollaboratorsOf(db: Db, listId: string) {
   const rows = await db
     .select({
-      user: ownerColumns,
+      user: userColumns,
       role: listCollaborators.role,
       since: listCollaborators.createdAt,
     })
@@ -337,9 +315,7 @@ async function listCollaboratorsOf(db: Db, listId: string) {
     .orderBy(desc(listCollaborators.createdAt));
 
   return rows.map((row) => ({
-    handle: row.user.handle,
-    name: row.user.name,
-    image: row.user.image,
+    ...publicUser(row.user),
     role: row.role,
     since: row.since.toISOString(),
   }));
@@ -469,7 +445,7 @@ async function existingRole(db: Db, listId: string, userId: string): Promise<Lis
 
 async function userByHandle(db: Db, handle: string) {
   const [user] = await db
-    .select(ownerColumns)
+    .select(userColumns)
     .from(users)
     .where(eq(users.handle, handle.trim().toLowerCase()))
     .limit(1);
@@ -492,7 +468,7 @@ async function itemCounts(db: Db, listIds: string[], viewer: Viewer): Promise<Ma
     .select({ listId: listItems.listId, count: raw<number>`count(*)::int` })
     .from(listItems)
     .innerJoin(recipes, eq(recipes.id, listItems.recipeId))
-    .where(and(inArray(listItems.listId, listIds), visibleItemsPredicate(viewer)))
+    .where(and(inArray(listItems.listId, listIds), readableRecipes(viewer)))
     .groupBy(listItems.listId);
 
   return new Map(rows.map((row) => [row.listId, row.count]));
@@ -504,7 +480,7 @@ async function itemCounts(db: Db, listIds: string[], viewer: Viewer): Promise<Ma
  */
 export async function listsForOwner(db: Db, handle: string, viewer: Viewer) {
   const [owner] = await db
-    .select(ownerColumns)
+    .select(userColumns)
     .from(users)
     .where(eq(users.handle, handle.toLowerCase()))
     .limit(1);
@@ -521,7 +497,7 @@ export async function listsForOwner(db: Db, handle: string, viewer: Viewer) {
         : and(
             eq(lists.ownerId, owner.id),
             shared.length > 0
-              ? raw`(${lists.visibility} = 'public' or ${lists.id} in ${sqlIdList(shared)})`
+              ? or(eq(lists.visibility, 'public'), inArray(lists.id, shared))
               : eq(lists.visibility, 'public'),
           ),
     )
@@ -541,7 +517,7 @@ export async function listsForOwner(db: Db, handle: string, viewer: Viewer) {
     : new Map();
 
   return {
-    owner: { handle: owner.handle, name: owner.name, image: owner.image },
+    owner: publicUser(owner),
     lists: rows.map((row) =>
       serializeList(
         {
@@ -569,12 +545,12 @@ export async function listsForViewer(
   const shared = await sharedListIds(db, actor.id);
 
   const rows = await db
-    .select({ list: lists, owner: ownerColumns })
+    .select({ list: lists, owner: userColumns })
     .from(lists)
     .innerJoin(users, eq(users.id, lists.ownerId))
     .where(
       shared.length > 0
-        ? raw`(${lists.ownerId} = ${actor.id} or ${lists.id} in ${sqlIdList(shared)})`
+        ? or(eq(lists.ownerId, actor.id), inArray(lists.id, shared))
         : eq(lists.ownerId, actor.id),
     )
     .orderBy(desc(lists.updatedAt));
@@ -637,14 +613,6 @@ async function sharedListIds(db: Db, userId: string): Promise<string[]> {
   return rows.map((row) => row.listId);
 }
 
-/** Drizzle has no helper for an inline id list inside a raw fragment. */
-function sqlIdList(ids: string[]) {
-  return raw`(${raw.join(
-    ids.map((id) => raw`${id}::uuid`),
-    raw`, `,
-  )})`;
-}
-
 /** The wire shape. Never spread a database row straight onto the response. */
 export function serializeList(loaded: LoadedList, itemCount: number) {
   const { list, role } = loaded;
@@ -653,7 +621,7 @@ export function serializeList(loaded: LoadedList, itemCount: number) {
     title: list.title,
     description: list.description,
     visibility: list.visibility,
-    owner: { handle: list.owner.handle, name: list.owner.name, image: list.owner.image },
+    owner: publicUser(list.owner),
     itemCount,
     createdAt: list.createdAt.toISOString(),
     updatedAt: list.updatedAt.toISOString(),

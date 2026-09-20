@@ -19,7 +19,10 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:latest
+    # MinIO's own registry. The Docker Hub repository was removed, so a fresh
+    # clone could no longer pull `minio/minio` — only machines that already
+    # had it cached kept working.
+    image: quay.io/minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:

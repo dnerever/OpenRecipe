@@ -32,7 +32,9 @@ import {
   NotFoundError,
   type Viewer,
 } from './authorization.ts';
-import { loadRecipe } from './recipes.ts';
+import { withUniqueRetry } from '../db/retry.ts';
+import { cachesOf, loadRecipe, type RecipeWithOwner } from './recipes.ts';
+import { publicUser, userColumns, type PublicUser, type UserRef } from './users.ts';
 
 /**
  * A proposal is this source recipe's head, offered to that target recipe.
@@ -41,8 +43,6 @@ import { loadRecipe } from './recipes.ts';
  * is about which versions to hand it, who is allowed to see the answer, and
  * what to write down when somebody accepts it.
  */
-
-const UNIQUE_VIOLATION = '23505';
 
 export class ProposalError extends Error {
   readonly status: 400 | 409;
@@ -55,15 +55,6 @@ export class ProposalError extends Error {
     this.status = status;
   }
 }
-
-type RecipeRow = Recipe & { owner: Pick<User, 'id' | 'handle' | 'name' | 'image'> };
-
-const ownerColumns = {
-  id: users.id,
-  handle: users.handle,
-  name: users.name,
-  image: users.image,
-};
 
 /**
  * Who may see a proposal at all.
@@ -140,8 +131,8 @@ export type Mergeability = MergeOutcome & { baseVersionId: string };
  */
 export async function computeMergeability(
   db: Db,
-  target: RecipeRow,
-  source: RecipeRow,
+  target: RecipeWithOwner,
+  source: RecipeWithOwner,
 ): Promise<Mergeability> {
   if (!target.headVersionId || !source.headVersionId) throw new NotFoundError();
 
@@ -178,9 +169,9 @@ async function contentOf(db: Db, versionId: string): Promise<string> {
   return row.content;
 }
 
-async function loadRecipeById(db: Db, id: string): Promise<RecipeRow | null> {
+async function loadRecipeById(db: Db, id: string): Promise<RecipeWithOwner | null> {
   const [row] = await db
-    .select({ recipe: recipes, owner: ownerColumns })
+    .select({ recipe: recipes, owner: userColumns })
     .from(recipes)
     .innerJoin(users, eq(users.id, recipes.ownerId))
     .where(eq(recipes.id, id))
@@ -234,7 +225,7 @@ export async function openProposal(
     .limit(1);
   if (existing.length > 0) throw new ProposalError('already_open', 409);
 
-  const proposal = await withNumberRetry(() =>
+  const proposal = await withUniqueRetry(() =>
     db.transaction(async (tx) => {
       const [seq] = await tx
         .select({ next: raw<number>`coalesce(max(${proposals.number}), 0) + 1` })
@@ -270,22 +261,11 @@ export async function openProposal(
   });
 }
 
-async function withNumberRetry<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await run();
-    } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      if (code !== UNIQUE_VIOLATION || attempt >= attempts) throw err;
-    }
-  }
-}
-
 type ProposalRow = {
   proposal: Proposal;
-  target: RecipeRow;
-  source: RecipeRow;
-  author: Pick<User, 'id' | 'handle' | 'name' | 'image'>;
+  target: RecipeWithOwner;
+  source: RecipeWithOwner;
+  author: UserRef;
 };
 
 async function fetchProposal(
@@ -295,7 +275,7 @@ async function fetchProposal(
   const [row] = await db
     .select({
       proposal: proposals,
-      author: ownerColumns,
+      author: userColumns,
     })
     .from(proposals)
     .innerJoin(users, eq(users.id, proposals.authorId))
@@ -321,7 +301,7 @@ async function fetchProposal(
 
 async function loadComments(db: Db, proposalId: string) {
   return db
-    .select({ comment: comments, author: ownerColumns })
+    .select({ comment: comments, author: userColumns })
     .from(comments)
     .innerJoin(users, eq(users.id, comments.authorId))
     .where(eq(comments.proposalId, proposalId))
@@ -381,7 +361,7 @@ export async function listProposals(
   state?: ProposalState | undefined,
 ) {
   const rows = await db
-    .select({ proposal: proposals, author: ownerColumns })
+    .select({ proposal: proposals, author: userColumns })
     .from(proposals)
     .innerJoin(users, eq(users.id, proposals.authorId))
     .where(
@@ -392,10 +372,10 @@ export async function listProposals(
     .orderBy(desc(proposals.createdAt));
 
   const sourceIds = [...new Set(rows.map((r) => r.proposal.sourceRecipeId))];
-  const sources = new Map<string, RecipeRow>();
+  const sources = new Map<string, RecipeWithOwner>();
   if (sourceIds.length > 0) {
     const sourceRows = await db
-      .select({ recipe: recipes, owner: ownerColumns })
+      .select({ recipe: recipes, owner: userColumns })
       .from(recipes)
       .innerJoin(users, eq(users.id, recipes.ownerId))
       .where(inArray(recipes.id, sourceIds));
@@ -412,11 +392,11 @@ export async function listProposals(
     })
     .map((row) => ({
       ...summary(row.proposal, row.author),
-      source: describeSource(sources.get(row.proposal.sourceRecipeId) as RecipeRow),
+      source: describeSource(sources.get(row.proposal.sourceRecipeId) as RecipeWithOwner),
     }));
 }
 
-function summary(proposal: Proposal, author: Pick<User, 'handle' | 'name' | 'image'>) {
+function summary(proposal: Proposal, author: PublicUser) {
   return {
     id: proposal.id,
     number: proposal.number,
@@ -424,25 +404,21 @@ function summary(proposal: Proposal, author: Pick<User, 'handle' | 'name' | 'ima
     state: proposal.state,
     createdAt: proposal.createdAt.toISOString(),
     updatedAt: proposal.updatedAt.toISOString(),
-    author: { handle: author.handle, name: author.name, image: author.image },
+    author: publicUser(author),
   };
 }
 
-function describeSource(source: RecipeRow) {
-  return {
-    owner: { handle: source.owner.handle, name: source.owner.name, image: source.owner.image },
-    slug: source.slug,
-    title: source.titleCache,
-  };
+function describeSource(source: RecipeWithOwner) {
+  return { owner: publicUser(source.owner), slug: source.slug, title: source.titleCache };
 }
 
 function serializeProposal(input: {
   proposal: Proposal;
-  target: RecipeRow;
-  source: RecipeRow;
-  author: Pick<User, 'handle' | 'name' | 'image'>;
+  target: RecipeWithOwner;
+  source: RecipeWithOwner;
+  author: PublicUser;
   mergeability: Mergeability | null;
-  comments: { comment: Comment; author: Pick<User, 'handle' | 'name' | 'image'> }[];
+  comments: { comment: Comment; author: PublicUser }[];
   viewer: Viewer;
 }) {
   const { proposal, target, source, mergeability, viewer } = input;
@@ -450,11 +426,7 @@ function serializeProposal(input: {
   return {
     ...summary(proposal, input.author),
     body: proposal.body,
-    target: {
-      owner: { handle: target.owner.handle, name: target.owner.name, image: target.owner.image },
-      slug: target.slug,
-      title: target.titleCache,
-    },
+    target: { owner: publicUser(target.owner), slug: target.slug, title: target.titleCache },
     source: describeSource(source),
     baseVersionId: mergeability?.baseVersionId ?? proposal.baseVersionId,
     headVersionId: proposal.headVersionId,
@@ -476,12 +448,7 @@ function serializeProposal(input: {
           content: mergeability.clean ? null : mergeability.content,
         }
       : null,
-    comments: input.comments.map(({ comment, author }) => ({
-      id: comment.id,
-      body: comment.body,
-      createdAt: comment.createdAt.toISOString(),
-      author: { handle: author.handle, name: author.name, image: author.image },
-    })),
+    comments: input.comments.map(({ comment, author }) => serializeComment(comment, author)),
   };
 }
 
@@ -575,15 +542,7 @@ export async function mergeProposal(
 
     await tx
       .update(recipes)
-      .set({
-        headVersionId: version.id,
-        titleCache: doc.frontmatter.title,
-        descriptionCache: doc.frontmatter.description ?? null,
-        imageCache: doc.frontmatter.image ?? null,
-        tagsCache: doc.frontmatter.tags ?? [],
-        totalTimeMinutes: doc.frontmatter.time?.total ?? null,
-        updatedAt: new Date(),
-      })
+      .set({ headVersionId: version.id, ...cachesOf(doc), updatedAt: new Date() })
       .where(eq(recipes.id, row.target.id));
 
     const [updated] = await tx
@@ -657,10 +616,14 @@ export async function addComment(
     .returning();
   if (!comment) throw new Error('failed to insert comment');
 
+  return serializeComment(comment, actor);
+}
+
+function serializeComment(comment: Comment, author: PublicUser) {
   return {
     id: comment.id,
     body: comment.body,
     createdAt: comment.createdAt.toISOString(),
-    author: { handle: actor.handle, name: actor.name, image: actor.image },
+    author: publicUser(author),
   };
 }

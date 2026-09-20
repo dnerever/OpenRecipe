@@ -1,8 +1,14 @@
-import { RecipeParseError } from '@openrecipe/core';
-import { Hono, type Context } from 'hono';
+import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.ts';
-import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
+import {
+  addressed,
+  currentUser,
+  requireUser,
+  type AppEnv,
+  type Ctx,
+} from '../middleware/session.ts';
+import { readBody, readQuery } from './validate.ts';
 import {
   addComment,
   closeProposal,
@@ -33,19 +39,6 @@ const CommentBody = z.object({ body: z.string().trim().min(1).max(10000) });
 
 const ListQuery = z.object({ state: z.enum(['open', 'merged', 'closed']).optional() });
 
-/** Parse failures on a resolution are the resolver's to fix, with positions. */
-function parseErrorResponse(err: RecipeParseError) {
-  return {
-    error: 'invalid_recipe',
-    issues: err.issues.map((i) => ({
-      path: i.path,
-      message: i.message,
-      line: i.position?.line ?? null,
-      column: i.position?.column ?? null,
-    })),
-  } as const;
-}
-
 /**
  * Proposals are addressed two ways and it matters which: `#3 on @chad/loaf` is
  * what a person says, and a bare id is what a link from anywhere else carries.
@@ -53,34 +46,15 @@ function parseErrorResponse(err: RecipeParseError) {
  */
 export const proposalRoutes = new Hono<AppEnv>()
   .post('/recipes/:handle/:slug/proposals', requireUser, async (c) => {
-    const parsed = OpenBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) {
-      return c.json({ error: 'invalid_request', message: parsed.error.issues[0]?.message }, 400);
-    }
-
-    const proposal = await openProposal(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-      currentUser(c),
-      parsed.data,
-    );
+    const body = await readBody(c, OpenBody);
+    const proposal = await openProposal(db, ...addressed(c), currentUser(c), body);
     return c.json(proposal, 201);
   })
 
   .get('/recipes/:handle/:slug/proposals', async (c) => {
-    const query = ListQuery.safeParse(c.req.query());
-    if (!query.success) return c.json({ error: 'invalid_request' }, 400);
-
-    const { recipe } = await loadRecipe(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
-    const list = await listProposals(db, recipe.id, c.get('viewer'), query.data.state);
-    return c.json({ proposals: list });
+    const { state } = readQuery(c, ListQuery);
+    const { recipe } = await loadRecipe(db, ...addressed(c));
+    return c.json({ proposals: await listProposals(db, recipe.id, c.get('viewer'), state) });
   })
 
   .get('/recipes/:handle/:slug/proposals/:number', async (c) =>
@@ -123,8 +97,6 @@ export const proposalRoutes = new Hono<AppEnv>()
     handleComment(c, { id: c.req.param('id') }),
   );
 
-type Ctx = Context<AppEnv>;
-
 /**
  * Resolving `#3` needs the recipe it is numbered against, which is also the
  * read check on the target — so an unreadable recipe 404s here before anything
@@ -134,33 +106,17 @@ async function selectorByNumber(c: Ctx): Promise<ProposalSelector> {
   const number = Number(c.req.param('number'));
   if (!Number.isInteger(number) || number < 1) throw new NotFoundError();
 
-  const { recipe } = await loadRecipe(
-    db,
-    c.req.param('handle') as string,
-    c.req.param('slug') as string,
-    c.get('viewer'),
-  );
+  const { recipe } = await loadRecipe(db, ...addressed(c));
   return { targetRecipeId: recipe.id, number };
 }
 
 async function handleMerge(c: Ctx, selector: ProposalSelector) {
-  const parsed = MergeBody.safeParse(await c.req.json().catch(() => ({})));
-  if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-  try {
-    return c.json(
-      await mergeProposal(db, selector, c.get('viewer'), currentUser(c), parsed.data ?? {}),
-    );
-  } catch (err) {
-    if (err instanceof RecipeParseError) return c.json(parseErrorResponse(err), 422);
-    throw err;
-  }
+  const body = (await readBody(c, MergeBody)) ?? {};
+  return c.json(await mergeProposal(db, selector, c.get('viewer'), currentUser(c), body));
 }
 
 async function handleComment(c: Ctx, selector: ProposalSelector) {
-  const parsed = CommentBody.safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-  const comment = await addComment(db, selector, c.get('viewer'), currentUser(c), parsed.data.body);
+  const { body } = await readBody(c, CommentBody);
+  const comment = await addComment(db, selector, c.get('viewer'), currentUser(c), body);
   return c.json(comment, 201);
 }

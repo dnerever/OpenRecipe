@@ -6,6 +6,7 @@ import { AddToListButton } from '../components/AddToListButton.tsx';
 import { DeleteRecipeButton } from '../components/DeleteRecipeButton.tsx';
 import { ForkButton } from '../components/ForkButton.tsx';
 import { ForkedFrom } from '../components/ForkedFrom.tsx';
+import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { ProposeButton } from '../components/ProposeButton.tsx';
 import { ProposeForm } from '../components/ProposeForm.tsx';
 import { RecipeView } from '../components/RecipeView.tsx';
@@ -13,7 +14,8 @@ import { ScaleControl } from '../components/ScaleControl.tsx';
 import { ShoppingList } from '../components/ShoppingList.tsx';
 import { StarButton } from '../components/StarButton.tsx';
 import { VisibilityToggle } from '../components/VisibilityToggle.tsx';
-import { ApiError, fetchRecipe, rawUrl } from '../lib/api.ts';
+import { fetchRecipe, rawUrl } from '../lib/api.ts';
+import { tickKey } from '../lib/use-ticked.ts';
 import {
   applyCookOptions,
   formatFactor,
@@ -40,20 +42,10 @@ export function RecipePage() {
   /** The kitchen the author wrote in, which is the units this reader starts in. */
   const native = useMemo(() => (frontmatter ? detectSystem(frontmatter) : 'metric'), [frontmatter]);
 
-  if (isPending) return <p className="muted">Loading…</p>;
+  if (isPending) return <Loading />;
 
-  if (error) {
-    // A private recipe is indistinguishable from one that never existed, by design.
-    const notFound = error instanceof ApiError && error.status === 404;
-    return (
-      <section className="panel">
-        <h2>{notFound ? 'Not found' : 'Something went wrong'}</h2>
-        <p className="muted">
-          {notFound ? 'There is no recipe at this address, or it is private.' : error.message}
-        </p>
-      </section>
-    );
-  }
+  // A private recipe is indistinguishable from one that never existed, by design.
+  if (error) return <LoadFailure error={error} missing={NO_SUCH_RECIPE} />;
 
   const { recipe, version, doc } = data;
   const options = optionsFromSearch(search, native);
@@ -242,6 +234,7 @@ export function RecipePage() {
       <RecipeView
         frontmatter={shown}
         phases={doc.phases}
+        storageKey={tickKey(handle, slug)}
         scaleControl={
           <ScaleControl
             frontmatter={doc.frontmatter}
@@ -249,6 +242,16 @@ export function RecipePage() {
             native={native}
             onChange={setOptions}
           />
+        }
+        cookLink={
+          <Link
+            className="button"
+            to="/$handle/$slug/cook"
+            params={{ handle, slug }}
+            search={search}
+          >
+            Cook
+          </Link>
         }
         shoppingList={
           showShopping ? (

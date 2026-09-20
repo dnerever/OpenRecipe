@@ -3,6 +3,9 @@ import { auth } from '../auth.ts';
 import type { User } from '../db/schema.ts';
 import { UnauthorizedError, type Viewer } from '../services/authorization.ts';
 
+/** Every route handler and route-level helper takes one of these. */
+export type Ctx = Context<AppEnv>;
+
 export type AppEnv = {
   Variables: {
     user: User | null;
@@ -31,8 +34,20 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();
 };
 
+/**
+ * The `/:handle/:slug` a request is addressed at, plus who is asking — the
+ * three arguments every recipe- and list-scoped service call opens with, so
+ * they are read once here rather than three times per handler.
+ *
+ * The casts are safe by construction: only routes carrying both params call
+ * this, and a request missing one never matched the route.
+ */
+export function addressed(c: Ctx) {
+  return [c.req.param('handle') as string, c.req.param('slug') as string, c.get('viewer')] as const;
+}
+
 /** Narrowed accessor for handlers that sit behind `requireUser`. */
-export function currentUser(c: Context<AppEnv>): User {
+export function currentUser(c: Ctx): User {
   const user = c.get('user');
   if (!user) throw new UnauthorizedError();
   return user;

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { ApiError, fetchProposals, type ProposalState, type ProposalSummary } from '../lib/api.ts';
+import { fetchProposals, type ProposalState, type ProposalSummary } from '../lib/api.ts';
+import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 
 const STATE_LABEL: Record<ProposalState, string> = {
   open: 'Open',
@@ -23,19 +24,9 @@ export function ProposalsPage() {
     retry: false,
   });
 
-  if (isPending) return <p className="muted">Loading…</p>;
+  if (isPending) return <Loading />;
 
-  if (error) {
-    const notFound = error instanceof ApiError && error.status === 404;
-    return (
-      <section className="panel">
-        <h2>{notFound ? 'Not found' : 'Something went wrong'}</h2>
-        <p className="muted">
-          {notFound ? 'There is no recipe at this address, or it is private.' : error.message}
-        </p>
-      </section>
-    );
-  }
+  if (error) return <LoadFailure error={error} missing={NO_SUCH_RECIPE} />;
 
   const open = data.proposals.filter((p) => p.state === 'open');
   const settled = data.proposals.filter((p) => p.state !== 'open');

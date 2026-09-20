@@ -5,39 +5,103 @@ import {
   type Frontmatter,
   type Phase,
 } from '@openrecipe/core';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { thumbUrlFor } from '../lib/api.ts';
+import { useTicked } from '../lib/use-ticked.ts';
 import { TagList } from './TagList.tsx';
+
+const SECTIONS = ['ingredients', 'method'] as const;
+
+/**
+ * Which half of the recipe the reader is in. The band is the top of the
+ * screen just under the switcher, so a section becomes the current one when
+ * its heading reaches the bar — the highlight tracks what you are reading
+ * rather than whichever half happens to fill the most pixels.
+ */
+function useActiveSection(): string {
+  const [active, setActive] = useState<string>(SECTIONS[0]);
+
+  useEffect(() => {
+    const seen = new Map<string, boolean>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) seen.set(entry.target.id, entry.isIntersecting);
+        // Document order, so the upper section wins while both are in the band.
+        const current = SECTIONS.find((id) => seen.get(id));
+        if (current) setActive(current);
+      },
+      { rootMargin: '-64px 0px -55% 0px' },
+    );
+
+    for (const id of SECTIONS) {
+      const element = document.getElementById(id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, []);
+
+  return active;
+}
+
+/** The jump is a scroll, not a link: a hash would put every glance at the
+ *  ingredients on the back button, and the way out of a recipe should stay the
+ *  way you came in. */
+function scrollToSection(id: string) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  element.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+}
 
 /**
  * The read view renders the *derived* step list the API sends, not the raw
  * markdown — the structure is computed once, server-side, from prose the author
  * actually wrote.
  *
- * `scaleControl` and `shoppingList` are slots rather than features of this
- * component: both are about the ingredient list and belong beside it, but
- * neither is part of what a recipe *is*, and a view of a recipe should still
- * render without them.
+ * `scaleControl`, `shoppingList` and `cookLink` are slots rather than features
+ * of this component: each is about the recipe rather than part of what a
+ * recipe *is*, and a view of a recipe should still render without them. The
+ * cook link comes in from outside for a duller reason too — it is a route, and
+ * routes are the page's business, not the view's.
  */
 export function RecipeView({
   frontmatter,
   phases,
   scaleControl,
   shoppingList,
+  cookLink,
+  storageKey,
 }: {
   frontmatter: Frontmatter;
   phases: Phase[];
   scaleControl?: ReactNode;
   shoppingList?: ReactNode;
+  cookLink?: ReactNode;
+  storageKey: string;
 }) {
   const groups = groupIngredients(frontmatter);
+  const active = useActiveSection();
+  const { ticked, toggle, clear } = useTicked(storageKey, frontmatter.ingredients.length);
   const times = Object.entries(frontmatter.time ?? {}).filter(([, v]) => typeof v === 'number');
 
   return (
     <div className="recipe">
       {frontmatter.image && (
-        // No dimensions to give it: the document stores a URL, not a size. The
-        // aspect ratio is fixed in CSS so the page does not jump when it lands.
-        <img className="hero" src={frontmatter.image} alt="" loading="lazy" />
+        /*
+         * Eagerly, and at high priority: this is the largest thing on the page
+         * and almost always the largest thing painted, so `loading="lazy"` on
+         * it only delayed the one image the reader was waiting for.
+         *
+         * A phone gets the thumbnail instead of the full-size upload — a
+         * `media` source rather than `srcset`/`sizes`, because the document
+         * stores a URL and not a size, and a `w` descriptor we cannot compute
+         * is a lie the browser would act on. An author's own `image:` URL has
+         * no thumbnail to ask for, and `thumbUrlFor` hands it back untouched.
+         */
+        <picture>
+          <source media="(max-width: 42rem)" srcSet={thumbUrlFor(frontmatter.image)} />
+          <img className="hero" src={frontmatter.image} alt="" fetchPriority="high" />
+        </picture>
       )}
 
       {(frontmatter.yield || times.length > 0) && (
@@ -58,23 +122,58 @@ export function RecipeView({
         </ul>
       )}
 
+      <nav className="section-switch" aria-label="Recipe sections">
+        {SECTIONS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            aria-current={active === id ? 'true' : undefined}
+            onClick={() => scrollToSection(id)}
+          >
+            {id === 'ingredients' ? 'Ingredients' : 'Method'}
+          </button>
+        ))}
+        {cookLink}
+      </nav>
+
       <div className="cols">
-        <section>
-          <h3>Ingredients</h3>
+        <section id="ingredients" aria-label="Ingredients">
+          <div className="ing-head">
+            <h3>Ingredients</h3>
+            {/* Only once there is something to clear: an affordance for undoing
+                a state you are not in is just another word on the screen. */}
+            {ticked.size > 0 && (
+              <button type="button" className="linkish" onClick={clear}>
+                Clear {ticked.size}
+              </button>
+            )}
+          </div>
           {scaleControl}
           {groups.map(({ group, items }) => (
             <div key={group ?? '_'} className="ing-group">
               {group && <h4>{group}</h4>}
               <ul className="ingredients">
-                {items.map((ing, i) => (
-                  <li key={`${ing.item}-${i}`}>
-                    <span className="qty">
-                      {ing.qty === null ? '' : formatAmount(ing.qty, ing.unit)}
-                    </span>
-                    <span className="item">
-                      {ing.item}
-                      {ing.note && <em> — {ing.note}</em>}
-                    </span>
+                {items.map(({ ing, index }) => (
+                  <li key={index}>
+                    {/*
+                      The whole line is the label, so the target is the row
+                      rather than the box — a checkbox is about ten millimetres
+                      of a screen you are touching with a floury thumb.
+                    */}
+                    <label className={ticked.has(index) ? 'got' : ''}>
+                      <input
+                        type="checkbox"
+                        checked={ticked.has(index)}
+                        onChange={() => toggle(index)}
+                      />
+                      <span className="qty">
+                        {ing.qty === null ? '' : formatAmount(ing.qty, ing.unit)}
+                      </span>
+                      <span className="item">
+                        {ing.item}
+                        {ing.note && <em> — {ing.note}</em>}
+                      </span>
+                    </label>
                   </li>
                 ))}
               </ul>
@@ -91,7 +190,7 @@ export function RecipeView({
           {shoppingList}
         </section>
 
-        <section>
+        <section id="method" aria-label="Method">
           <h3>Method</h3>
           {phases.map((phase, i) => (
             <div key={`${phase.title}-${i}`} className="phase">
@@ -130,18 +229,25 @@ function formatAmount(qty: number, unit: string | undefined): string {
   return `${formatQuantity(qty, unit)}${plural ? ` ${plural}` : ''}`;
 }
 
-/** Preserves the author's ordering; groups are a display concern, not a data one. */
+type Grouped = { ing: Frontmatter['ingredients'][number]; index: number };
+
+/**
+ * Preserves the author's ordering; groups are a display concern, not a data
+ * one. Each item carries the index it had in the authored list, because that
+ * index — not its position within a group, which repeats across groups — is
+ * what a tick is stored against.
+ */
 function groupIngredients(frontmatter: Frontmatter) {
   const order: (string | undefined)[] = [];
-  const byGroup = new Map<string | undefined, Frontmatter['ingredients']>();
+  const byGroup = new Map<string | undefined, Grouped[]>();
 
-  for (const ing of frontmatter.ingredients) {
+  frontmatter.ingredients.forEach((ing, index) => {
     if (!byGroup.has(ing.group)) {
       byGroup.set(ing.group, []);
       order.push(ing.group);
     }
-    byGroup.get(ing.group)?.push(ing);
-  }
+    byGroup.get(ing.group)?.push({ ing, index });
+  });
 
   return order.map((group) => ({ group, items: byGroup.get(group) ?? [] }));
 }

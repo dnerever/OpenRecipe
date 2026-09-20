@@ -63,9 +63,20 @@ body {
     sans-serif;
 }
 main {
+  /* Named, because the sticky section switcher has to bleed back out through
+     exactly this much padding to reach the edges of the screen. */
+  --gutter: 1.5rem;
   max-width: 44rem;
   margin: 0 auto;
-  padding: 4rem 1.5rem;
+  padding: 4rem var(--gutter);
+}
+/* Four rems of air above the title is a desktop luxury; on a phone it is a
+   sixteenth of the page spent before the recipe starts. */
+@media (max-width: 42rem) {
+  main {
+    --gutter: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right));
+    padding: 1.5rem var(--gutter) 2.5rem;
+  }
 }
 .eyebrow {
   margin: 0 0 0.75rem;
@@ -215,7 +226,8 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 1.25rem;
-  padding: 0.9rem 1.5rem;
+  padding: 0.9rem max(1.5rem, env(safe-area-inset-right)) 0.9rem
+    max(1.5rem, env(safe-area-inset-left));
   border-bottom: 1px solid var(--rule);
   background: var(--surface);
 }
@@ -432,6 +444,67 @@ a.button.secondary {
     gap: 1.5rem;
   }
 }
+
+/* --- section switcher (phones only) ---
+ *
+ * Stacked into one column, the ingredients and the method are a thousand
+ * pixels apart, and a cook crosses that gap every second step. The two columns
+ * a wide screen gets for free become two taps here: a bar that follows the
+ * page down, saying which half you are in and taking you to the other.
+ *
+ * It is deliberately not shown on a wide screen, where both halves are already
+ * on screen at once and a switcher would be a control that does nothing.
+ */
+.section-switch {
+  display: none;
+}
+@media (max-width: 42rem) {
+  .section-switch {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    gap: 0.4rem;
+    /* Out through the page gutter, so the bar reaches both edges and the
+       recipe does not scroll past in the margin beside it. */
+    margin: 0 calc(-1 * var(--gutter)) 1.25rem;
+    padding: 0.4rem var(--gutter);
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+  }
+  .section-switch button {
+    flex: 1;
+    min-height: 44px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+  }
+  .section-switch button[aria-current='true'] {
+    color: var(--paper);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .section-switch .button {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    min-height: 44px;
+    padding: 0.4rem 1rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  /* Clear of the bar the scroll is being driven by. */
+  .cols > section {
+    scroll-margin-top: 4rem;
+  }
+}
 .cols h3 {
   font-size: 0.78rem;
   letter-spacing: 0.1em;
@@ -452,11 +525,47 @@ a.button.secondary {
   margin: 0;
 }
 .ingredients li {
-  display: flex;
-  gap: 0.75rem;
-  padding: 0.3rem 0;
   border-bottom: 1px solid var(--rule);
   font-size: 0.94rem;
+}
+.ingredients label {
+  display: flex;
+  /* Explicit, for the reason `.row` says out loud: `label` is column-flex
+     globally, so a row that does not ask for a row gets a stack. */
+  flex-direction: row;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.3rem 0;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.ingredients input {
+  flex: 0 0 auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+/* Struck through rather than hidden or moved: a cook wants to see that the
+   flour is already in, and a line that reorders itself under the thumb is a
+   line you lose your place in. */
+.ingredients label.got .qty,
+.ingredients label.got .item {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+.ing-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.ing-head h3 {
+  margin-bottom: 0;
+}
+.ing-head button {
+  font-size: 0.8rem;
 }
 .ingredients .qty {
   flex: 0 0 5.5rem;
@@ -467,6 +576,31 @@ a.button.secondary {
 .ingredients em {
   color: var(--ink-2);
   font-style: normal;
+}
+@media (max-width: 42rem) {
+  /*
+   * A five-and-a-half rem column for the quantity is a quarter of a phone
+   * spent on alignment, and it strands "1½ cups" an inch from the thing there
+   * is a cup and a half of. Set against the item it reads as the phrase the
+   * cook would say; the tidy column goes back on the screen with room for it.
+   */
+  .ingredients .qty {
+    flex: 0 0 auto;
+    text-align: left;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  /* An ingredient with no quantity — oil for the pan — would otherwise pay the
+     row's gap for an empty box and hang off the checkbox. */
+  .ingredients .qty:empty {
+    display: none;
+  }
+  /* The row is the target, so the row is a target's size. */
+  .ingredients label {
+    min-height: 44px;
+    align-items: center;
+    padding: 0.5rem 0;
+  }
 }
 .steps {
   margin: 0;
@@ -1200,7 +1334,8 @@ button.star.on {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.7rem 1rem;
+  padding: calc(0.7rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) 0.7rem
+    max(1rem, env(safe-area-inset-left));
   border-bottom: 1px solid var(--rule);
   background: var(--surface);
 }
@@ -1234,7 +1369,7 @@ button.star.on {
   transition: width 0.2s ease-out;
 }
 .cook-ingredients {
-  max-height: 40vh;
+  max-height: 40dvh;
   overflow-y: auto;
   margin: 0;
   padding: 0.5rem 1.25rem;
@@ -1345,7 +1480,8 @@ button.star.on {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+  padding: 0.9rem max(1rem, env(safe-area-inset-right)) calc(0.9rem + env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
   border-top: 1px solid var(--rule);
   background: var(--surface);
 }
@@ -1381,6 +1517,8 @@ button.star.on {
   }
   .topbar,
   .ing-scale,
+  .ing-head button,
+  .ingredients input,
   .more,
   .recipe-head .row,
   .shopping,
@@ -1416,6 +1554,13 @@ button.star.on {
   .steps li,
   .ingredients li {
     break-inside: avoid;
+  }
+  /* A tick is this browser's note to itself about a bowl, not something the
+     recipe says. It does not belong on paper. */
+  .ingredients label.got .qty,
+  .ingredients label.got .item {
+    color: inherit;
+    text-decoration: none;
   }
 }
 
@@ -1553,6 +1698,9 @@ textarea:focus-visible {
 }
 
 /* --- images --- */
+.recipe picture {
+  display: block;
+}
 .recipe .hero {
   display: block;
   width: 100%;
@@ -1589,6 +1737,16 @@ textarea:focus-visible {
   flex-basis: 100%;
   margin: 0;
   font-size: 0.85rem;
+}
+/*
+ * A banner rather than a plate. At 26rem the photo is half a screen that a
+ * reader has already decided about — they tapped this recipe to get here — and
+ * it sits between them and the first thing they came for.
+ */
+@media (max-width: 42rem) {
+  .recipe .hero {
+    max-height: 12rem;
+  }
 }
 @media print {
   .recipe .hero {
