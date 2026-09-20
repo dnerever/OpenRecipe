@@ -40,12 +40,34 @@ describe('deriveSteps', () => {
     );
   });
 
-  it('keeps a wrapped list item as one step', () => {
+  it('keeps a wrapped list item as one step, unwrapped into one line', () => {
     const phases = deriveSteps(
       wrap('1. A long instruction that\n   wraps across lines.\n2. Short one.'),
     );
     assert.equal(phases[0]?.steps.length, 2);
-    assert.equal(phases[0]?.steps[0]?.text, 'A long instruction that\nwraps across lines.');
+    assert.equal(phases[0]?.steps[0]?.text, 'A long instruction that wraps across lines.');
+  });
+
+  it('unwraps a hard-wrapped paragraph step', () => {
+    const phases = deriveSteps(
+      wrap('Stir it in and leave it to stand. It will\nthicken as it goes.'),
+    );
+    assert.equal(
+      phases[0]?.steps[0]?.text,
+      'Stir it in and leave it to stand. It will thicken as it goes.',
+    );
+  });
+
+  it('keeps the newlines inside a fenced block', () => {
+    const phases = deriveSteps(
+      wrap('- Follow the schedule:\n  ```\n  20:00 mix\n  21:00 fold\n  ```'),
+    );
+    assert.match(phases[0]?.steps[0]?.text ?? '', /20:00 mix\n\s*21:00 fold/);
+  });
+
+  it('keeps the newlines inside a block quote', () => {
+    const phases = deriveSteps(wrap('> One line.\n> Another line.'));
+    assert.equal(phases[0]?.steps[0]?.text, '> One line.\n> Another line.');
   });
 
   it('falls back to paragraphs when there is no list', () => {

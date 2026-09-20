@@ -59,6 +59,30 @@ function splitOnHeadings(body: string): { title: string; content: string }[] {
   return sections;
 }
 
+/**
+ * A line break inside one step is the author's editor talking, not the author:
+ * a step hard-wrapped at eighty columns must not come back with a break
+ * through the middle of a sentence on a phone, which is exactly where the
+ * lines are shortest. Fences and block quotes keep every newline they were
+ * written with, because there the break *is* the content.
+ */
+function unwrapSoftBreaks(text: string): string {
+  let inFence = false;
+  const lines = text.split('\n').map((line) => {
+    const fence = /^\s*(```|~~~)/.test(line);
+    const literal = inFence || fence || /^\s*>/.test(line);
+    if (fence) inFence = !inFence;
+    return { line, literal };
+  });
+
+  return lines
+    .map(({ line, literal }, i) => {
+      if (i === 0) return line;
+      return (literal || lines[i - 1]?.literal ? '\n' : ' ') + line;
+    })
+    .join('');
+}
+
 const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+/;
 
 function toBlocks(content: string): string[] {
@@ -69,7 +93,7 @@ function toBlocks(content: string): string[] {
   let inFence = false;
 
   const push = () => {
-    const text = buffer.join('\n').trim();
+    const text = unwrapSoftBreaks(buffer.join('\n')).trim();
     if (text !== '') blocks.push(text);
     buffer = [];
   };
