@@ -326,6 +326,22 @@ describe('recipes', () => {
       assert.ok(asOwner.recipes.some((r) => r.slug === priv));
     });
 
+    it('sends the header fields a profile needs, not just the card ones', async () => {
+      // The web client already types these two; the route used to drop them,
+      // so the page showed "joined Invalid Date" and never rendered a bio.
+      const res = await app.request(`/api/users/${owner.handle}/recipes`);
+      assert.equal(res.status, 200);
+      const body = (await res.json()) as {
+        owner: { handle: string; bio: string | null; createdAt: string };
+      };
+      assert.equal(body.owner.handle, owner.handle);
+      assert.ok('bio' in body.owner, 'bio missing from the profile payload');
+      assert.ok(
+        Number.isFinite(new Date(body.owner.createdAt).getTime()),
+        `createdAt is not a usable date: ${body.owner.createdAt}`,
+      );
+    });
+
     it('404s an unknown handle', async () => {
       const res = await app.request(`/api/users/nobody-${run}/recipes`);
       assert.equal(res.status, 404);
