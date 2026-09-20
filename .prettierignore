@@ -6,3 +6,6 @@ apps/api/src/db/migrations/
 packages/core/src/__fixtures__/
 # Hand-formatted prose and tables.
 docs/
+# Vendored skills, installed by the skills CLI and managed in skills-lock.json.
+.claude/skills/neon/
+.claude/skills/neon-postgres/
