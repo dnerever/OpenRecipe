@@ -15,6 +15,7 @@ import { ShoppingList } from '../components/ShoppingList.tsx';
 import { StarButton } from '../components/StarButton.tsx';
 import { VisibilityToggle } from '../components/VisibilityToggle.tsx';
 import { fetchRecipe, rawUrl } from '../lib/api.ts';
+import { tickKey } from '../lib/use-ticked.ts';
 import {
   applyCookOptions,
   formatFactor,
@@ -233,6 +234,7 @@ export function RecipePage() {
       <RecipeView
         frontmatter={shown}
         phases={doc.phases}
+        storageKey={tickKey(handle, slug)}
         scaleControl={
           <ScaleControl
             frontmatter={doc.frontmatter}

@@ -7,6 +7,7 @@ import {
 } from '@openrecipe/core';
 import { useEffect, useState, type ReactNode } from 'react';
 import { thumbUrlFor } from '../lib/api.ts';
+import { useTicked } from '../lib/use-ticked.ts';
 import { TagList } from './TagList.tsx';
 
 const SECTIONS = ['ingredients', 'method'] as const;
@@ -69,15 +70,18 @@ export function RecipeView({
   scaleControl,
   shoppingList,
   cookLink,
+  storageKey,
 }: {
   frontmatter: Frontmatter;
   phases: Phase[];
   scaleControl?: ReactNode;
   shoppingList?: ReactNode;
   cookLink?: ReactNode;
+  storageKey: string;
 }) {
   const groups = groupIngredients(frontmatter);
   const active = useActiveSection();
+  const { ticked, toggle, clear } = useTicked(storageKey, frontmatter.ingredients.length);
   const times = Object.entries(frontmatter.time ?? {}).filter(([, v]) => typeof v === 'number');
 
   return (
@@ -134,21 +138,42 @@ export function RecipeView({
 
       <div className="cols">
         <section id="ingredients" aria-label="Ingredients">
-          <h3>Ingredients</h3>
+          <div className="ing-head">
+            <h3>Ingredients</h3>
+            {/* Only once there is something to clear: an affordance for undoing
+                a state you are not in is just another word on the screen. */}
+            {ticked.size > 0 && (
+              <button type="button" className="linkish" onClick={clear}>
+                Clear {ticked.size}
+              </button>
+            )}
+          </div>
           {scaleControl}
           {groups.map(({ group, items }) => (
             <div key={group ?? '_'} className="ing-group">
               {group && <h4>{group}</h4>}
               <ul className="ingredients">
-                {items.map((ing, i) => (
-                  <li key={`${ing.item}-${i}`}>
-                    <span className="qty">
-                      {ing.qty === null ? '' : formatAmount(ing.qty, ing.unit)}
-                    </span>
-                    <span className="item">
-                      {ing.item}
-                      {ing.note && <em> — {ing.note}</em>}
-                    </span>
+                {items.map(({ ing, index }) => (
+                  <li key={index}>
+                    {/*
+                      The whole line is the label, so the target is the row
+                      rather than the box — a checkbox is about ten millimetres
+                      of a screen you are touching with a floury thumb.
+                    */}
+                    <label className={ticked.has(index) ? 'got' : ''}>
+                      <input
+                        type="checkbox"
+                        checked={ticked.has(index)}
+                        onChange={() => toggle(index)}
+                      />
+                      <span className="qty">
+                        {ing.qty === null ? '' : formatAmount(ing.qty, ing.unit)}
+                      </span>
+                      <span className="item">
+                        {ing.item}
+                        {ing.note && <em> — {ing.note}</em>}
+                      </span>
+                    </label>
                   </li>
                 ))}
               </ul>
@@ -204,18 +229,25 @@ function formatAmount(qty: number, unit: string | undefined): string {
   return `${formatQuantity(qty, unit)}${plural ? ` ${plural}` : ''}`;
 }
 
-/** Preserves the author's ordering; groups are a display concern, not a data one. */
+type Grouped = { ing: Frontmatter['ingredients'][number]; index: number };
+
+/**
+ * Preserves the author's ordering; groups are a display concern, not a data
+ * one. Each item carries the index it had in the authored list, because that
+ * index — not its position within a group, which repeats across groups — is
+ * what a tick is stored against.
+ */
 function groupIngredients(frontmatter: Frontmatter) {
   const order: (string | undefined)[] = [];
-  const byGroup = new Map<string | undefined, Frontmatter['ingredients']>();
+  const byGroup = new Map<string | undefined, Grouped[]>();
 
-  for (const ing of frontmatter.ingredients) {
+  frontmatter.ingredients.forEach((ing, index) => {
     if (!byGroup.has(ing.group)) {
       byGroup.set(ing.group, []);
       order.push(ing.group);
     }
-    byGroup.get(ing.group)?.push(ing);
-  }
+    byGroup.get(ing.group)?.push({ ing, index });
+  });
 
   return order.map((group) => ({ group, items: byGroup.get(group) ?? [] }));
 }
