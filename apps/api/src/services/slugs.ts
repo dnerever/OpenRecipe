@@ -69,33 +69,29 @@ export function validateSlug(input: string): SlugCheck {
  *
  * Advisory only: the unique index on (owner_id, slug) is the real guarantee, so
  * callers must run this inside the same transaction as the insert and be ready
- * to retry. Slice 6's fork flow uses exactly this.
+ * to retry — `withUniqueRetry` is what turns the loser of a race into one more
+ * attempt. Slice 6's fork flow uses exactly this.
  */
-export async function claimUniqueSlug(db: Db, ownerId: string, base: string): Promise<string> {
-  const root = slugify(base);
-
-  for (let n = 1; n < 1000; n++) {
-    const attempt = n === 1 ? root : `${root.slice(0, SLUG_MAX - String(n).length - 1)}-${n}`;
-    if (RESERVED_SLUGS.has(attempt)) continue;
-
-    const [taken] = await db
-      .select({ id: recipes.id })
-      .from(recipes)
-      .where(and(eq(recipes.ownerId, ownerId), eq(recipes.slug, attempt)))
-      .limit(1);
-
-    if (!taken) return attempt;
-  }
-
-  return `${root.slice(0, 45)}-${crypto.randomUUID().slice(0, 8)}`;
-}
+export const claimUniqueSlug = (db: Db, ownerId: string, base: string) =>
+  claimIn(db, recipes, ownerId, base);
 
 /**
- * The same claim, against a list owner's namespace. Lists and recipes do not
- * share a namespace — a list lives at `/{handle}/lists/{slug}` — so the two
- * loops are separate on purpose rather than by omission.
+ * The same claim against a list owner's namespace. Lists and recipes do not
+ * share a namespace — a list lives at `/{handle}/lists/{slug}` — so they are
+ * two searches of two tables rather than one of both.
  */
-export async function claimUniqueListSlug(db: Db, ownerId: string, base: string): Promise<string> {
+export const claimUniqueListSlug = (db: Db, ownerId: string, base: string) =>
+  claimIn(db, lists, ownerId, base);
+
+/** Both tables carry `id`, `ownerId` and `slug`, which is all this needs. */
+type SluggedTable = typeof recipes | typeof lists;
+
+async function claimIn(
+  db: Db,
+  table: SluggedTable,
+  ownerId: string,
+  base: string,
+): Promise<string> {
   const root = slugify(base);
 
   for (let n = 1; n < 1000; n++) {
@@ -103,13 +99,15 @@ export async function claimUniqueListSlug(db: Db, ownerId: string, base: string)
     if (RESERVED_SLUGS.has(attempt)) continue;
 
     const [taken] = await db
-      .select({ id: lists.id })
-      .from(lists)
-      .where(and(eq(lists.ownerId, ownerId), eq(lists.slug, attempt)))
+      .select({ id: table.id })
+      .from(table)
+      .where(and(eq(table.ownerId, ownerId), eq(table.slug, attempt)))
       .limit(1);
 
     if (!taken) return attempt;
   }
 
+  // A thousand collisions on one name in one namespace is not a person naming
+  // recipes; give it something unguessable and let the insert proceed.
   return `${root.slice(0, 45)}-${crypto.randomUUID().slice(0, 8)}`;
 }

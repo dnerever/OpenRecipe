@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { LoadFailure, Loading } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
-import { ApiError, fetchStarredBy, fetchUserLists, fetchUserRecipes } from '../lib/api.ts';
+import { fetchStarredBy, fetchUserLists, fetchUserRecipes } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 
 type Tab = 'recipes' | 'starred' | 'lists';
@@ -44,15 +45,11 @@ export function ProfilePage({
     retry: false,
   });
 
-  if (isPending) return <p className="muted">Loading…</p>;
+  if (isPending) return <Loading />;
 
   if (error) {
-    const notFound = error instanceof ApiError && error.status === 404;
     return (
-      <section className="panel">
-        <h2>{notFound ? 'No such cook' : 'Something went wrong'}</h2>
-        <p className="muted">{notFound ? `Nobody holds @${handle}.` : error.message}</p>
-      </section>
+      <LoadFailure error={error} missingTitle="No such cook" missing={`Nobody holds @${handle}.`} />
     );
   }
 
@@ -126,7 +123,7 @@ export function ProfilePage({
 
       {tab === 'lists' &&
         (lists.isPending ? (
-          <p className="muted">Loading…</p>
+          <Loading />
         ) : lists.data && lists.data.lists.length > 0 ? (
           <ul className="cards">
             {lists.data.lists.map((list) => (
@@ -160,7 +157,7 @@ export function ProfilePage({
 
       {tab === 'starred' &&
         (starred.isPending ? (
-          <p className="muted">Loading…</p>
+          <Loading />
         ) : starred.data && starred.data.recipes.length > 0 ? (
           <ul className="cards">
             {starred.data.recipes.map((recipe) => (

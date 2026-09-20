@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { DiffView } from '../components/DiffView.tsx';
+import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import {
-  ApiError,
   fetchDiff,
   fetchRecipe,
   fetchVersions,
@@ -45,20 +45,10 @@ export function HistoryPage() {
   });
 
   const error = historyQuery.error ?? recipeQuery.error;
-  if (error) {
-    const notFound = error instanceof ApiError && error.status === 404;
-    return (
-      <section className="panel">
-        <h2>{notFound ? 'Not found' : 'Something went wrong'}</h2>
-        <p className="muted">
-          {notFound ? 'There is no recipe at this address, or it is private.' : error.message}
-        </p>
-      </section>
-    );
-  }
+  if (error) return <LoadFailure error={error} missing={NO_SUCH_RECIPE} />;
 
-  if (!historyQuery.isSuccess) return <p className="muted">Loading…</p>;
-  if (!recipeQuery.isSuccess) return <p className="muted">Loading…</p>;
+  if (!historyQuery.isSuccess) return <Loading />;
+  if (!recipeQuery.isSuccess) return <Loading />;
 
   const { versions, headVersionId } = historyQuery.data;
   const canEdit = recipeQuery.data.recipe.canEdit;
@@ -179,7 +169,7 @@ function Comparison({
   });
 
   if (from === to) return <p className="notice">Pick two different versions to compare.</p>;
-  if (isPending) return <p className="muted">Comparing…</p>;
+  if (isPending) return <Loading what="Comparing…" />;
   if (error) return <p className="bad">{error.message}</p>;
 
   return (

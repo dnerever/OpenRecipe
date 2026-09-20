@@ -20,6 +20,9 @@ export type Health = {
 
 export type Visibility = 'public' | 'private';
 
+/** How anyone else's name reaches the browser: no id, and never an email. */
+export type RecipeOwner = { handle: string; name: string; image: string | null };
+
 export type RecipeSummary = {
   slug: string;
   title: string;
@@ -37,7 +40,7 @@ export type RecipeSummary = {
 export type IndexCursor = { updatedAt: string; id: string };
 
 export type IndexPage = {
-  recipes: (RecipeSummary & { owner: { handle: string; name: string; image: string | null } })[];
+  recipes: (RecipeSummary & { owner: RecipeOwner })[];
   nextCursor: IndexCursor | null;
   /** Present on the first page only — recounting on every page is wasted work. */
   total?: number;
@@ -50,8 +53,6 @@ export type IndexPage = {
  */
 export type ForkAttribution =
   { visible: true; owner: RecipeOwner; slug: string; title: string } | { visible: false };
-
-export type RecipeOwner = { handle: string; name: string; image: string | null };
 
 export type RecipeResponse = {
   recipe: {
@@ -100,10 +101,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // JSON unless the body is a FormData, whose boundary only the browser can
+  // write — setting the header by hand there produces an unparseable upload.
+  const json = typeof init?.body === 'string';
+
   const res = await fetch(path, {
     credentials: 'include',
     ...init,
-    headers: { ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
+    headers: { ...(json ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
   });
 
   if (!res.ok) {
@@ -175,7 +180,7 @@ export type VersionSummary = {
   mergeParentVersionId: string | null;
   message: string;
   createdAt: string;
-  author: { handle: string; name: string; image: string | null };
+  author: RecipeOwner;
 };
 
 export type VersionContent = {
@@ -415,25 +420,14 @@ export function thumbUrlFor(url: string): string {
  * EXIF a phone writes into a kitchen photo can only be stripped by a server
  * that sees the file.
  */
-export async function uploadImage(
-  handle: string,
-  slug: string,
-  file: File,
-): Promise<UploadedImage> {
+export function uploadImage(handle: string, slug: string, file: File): Promise<UploadedImage> {
   const form = new FormData();
   form.set('file', file);
 
-  const res = await fetch(`/api/recipes/${handle}/${slug}/media`, {
+  return request<UploadedImage>(`/api/recipes/${handle}/${slug}/media`, {
     method: 'POST',
-    credentials: 'include',
     body: form,
   });
-
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new ApiError(res.status, body?.error ?? `Upload failed (${res.status})`);
-  }
-  return (await res.json()) as UploadedImage;
 }
 
 /* --- lists --- */

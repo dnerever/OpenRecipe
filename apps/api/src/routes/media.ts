@@ -1,13 +1,18 @@
-import { Hono, type Context } from 'hono';
+import { Hono } from 'hono';
 import { db } from '../db/index.ts';
-import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
+import {
+  addressed,
+  currentUser,
+  requireUser,
+  type AppEnv,
+  type Ctx,
+} from '../middleware/session.ts';
 import {
   deleteMedia,
   listMediaForRecipe,
   loadMediaForRead,
   MAX_UPLOAD_BYTES,
   uploadImage,
-  UploadError,
 } from '../services/media.ts';
 import { loadRecipe } from '../services/recipes.ts';
 import { getObject } from '../services/storage.ts';
@@ -26,29 +31,17 @@ export const mediaRoutes = new Hono<AppEnv>()
     if (!(file instanceof File)) return c.json({ error: 'no_file' }, 400);
     if (file.size > MAX_UPLOAD_BYTES) return c.json({ error: 'file_too_large' }, 413);
 
-    try {
-      const uploaded = await uploadImage(
-        db,
-        c.req.param('handle'),
-        c.req.param('slug'),
-        c.get('viewer'),
-        currentUser(c),
-        { bytes: Buffer.from(await file.arrayBuffer()), mime: file.type },
-      );
-      return c.json(uploaded, 201);
-    } catch (err) {
-      if (err instanceof UploadError) return c.json({ error: err.code }, err.status);
-      throw err;
-    }
+    // An `UploadError` from here — a type sharp will not decode, say — is a 400
+    // by way of `app.onError`, like every other typed failure.
+    const uploaded = await uploadImage(db, ...addressed(c), currentUser(c), {
+      bytes: Buffer.from(await file.arrayBuffer()),
+      mime: file.type,
+    });
+    return c.json(uploaded, 201);
   })
 
   .get('/recipes/:handle/:slug/media', async (c) => {
-    const { recipe } = await loadRecipe(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
+    const { recipe } = await loadRecipe(db, ...addressed(c));
     return c.json({ media: await listMediaForRecipe(db, recipe.id) });
   })
 
@@ -62,8 +55,6 @@ export const mediaRoutes = new Hono<AppEnv>()
 
   .get('/media/:id', async (c) => serveObject(c, c.req.param('id'), 'full'))
   .get('/media/:id/thumb', async (c) => serveObject(c, c.req.param('id'), 'thumb'));
-
-type Ctx = Context<AppEnv>;
 
 /**
  * Streamed through the app rather than redirected to a signed URL: a redirect

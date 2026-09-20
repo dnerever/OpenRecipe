@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.ts';
-import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
+import { addressed, currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
+import { readBody, readQuery } from './validate.ts';
 import {
   addCollaborator,
   addItem,
@@ -59,146 +60,69 @@ export const listRoutes = new Hono<AppEnv>()
    * Declared before `/lists/:handle/:slug` so the static path wins.
    */
   .get('/me/lists', requireUser, async (c) => {
-    const parsed = MineQuery.safeParse(c.req.query());
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    const raw = parsed.data.recipe;
-    const [handle, slug] = raw ? raw.split('/') : [];
+    const { recipe } = readQuery(c, MineQuery);
+    const [handle, slug] = recipe ? recipe.split('/') : [];
     const ref = handle && slug ? { handle, slug } : undefined;
 
     return c.json(await listsForViewer(db, currentUser(c), ref));
   })
 
   .post('/lists', requireUser, async (c) => {
-    const parsed = CreateBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) {
-      return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
-    }
+    const body = await readBody(c, CreateBody);
 
-    if (parsed.data.slug !== undefined) {
-      const check = validateSlug(parsed.data.slug);
+    if (body.slug !== undefined) {
+      const check = validateSlug(body.slug);
       if (!check.ok) return c.json({ error: 'invalid_slug', message: check.reason }, 400);
     }
 
-    const loaded = await createList(db, currentUser(c), parsed.data);
+    const loaded = await createList(db, currentUser(c), body);
     return c.json(serializeList(loaded, 0), 201);
   })
 
-  .get('/lists/:handle/:slug', async (c) =>
-    c.json(await readList(db, c.req.param('handle'), c.req.param('slug'), c.get('viewer'))),
-  )
+  .get('/lists/:handle/:slug', async (c) => c.json(await readList(db, ...addressed(c))))
 
   .patch('/lists/:handle/:slug', requireUser, async (c) => {
-    const parsed = UpdateBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    const loaded = await updateList(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-      parsed.data,
-    );
+    const loaded = await updateList(db, ...addressed(c), await readBody(c, UpdateBody));
     return c.json(serializeList(loaded, 0));
   })
 
   .delete('/lists/:handle/:slug', requireUser, async (c) =>
-    c.json(await deleteList(db, c.req.param('handle'), c.req.param('slug'), c.get('viewer'))),
+    c.json(await deleteList(db, ...addressed(c))),
   )
 
   .post('/lists/:handle/:slug/visibility', requireUser, async (c) => {
-    const parsed = VisibilityBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    const loaded = await setListVisibility(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-      parsed.data.visibility,
-    );
-    return c.json({ slug: loaded.list.slug, visibility: loaded.list.visibility });
+    const { visibility } = await readBody(c, VisibilityBody);
+    const { list } = await setListVisibility(db, ...addressed(c), visibility);
+    return c.json({ slug: list.slug, visibility: list.visibility });
   })
 
   .post('/lists/:handle/:slug/items', requireUser, async (c) => {
-    const parsed = ItemBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    return c.json(
-      await addItem(
-        db,
-        c.req.param('handle'),
-        c.req.param('slug'),
-        c.get('viewer'),
-        currentUser(c),
-        parsed.data,
-      ),
-    );
+    const ref = await readBody(c, ItemBody);
+    return c.json(await addItem(db, ...addressed(c), currentUser(c), ref));
   })
 
   .delete('/lists/:handle/:slug/items/:recipeId', requireUser, async (c) => {
-    const recipeId = z.uuid().safeParse(c.req.param('recipeId'));
-    if (!recipeId.success) return c.json({ error: 'invalid_request' }, 400);
-
-    return c.json(
-      await removeItem(
-        db,
-        c.req.param('handle'),
-        c.req.param('slug'),
-        c.get('viewer'),
-        recipeId.data,
-      ),
-    );
+    const recipeId = z.uuid().parse(c.req.param('recipeId'));
+    return c.json(await removeItem(db, ...addressed(c), recipeId));
   })
 
   .get('/lists/:handle/:slug/collaborators', async (c) =>
-    c.json(await collaboratorsFor(db, c.req.param('handle'), c.req.param('slug'), c.get('viewer'))),
+    c.json(await collaboratorsFor(db, ...addressed(c))),
   )
 
   .post('/lists/:handle/:slug/collaborators', requireUser, async (c) => {
-    const parsed = CollaboratorBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    return c.json(
-      await addCollaborator(
-        db,
-        c.req.param('handle'),
-        c.req.param('slug'),
-        c.get('viewer'),
-        currentUser(c),
-        parsed.data,
-      ),
-    );
+    const body = await readBody(c, CollaboratorBody);
+    return c.json(await addCollaborator(db, ...addressed(c), currentUser(c), body));
   })
 
   .patch('/lists/:handle/:slug/collaborators/:target', requireUser, async (c) => {
-    const parsed = RoleBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    return c.json(
-      await setCollaboratorRole(
-        db,
-        c.req.param('handle'),
-        c.req.param('slug'),
-        c.get('viewer'),
-        currentUser(c),
-        c.req.param('target'),
-        parsed.data.role,
-      ),
-    );
+    const { role } = await readBody(c, RoleBody);
+    const target = c.req.param('target');
+    return c.json(await setCollaboratorRole(db, ...addressed(c), currentUser(c), target, role));
   })
 
   .delete('/lists/:handle/:slug/collaborators/:target', requireUser, async (c) =>
-    c.json(
-      await removeCollaborator(
-        db,
-        c.req.param('handle'),
-        c.req.param('slug'),
-        c.get('viewer'),
-        currentUser(c),
-        c.req.param('target'),
-      ),
-    ),
+    c.json(await removeCollaborator(db, ...addressed(c), currentUser(c), c.req.param('target'))),
   )
 
   .get('/users/:handle/lists', async (c) =>
