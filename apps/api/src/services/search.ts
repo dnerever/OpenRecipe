@@ -2,6 +2,7 @@ import { and, asc, desc, eq, sql as raw, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import { recipes, users } from '../db/schema.ts';
 import { serializeRecipeSummary } from './recipes.ts';
+import { publicUserColumns } from './users.ts';
 
 /**
  * Search takes no viewer, for the same reason the browse index doesn't: it
@@ -91,7 +92,7 @@ export async function searchRecipes(db: Db, query: SearchQuery) {
     db
       .select({
         recipe: recipes,
-        owner: { handle: users.handle, name: users.name, image: users.image },
+        owner: publicUserColumns,
       })
       .from(recipes)
       .innerJoin(users, eq(users.id, recipes.ownerId))

@@ -4,7 +4,8 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { SCHEMA_VERSION } from '@openrecipe/core';
+import { RecipeParseError, SCHEMA_VERSION } from '@openrecipe/core';
+import { ZodError } from 'zod';
 import { auth } from './auth.ts';
 import { sql as rawSql } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
@@ -103,11 +104,46 @@ export function createApp() {
     c.json({ error: 'not_found' }, 404),
   );
 
+  /**
+   * One place where a thrown thing becomes a status code.
+   *
+   * The two translations at the top used to live in the routes — three copies
+   * of the parse-error mapper between them — which is how the same failure came
+   * back in three shapes depending on which endpoint you hit.
+   */
   app.onError((err, c) => {
+    // A document the parser refused: the author's to fix, so it comes back with
+    // the positions they need to fix it.
+    if (err instanceof RecipeParseError) {
+      return c.json(
+        {
+          error: 'invalid_recipe',
+          issues: err.issues.map((i) => ({
+            path: i.path,
+            message: i.message,
+            line: i.position?.line ?? null,
+            column: i.position?.column ?? null,
+          })),
+        },
+        422,
+      );
+    }
+
+    // A request the schema refused — see routes/validate.ts. The first issue's
+    // message is what the web shows, so it is lifted out of the array.
+    if (err instanceof ZodError) {
+      return c.json(
+        { error: 'invalid_request', message: err.issues[0]?.message, issues: err.issues },
+        400,
+      );
+    }
+
     if (err instanceof NotFoundError) return c.json({ error: 'not_found' }, 404);
     if (err instanceof ForbiddenError) return c.json({ error: 'forbidden' }, 403);
     if (err instanceof UnauthorizedError) return c.json({ error: 'unauthorized' }, 401);
-    if (err instanceof NoChangesError) return c.json({ error: 'no_changes' }, 409);
+    if (err instanceof NoChangesError) {
+      return c.json({ error: err.code, message: err.message }, err.status);
+    }
     if (err instanceof RecipeHasDescendantsError) return c.json({ error: err.code }, err.status);
     if (err instanceof ProposalError) return c.json({ error: err.code }, err.status);
     if (err instanceof UploadError) return c.json({ error: err.code }, err.status);

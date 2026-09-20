@@ -29,10 +29,20 @@ import {
   canRead,
   canWrite,
   NotFoundError,
+  readableRecipes,
   type Viewer,
 } from './authorization.ts';
+import { withUniqueRetry } from '../db/retry.ts';
 import { deleteObjects } from './storage.ts';
 import { claimUniqueSlug } from './slugs.ts';
+import {
+  profileColumns,
+  publicUser,
+  publicUserColumns,
+  userColumns,
+  userRef,
+  type UserRef,
+} from './users.ts';
 
 /**
  * Everything that can return a recipe goes through here, and every read takes a
@@ -40,7 +50,7 @@ import { claimUniqueSlug } from './slugs.ts';
  * is no way to fetch a recipe without supplying one.
  */
 
-export type RecipeWithOwner = Recipe & { owner: Pick<User, 'id' | 'handle' | 'name' | 'image'> };
+export type RecipeWithOwner = Recipe & { owner: UserRef };
 
 export type LoadedRecipe = {
   recipe: RecipeWithOwner;
@@ -68,20 +78,6 @@ export async function hasStarred(db: Db, recipeId: string, viewer: Viewer): Prom
   return row !== undefined;
 }
 
-const ownerColumns = {
-  id: users.id,
-  handle: users.handle,
-  name: users.name,
-  image: users.image,
-};
-
-/** A profile header needs more than a listing card does. */
-const profileColumns = {
-  ...ownerColumns,
-  bio: users.bio,
-  createdAt: users.createdAt,
-};
-
 /**
  * Canonicalize, hash, and pull out the fields listing pages cache.
  *
@@ -91,16 +87,53 @@ const profileColumns = {
  */
 function normalize(content: string) {
   const doc = parseRecipe(content);
-  const canonical = serializeRecipe(doc);
+  return { doc, canonical: serializeRecipe(doc), caches: cachesOf(doc) };
+}
+
+/**
+ * The denormalized columns, as one object a write can spread.
+ *
+ * Exported because merging a proposal writes them too — it is the one write
+ * that does not go through `updateRecipe`, and spelling the five out again
+ * there is how they drift apart.
+ */
+export function cachesOf(doc: RecipeDoc) {
   return {
-    doc,
-    canonical,
-    title: doc.frontmatter.title,
-    description: doc.frontmatter.description ?? null,
-    image: doc.frontmatter.image ?? null,
-    tags: doc.frontmatter.tags ?? [],
+    titleCache: doc.frontmatter.title,
+    descriptionCache: doc.frontmatter.description ?? null,
+    imageCache: doc.frontmatter.image ?? null,
+    tagsCache: doc.frontmatter.tags ?? [],
     totalTimeMinutes: doc.frontmatter.time?.total ?? null,
   };
+}
+
+/** The slice of a version a `LoadedRecipe` carries. */
+function versionRef(version: { id: string; message: string; createdAt: Date; authorId: string }) {
+  return {
+    id: version.id,
+    message: version.message,
+    createdAt: version.createdAt,
+    authorId: version.authorId,
+  };
+}
+
+/**
+ * One recipe with its owner, addressed the way its URL addresses it. Authorized
+ * by the caller — this only finds the row.
+ */
+async function findByHandleAndSlug(
+  db: Db,
+  ownerHandle: string,
+  slug: string,
+): Promise<RecipeWithOwner | undefined> {
+  const [row] = await db
+    .select({ recipe: recipes, owner: userColumns })
+    .from(recipes)
+    .innerJoin(users, eq(users.id, recipes.ownerId))
+    .where(and(eq(users.handle, ownerHandle.toLowerCase()), eq(recipes.slug, slug.toLowerCase())))
+    .limit(1);
+
+  return row ? { ...row.recipe, owner: row.owner } : undefined;
 }
 
 export async function createRecipe(
@@ -114,28 +147,26 @@ export async function createRecipe(
     message?: string | undefined;
   },
 ): Promise<LoadedRecipe> {
-  const { doc, canonical, title, description, image, tags, totalTimeMinutes } = normalize(
-    input.content,
-  );
+  const { doc, canonical, caches } = normalize(input.content);
   const contentSha256 = await hashContent(canonical);
 
   // One transaction: the slug claim, the recipe row, its root version, and the
   // head pointer all have to land together or not at all. Retried on a unique
-  // violation for the same reason forking is — see `withSlugRetry`.
-  return withSlugRetry(() =>
+  // violation for the same reason forking is — see `withUniqueRetry`.
+  return withUniqueRetry(() =>
     db.transaction(async (tx) => {
-      const slug = await claimUniqueSlug(tx as unknown as Db, author.id, input.slug ?? title);
+      const slug = await claimUniqueSlug(
+        tx as unknown as Db,
+        author.id,
+        input.slug ?? caches.titleCache,
+      );
 
       const [recipe] = await tx
         .insert(recipes)
         .values({
           ownerId: author.id,
           slug,
-          titleCache: title,
-          descriptionCache: description,
-          imageCache: image,
-          tagsCache: tags,
-          totalTimeMinutes,
+          ...caches,
           visibility: input.visibility ?? 'public',
         })
         .returning();
@@ -157,17 +188,8 @@ export async function createRecipe(
       await tx.update(recipes).set({ headVersionId: version.id }).where(eq(recipes.id, recipe.id));
 
       return {
-        recipe: {
-          ...recipe,
-          headVersionId: version.id,
-          owner: { id: author.id, handle: author.handle, name: author.name, image: author.image },
-        },
-        version: {
-          id: version.id,
-          message: version.message,
-          createdAt: version.createdAt,
-          authorId: version.authorId,
-        },
+        recipe: { ...recipe, headVersionId: version.id, owner: userRef(author) },
+        version: versionRef(version),
         content: canonical,
         doc,
       };
@@ -182,16 +204,7 @@ export async function loadRecipe(
   slug: string,
   viewer: Viewer,
 ): Promise<LoadedRecipe> {
-  const [row] = await db
-    .select({ recipe: recipes, owner: ownerColumns })
-    .from(recipes)
-    .innerJoin(users, eq(users.id, recipes.ownerId))
-    .where(and(eq(users.handle, ownerHandle.toLowerCase()), eq(recipes.slug, slug.toLowerCase())))
-    .limit(1);
-
-  if (!row) throw new NotFoundError();
-  const recipe = assertCanRead({ ...row.recipe, owner: row.owner }, viewer);
-
+  const recipe = assertCanRead(await findByHandleAndSlug(db, ownerHandle, slug), viewer);
   if (!recipe.headVersionId) throw new NotFoundError();
 
   const [version] = await db
@@ -208,12 +221,7 @@ export async function loadRecipe(
 
   return {
     recipe,
-    version: {
-      id: version.id,
-      message: version.message,
-      createdAt: version.createdAt,
-      authorId: version.authorId,
-    },
+    version: versionRef(version),
     content: version.content,
     doc: parseRecipe(version.content),
     forkedFrom,
@@ -272,14 +280,12 @@ export async function listRecipesForOwner(db: Db, ownerHandle: string, viewer: V
     .limit(1);
   if (!owner) throw new NotFoundError();
 
+  // `readableRecipes` says the same thing the two-branch version did — narrowed
+  // to one owner, "public or mine" is "everything" when that owner is me.
   const rows = await db
     .select()
     .from(recipes)
-    .where(
-      viewer?.id === owner.id
-        ? eq(recipes.ownerId, owner.id)
-        : and(eq(recipes.ownerId, owner.id), eq(recipes.visibility, 'public')),
-    )
+    .where(and(eq(recipes.ownerId, owner.id), readableRecipes(viewer)))
     .orderBy(desc(recipes.updatedAt));
 
   return { owner, recipes: rows };
@@ -293,7 +299,7 @@ export function serializeRecipeResponse(loaded: LoadedRecipe, viewer: Viewer) {
       // Exposed because a proposal names its source by id, and the browser has
       // no other way to say "this fork" — see routes/proposals.ts.
       id: recipe.id,
-      owner: { handle: recipe.owner.handle, name: recipe.owner.name, image: recipe.owner.image },
+      owner: publicUser(recipe.owner),
       slug: recipe.slug,
       title: recipe.titleCache,
       description: recipe.descriptionCache,
@@ -354,7 +360,7 @@ export async function listPublicRecipes(
   const cursor = options.cursor;
 
   const rows = await db
-    .select({ recipe: recipes, owner: ownerColumns })
+    .select({ recipe: recipes, owner: userColumns })
     .from(recipes)
     .innerJoin(users, eq(users.id, recipes.ownerId))
     .where(
@@ -378,7 +384,7 @@ export async function listPublicRecipes(
   return {
     recipes: page.map((row) => ({
       ...serializeRecipeSummary(row.recipe),
-      owner: { handle: row.owner.handle, name: row.owner.name, image: row.owner.image },
+      owner: publicUser(row.owner),
     })),
     nextCursor:
       rows.length > limit && last
@@ -398,11 +404,18 @@ export async function countPublicRecipes(db: Db): Promise<number> {
 
 /* ------------------------------------------------------------- versions -- */
 
-/** Raised when a write would produce a version identical to the current head. */
+/**
+ * Raised when a write would produce a version identical to the current head.
+ *
+ * Carries its own sentence because only the service knows which write was
+ * refused — saving an unchanged edit and reverting to the version you are
+ * already on are the same condition and want different words.
+ */
 export class NoChangesError extends Error {
   readonly status = 409 as const;
-  constructor() {
-    super('no_changes');
+  readonly code = 'no_changes' as const;
+  constructor(message = 'That is identical to the current version.') {
+    super(message);
     this.name = 'NoChangesError';
   }
 }
@@ -425,9 +438,7 @@ export async function updateRecipe(
   const existing = await loadRecipe(db, ownerHandle, slug, viewer);
   assertCanWrite(existing.recipe, viewer);
 
-  const { doc, canonical, title, description, image, tags, totalTimeMinutes } = normalize(
-    input.content,
-  );
+  const { doc, canonical, caches } = normalize(input.content);
   const contentSha256 = await hashContent(canonical);
 
   if (contentSha256 === (await hashContent(existing.content))) throw new NoChangesError();
@@ -448,27 +459,14 @@ export async function updateRecipe(
 
     const [updated] = await tx
       .update(recipes)
-      .set({
-        headVersionId: version.id,
-        titleCache: title,
-        descriptionCache: description,
-        imageCache: image,
-        tagsCache: tags,
-        totalTimeMinutes,
-        updatedAt: new Date(),
-      })
+      .set({ headVersionId: version.id, ...caches, updatedAt: new Date() })
       .where(eq(recipes.id, existing.recipe.id))
       .returning();
     if (!updated) throw new NotFoundError();
 
     return {
       recipe: { ...updated, owner: existing.recipe.owner },
-      version: {
-        id: version.id,
-        message: version.message,
-        createdAt: version.createdAt,
-        authorId: version.authorId,
-      },
+      version: versionRef(version),
       content: canonical,
       doc,
     };
@@ -491,10 +489,17 @@ export async function revertRecipe(
   assertCanWrite(existing.recipe, viewer);
 
   const target = await loadVersion(db, existing.recipe.id, toVersionId);
-  return updateRecipe(db, ownerHandle, slug, viewer, author, {
-    content: target.content,
-    message: `Revert to ${toVersionId.slice(0, 8)}`,
-  });
+  try {
+    return await updateRecipe(db, ownerHandle, slug, viewer, author, {
+      content: target.content,
+      message: `Revert to ${toVersionId.slice(0, 8)}`,
+    });
+  } catch (err) {
+    // Same condition, different sentence: nothing changed because you are
+    // already on this version.
+    if (err instanceof NoChangesError) throw new NoChangesError('That version is already current.');
+    throw err;
+  }
 }
 
 /**
@@ -525,7 +530,7 @@ export async function listVersions(db: Db, recipeId: string) {
       message: versions.message,
       contentSha256: versions.contentSha256,
       createdAt: versions.createdAt,
-      author: { handle: users.handle, name: users.name, image: users.image },
+      author: publicUserColumns,
     })
     .from(versions)
     .innerJoin(users, eq(users.id, versions.authorId))
@@ -608,13 +613,11 @@ export async function forkRecipe(
   input: { slug?: string | undefined } = {},
 ): Promise<LoadedRecipe> {
   const source = await loadRecipe(db, ownerHandle, slug, viewer);
-  const { doc, canonical, title, description, image, tags, totalTimeMinutes } = normalize(
-    source.content,
-  );
+  const { doc, canonical, caches } = normalize(source.content);
   const contentSha256 = await hashContent(canonical);
   const visibility = source.recipe.visibility;
 
-  return withSlugRetry(() =>
+  return withUniqueRetry(() =>
     db.transaction(async (tx) => {
       const forkSlug = await claimUniqueSlug(
         tx as unknown as Db,
@@ -627,11 +630,7 @@ export async function forkRecipe(
         .values({
           ownerId: author.id,
           slug: forkSlug,
-          titleCache: title,
-          descriptionCache: description,
-          imageCache: image,
-          tagsCache: tags,
-          totalTimeMinutes,
+          ...caches,
           visibility,
           forkParentRecipeId: source.recipe.id,
           forkPointVersionId: source.version.id,
@@ -670,14 +669,9 @@ export async function forkRecipe(
         recipe: {
           ...fork,
           headVersionId: version.id,
-          owner: { id: author.id, handle: author.handle, name: author.name, image: author.image },
+          owner: userRef(author),
         },
-        version: {
-          id: version.id,
-          message: version.message,
-          createdAt: version.createdAt,
-          authorId: version.authorId,
-        },
+        version: versionRef(version),
         content: canonical,
         doc,
       };
@@ -710,7 +704,7 @@ export async function loadForkParent(
   if (!recipe.forkParentRecipeId) return null;
 
   const [row] = await db
-    .select({ recipe: recipes, owner: ownerColumns })
+    .select({ recipe: recipes, owner: userColumns })
     .from(recipes)
     .innerJoin(users, eq(users.id, recipes.ownerId))
     .where(eq(recipes.id, recipe.forkParentRecipeId))
@@ -721,7 +715,7 @@ export async function loadForkParent(
 
   return {
     visible: true,
-    owner: { handle: row.owner.handle, name: row.owner.name, image: row.owner.image },
+    owner: publicUser(row.owner),
     slug: row.recipe.slug,
     title: row.recipe.titleCache,
   };
@@ -732,36 +726,12 @@ export async function loadForkParent(
  * fork list is a listing like any other, so §5.1's filter applies here too.
  */
 export async function listForks(db: Db, recipeId: string, viewer: Viewer) {
-  const visible = viewer
-    ? or(eq(recipes.visibility, 'public'), eq(recipes.ownerId, viewer.id))
-    : eq(recipes.visibility, 'public');
-
   return db
-    .select({ recipe: recipes, owner: ownerColumns })
+    .select({ recipe: recipes, owner: userColumns })
     .from(recipes)
     .innerJoin(users, eq(users.id, recipes.ownerId))
-    .where(and(eq(recipes.forkParentRecipeId, recipeId), visible))
+    .where(and(eq(recipes.forkParentRecipeId, recipeId), readableRecipes(viewer)))
     .orderBy(desc(recipes.updatedAt));
-}
-
-/**
- * `claimUniqueSlug` reads the namespace and the insert writes it, so two forks
- * landing together can both see the same slug free. The unique index is the
- * real guarantee; this turns its rejection into one more attempt rather than a
- * 500. Retried rather than locked because the collision is rare and a lock on
- * the owner's whole namespace would be a much bigger promise than it is worth.
- */
-const UNIQUE_VIOLATION = '23505';
-
-async function withSlugRetry<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await run();
-    } catch (err) {
-      const code = (err as { code?: string } | null)?.code;
-      if (code !== UNIQUE_VIOLATION || attempt >= attempts) throw err;
-    }
-  }
 }
 
 /**
@@ -836,14 +806,7 @@ async function hasDescendants(db: Db, recipeId: string): Promise<boolean> {
  * whereas a row with no object is a broken image nobody can fix.
  */
 export async function deleteRecipe(db: Db, ownerHandle: string, slug: string, viewer: Viewer) {
-  const [row] = await db
-    .select({ recipe: recipes, owner: ownerColumns })
-    .from(recipes)
-    .innerJoin(users, eq(users.id, recipes.ownerId))
-    .where(and(eq(users.handle, ownerHandle.toLowerCase()), eq(recipes.slug, slug.toLowerCase())))
-    .limit(1);
-
-  const recipe = assertCanWrite(row ? { ...row.recipe, owner: row.owner } : undefined, viewer);
+  const recipe = assertCanWrite(await findByHandleAndSlug(db, ownerHandle, slug), viewer);
 
   if (await hasDescendants(db, recipe.id)) throw new RecipeHasDescendantsError();
 

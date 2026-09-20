@@ -1,8 +1,8 @@
-import { RecipeParseError } from '@openrecipe/core';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.ts';
-import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
+import { addressed, currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
+import { readBody, readQuery } from './validate.ts';
 import {
   countPublicRecipes,
   createRecipe,
@@ -15,7 +15,6 @@ import {
   listVersions,
   loadRecipe,
   loadVersion,
-  NoChangesError,
   revertRecipe,
   serializeRecipeResponse,
   serializeRecipeSummary,
@@ -24,6 +23,7 @@ import {
   updateRecipe,
 } from '../services/recipes.ts';
 import { listTags, searchRecipes, type SearchSort } from '../services/search.ts';
+import { profileUser, publicUser } from '../services/users.ts';
 import { listStarredBy, star, unstar } from '../services/stars.ts';
 import { validateSlug } from '../services/slugs.ts';
 
@@ -55,25 +55,20 @@ const SearchQuery = z.object({
   offset: z.coerce.number().int().min(0).max(5000).optional(),
 });
 
+const TagsQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(40) });
+
+/** Both ends are required: a diff of one version against nothing is not a diff. */
+const DiffQuery = z.object({
+  from: z.string().min(1, 'from and to are required'),
+  to: z.string().min(1, 'from and to are required'),
+});
+
 /** Keyset cursor, passed back verbatim from the previous page. */
 const IndexQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),
   cursorUpdatedAt: z.iso.datetime().optional(),
   cursorId: z.uuid().optional(),
 });
-
-/** Parse failures are the user's problem to fix, so they come back as 422 with positions. */
-function parseErrorResponse(err: RecipeParseError) {
-  return {
-    error: 'invalid_recipe',
-    issues: err.issues.map((i) => ({
-      path: i.path,
-      message: i.message,
-      line: i.position?.line ?? null,
-      column: i.position?.column ?? null,
-    })),
-  } as const;
-}
 
 export const recipeRoutes = new Hono<AppEnv>()
   /**
@@ -82,10 +77,7 @@ export const recipeRoutes = new Hono<AppEnv>()
    * `/recipes/:handle/:slug` so the static path wins.
    */
   .get('/recipes', async (c) => {
-    const parsed = IndexQuery.safeParse(c.req.query());
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    const { limit, cursorUpdatedAt, cursorId } = parsed.data;
+    const { limit, cursorUpdatedAt, cursorId } = readQuery(c, IndexQuery);
     const cursor =
       cursorUpdatedAt && cursorId
         ? { updatedAt: new Date(cursorUpdatedAt), id: cursorId }
@@ -104,14 +96,13 @@ export const recipeRoutes = new Hono<AppEnv>()
    * Declared before `/recipes/:handle/:slug` so the static path wins.
    */
   .get('/search', async (c) => {
-    const parsed = SearchQuery.safeParse({
-      ...c.req.query(),
-      // `queries()` is the only accessor that keeps repeated params.
-      ...(c.req.queries('tag')?.length ? { tag: c.req.queries('tag') } : {}),
-    });
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    const { q, tag, sort, limit, offset } = parsed.data;
+    // `queries()` is the only accessor that keeps repeated params.
+    const repeated = c.req.queries('tag');
+    const { q, tag, sort, limit, offset } = readQuery(
+      c,
+      SearchQuery,
+      repeated?.length ? { tag: repeated } : {},
+    );
     const tags = tag === undefined ? undefined : Array.isArray(tag) ? tag : [tag];
 
     return c.json(
@@ -126,37 +117,24 @@ export const recipeRoutes = new Hono<AppEnv>()
   })
 
   .get('/tags', async (c) => {
-    const limit = Number(c.req.query('limit') ?? 40);
-    return c.json({ tags: await listTags(db, Number.isFinite(limit) ? limit : 40) });
+    const { limit } = readQuery(c, TagsQuery);
+    return c.json({ tags: await listTags(db, limit) });
   })
 
   .post('/recipes', requireUser, async (c) => {
-    const parsed = CreateBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) {
-      return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
-    }
+    const body = await readBody(c, CreateBody);
 
-    if (parsed.data.slug !== undefined) {
-      const check = validateSlug(parsed.data.slug);
+    if (body.slug !== undefined) {
+      const check = validateSlug(body.slug);
       if (!check.ok) return c.json({ error: 'invalid_slug', message: check.reason }, 400);
     }
 
-    try {
-      const loaded = await createRecipe(db, currentUser(c), parsed.data);
-      return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 201);
-    } catch (err) {
-      if (err instanceof RecipeParseError) return c.json(parseErrorResponse(err), 422);
-      throw err;
-    }
+    const loaded = await createRecipe(db, currentUser(c), body);
+    return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 201);
   })
 
   .get('/recipes/:handle/:slug', async (c) => {
-    const loaded = await loadRecipe(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
+    const loaded = await loadRecipe(db, ...addressed(c));
     return c.json(serializeRecipeResponse(loaded, c.get('viewer')));
   })
 
@@ -166,12 +144,7 @@ export const recipeRoutes = new Hono<AppEnv>()
    * private recipe 404s here too.
    */
   .get('/recipes/:handle/:slug/raw', async (c) => {
-    const loaded = await loadRecipe(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
+    const loaded = await loadRecipe(db, ...addressed(c));
     return c.body(loaded.content, 200, {
       'Content-Type': 'text/markdown; charset=utf-8',
       'Content-Disposition': `inline; filename="${loaded.recipe.slug}.md"`,
@@ -180,40 +153,13 @@ export const recipeRoutes = new Hono<AppEnv>()
 
   /** A new version, and the head moves to it. Owner only. */
   .put('/recipes/:handle/:slug', requireUser, async (c) => {
-    const parsed = UpdateBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) {
-      return c.json({ error: 'invalid_request', issues: parsed.error.issues }, 400);
-    }
-
-    try {
-      const loaded = await updateRecipe(
-        db,
-        c.req.param('handle'),
-        c.req.param('slug'),
-        c.get('viewer'),
-        currentUser(c),
-        parsed.data,
-      );
-      return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 200);
-    } catch (err) {
-      if (err instanceof RecipeParseError) return c.json(parseErrorResponse(err), 422);
-      if (err instanceof NoChangesError) {
-        return c.json(
-          { error: 'no_changes', message: 'That is identical to the current version.' },
-          409,
-        );
-      }
-      throw err;
-    }
+    const body = await readBody(c, UpdateBody);
+    const loaded = await updateRecipe(db, ...addressed(c), currentUser(c), body);
+    return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 200);
   })
 
   .get('/recipes/:handle/:slug/versions', async (c) => {
-    const { recipe, version } = await loadRecipe(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
+    const { recipe, version } = await loadRecipe(db, ...addressed(c));
     const history = await listVersions(db, recipe.id);
     return c.json({
       headVersionId: version.id,
@@ -222,12 +168,7 @@ export const recipeRoutes = new Hono<AppEnv>()
   })
 
   .get('/recipes/:handle/:slug/versions/:versionId', async (c) => {
-    const { recipe } = await loadRecipe(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
+    const { recipe } = await loadRecipe(db, ...addressed(c));
     // Scoped to the recipe, never looked up by id alone — see §5.1 rule 1.
     const version = await loadVersion(db, recipe.id, c.req.param('versionId'));
     return c.json({
@@ -240,40 +181,15 @@ export const recipeRoutes = new Hono<AppEnv>()
   })
 
   .get('/recipes/:handle/:slug/diff', async (c) => {
-    const from = c.req.query('from');
-    const to = c.req.query('to');
-    if (!from || !to)
-      return c.json({ error: 'invalid_request', message: 'from and to are required' }, 400);
-
-    const { recipe, version } = await loadRecipe(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
+    const { from, to } = readQuery(c, DiffQuery);
+    const { recipe, version } = await loadRecipe(db, ...addressed(c));
     return c.json(await diffVersions(db, recipe.id, from, to, version.id));
   })
 
   .post('/recipes/:handle/:slug/revert', requireUser, async (c) => {
-    const parsed = RevertBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    try {
-      const loaded = await revertRecipe(
-        db,
-        c.req.param('handle'),
-        c.req.param('slug'),
-        c.get('viewer'),
-        currentUser(c),
-        parsed.data.toVersionId,
-      );
-      return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 200);
-    } catch (err) {
-      if (err instanceof NoChangesError) {
-        return c.json({ error: 'no_changes', message: 'That version is already current.' }, 409);
-      }
-      throw err;
-    }
+    const { toVersionId } = await readBody(c, RevertBody);
+    const loaded = await revertRecipe(db, ...addressed(c), currentUser(c), toVersionId);
+    return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 200);
   })
 
   /**
@@ -281,10 +197,7 @@ export const recipeRoutes = new Hono<AppEnv>()
    * forking the same recipe twice yields `-2` and `-3` rather than an error.
    */
   .post('/recipes/:handle/:slug/fork', requireUser, async (c) => {
-    const parsed = ForkBody.safeParse(await c.req.json().catch(() => undefined));
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    const requested = parsed.data?.slug;
+    const requested = (await readBody(c, ForkBody))?.slug;
     if (requested !== undefined) {
       const check = validateSlug(requested);
       if (!check.ok) return c.json({ error: 'invalid_slug', message: check.reason }, 400);
@@ -292,9 +205,7 @@ export const recipeRoutes = new Hono<AppEnv>()
 
     const loaded = await forkRecipe(
       db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
+      ...addressed(c),
       currentUser(c),
       requested === undefined ? {} : { slug: requested },
     );
@@ -303,42 +214,23 @@ export const recipeRoutes = new Hono<AppEnv>()
 
   /** Ancestry downward. The source is authorized first, then the list filtered. */
   .get('/recipes/:handle/:slug/forks', async (c) => {
-    const { recipe } = await loadRecipe(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
+    const { recipe } = await loadRecipe(db, ...addressed(c));
     const forks = await listForks(db, recipe.id, c.get('viewer'));
     return c.json({
       forks: forks.map((row) => ({
         ...serializeRecipeSummary(row.recipe),
-        owner: { handle: row.owner.handle, name: row.owner.name, image: row.owner.image },
+        owner: publicUser(row.owner),
       })),
     });
   })
 
-  .post('/recipes/:handle/:slug/star', requireUser, async (c) => {
-    const result = await star(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-      currentUser(c),
-    );
-    return c.json(result);
-  })
+  .post('/recipes/:handle/:slug/star', requireUser, async (c) =>
+    c.json(await star(db, ...addressed(c), currentUser(c))),
+  )
 
-  .post('/recipes/:handle/:slug/unstar', requireUser, async (c) => {
-    const result = await unstar(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-      currentUser(c),
-    );
-    return c.json(result);
-  })
+  .post('/recipes/:handle/:slug/unstar', requireUser, async (c) =>
+    c.json(await unstar(db, ...addressed(c), currentUser(c))),
+  )
 
   /**
    * Refused once anyone has forked it — see `deleteRecipe`. The alternative
@@ -346,20 +238,12 @@ export const recipeRoutes = new Hono<AppEnv>()
    * so rather than leaving them at a dead end.
    */
   .delete('/recipes/:handle/:slug', requireUser, async (c) =>
-    c.json(await deleteRecipe(db, c.req.param('handle'), c.req.param('slug'), c.get('viewer'))),
+    c.json(await deleteRecipe(db, ...addressed(c))),
   )
 
   .post('/recipes/:handle/:slug/visibility', requireUser, async (c) => {
-    const parsed = VisibilityBody.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: 'invalid_request' }, 400);
-
-    const recipe = await setVisibility(
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-      parsed.data.visibility,
-    );
+    const { visibility } = await readBody(c, VisibilityBody);
+    const recipe = await setVisibility(db, ...addressed(c), visibility);
     return c.json({ slug: recipe.slug, visibility: recipe.visibility });
   });
 
@@ -375,13 +259,7 @@ export const userRoutes = new Hono<AppEnv>()
       // card — which is why `listRecipesForOwner` selects them. Omitting them
       // here left the page rendering `new Date(undefined)` as "Invalid Date",
       // and silently dropped every bio.
-      owner: {
-        handle: owner.handle,
-        name: owner.name,
-        image: owner.image,
-        bio: owner.bio,
-        createdAt: owner.createdAt.toISOString(),
-      },
+      owner: profileUser(owner),
       recipes: recipes.map(serializeRecipeSummary),
     });
   })

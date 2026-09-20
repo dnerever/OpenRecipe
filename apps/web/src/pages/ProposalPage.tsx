@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { Suspense, lazy, useState } from 'react';
 import { DiffView } from '../components/DiffView.tsx';
+import { LoadFailure, Loading } from '../components/LoadState.tsx';
 import {
   ApiError,
   closeProposal,
@@ -64,19 +65,14 @@ export function ProposalPage() {
     onSuccess: invalidate,
   });
 
-  if (proposal.isPending) return <p className="muted">Loading…</p>;
+  if (proposal.isPending) return <Loading />;
 
   if (proposal.error) {
-    const notFound = proposal.error instanceof ApiError && proposal.error.status === 404;
     return (
-      <section className="panel">
-        <h2>{notFound ? 'Not found' : 'Something went wrong'}</h2>
-        <p className="muted">
-          {notFound
-            ? 'There is no proposal at this address, or it is not yours to see.'
-            : proposal.error.message}
-        </p>
-      </section>
+      <LoadFailure
+        error={proposal.error}
+        missing="There is no proposal at this address, or it is not yours to see."
+      />
     );
   }
 

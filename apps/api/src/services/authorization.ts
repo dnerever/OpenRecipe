@@ -1,4 +1,5 @@
-import type { Recipe } from '../db/schema.ts';
+import { eq, or, type SQL } from 'drizzle-orm';
+import { recipes, type Recipe } from '../db/schema.ts';
 
 /**
  * The whole visibility model, in two functions. See docs/PLAN.md §5.1.
@@ -13,6 +14,21 @@ export type Viewer = { id: string } | null;
 /** Anything readable by anyone, plus everything you own. */
 export function canRead(recipe: Pick<Recipe, 'visibility' | 'ownerId'>, viewer: Viewer): boolean {
   return recipe.visibility === 'public' || recipe.ownerId === viewer?.id;
+}
+
+/**
+ * `canRead` again, as SQL, for the listings that filter rows rather than throw
+ * on one — forks, stars, and the recipes inside a list.
+ *
+ * **This is the Phase 2 seam.** Today list membership grants nothing: a recipe
+ * in a list is readable exactly when it would be readable anywhere else. Phase
+ * 2 — "reading a list grants read on the private recipes in it" — is a change
+ * to this predicate and to nothing else, which is why it is a function rather
+ * than an inlined `where`, and why it lives beside the predicate it mirrors.
+ */
+export function readableRecipes(viewer: Viewer): SQL {
+  if (!viewer) return eq(recipes.visibility, 'public');
+  return or(eq(recipes.visibility, 'public'), eq(recipes.ownerId, viewer.id)) as SQL;
 }
 
 /** Only the owner writes. Proposals are how everyone else contributes. */

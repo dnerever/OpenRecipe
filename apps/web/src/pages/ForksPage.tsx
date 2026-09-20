@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
+import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
-import { ApiError, fetchForks } from '../lib/api.ts';
+import { fetchForks } from '../lib/api.ts';
 
 /**
  * Ancestry downward. The list is filtered on the server to what this viewer may
@@ -16,19 +17,9 @@ export function ForksPage() {
     retry: false,
   });
 
-  if (isPending) return <p className="muted">Loading…</p>;
+  if (isPending) return <Loading />;
 
-  if (error) {
-    const notFound = error instanceof ApiError && error.status === 404;
-    return (
-      <section className="panel">
-        <h2>{notFound ? 'Not found' : 'Something went wrong'}</h2>
-        <p className="muted">
-          {notFound ? 'There is no recipe at this address, or it is private.' : error.message}
-        </p>
-      </section>
-    );
-  }
+  if (error) return <LoadFailure error={error} missing={NO_SUCH_RECIPE} />;
 
   return (
     <section>

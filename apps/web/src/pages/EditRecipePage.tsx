@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ImageUpload } from '../components/ImageUpload.tsx';
+import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { RecipeEditor } from '../components/RecipeEditor.tsx';
 import { ApiError, fetchRecipe, updateRecipe, type RecipeIssueWire } from '../lib/api.ts';
 
@@ -61,19 +62,9 @@ export function EditRecipePage() {
     },
   });
 
-  if (isPending) return <p className="muted">Loading…</p>;
+  if (isPending) return <Loading />;
 
-  if (error) {
-    const notFound = error instanceof ApiError && error.status === 404;
-    return (
-      <section className="panel">
-        <h2>{notFound ? 'Not found' : 'Something went wrong'}</h2>
-        <p className="muted">
-          {notFound ? 'There is no recipe at this address, or it is private.' : error.message}
-        </p>
-      </section>
-    );
-  }
+  if (error) return <LoadFailure error={error} missing={NO_SUCH_RECIPE} />;
 
   if (!data.recipe.canEdit) {
     return (

@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { ListVisibilityToggle } from '../components/ListVisibilityToggle.tsx';
+import { LoadFailure, Loading } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
 import { ShareListPanel } from '../components/ShareListPanel.tsx';
-import { ApiError, deleteList, fetchList, removeFromList, renameList } from '../lib/api.ts';
+import { deleteList, fetchList, removeFromList, renameList } from '../lib/api.ts';
 
 export function ListPage() {
   const { handle, listSlug } = useParams({ from: '/$handle/lists/$listSlug' });
@@ -46,19 +47,17 @@ export function ListPage() {
     },
   });
 
-  if (isPending) return <p className="muted">Loading…</p>;
+  if (isPending) return <Loading />;
 
+  // A list you cannot read is a list that does not exist, as far as the API will
+  // ever admit — so there is only one thing to say here.
   if (error) {
-    // A list you cannot read is a list that does not exist, as far as the API
-    // will ever admit — so there is only one thing to say here.
-    const notFound = error instanceof ApiError && error.status === 404;
     return (
-      <section className="panel">
-        <h2>{notFound ? 'No such list' : 'Something went wrong'}</h2>
-        <p className="muted">
-          {notFound ? 'It may have been deleted, or never shared with you.' : error.message}
-        </p>
-      </section>
+      <LoadFailure
+        error={error}
+        missingTitle="No such list"
+        missing="It may have been deleted, or never shared with you."
+      />
     );
   }
 

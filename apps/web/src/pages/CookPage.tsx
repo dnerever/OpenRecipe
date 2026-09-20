@@ -2,9 +2,10 @@ import { detectSystem, formatQuantity, formatUnit } from '@openrecipe/core';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
+import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { StepText } from '../components/StepText.tsx';
 import { TimerTray } from '../components/TimerTray.tsx';
-import { ApiError, fetchRecipe } from '../lib/api.ts';
+import { fetchRecipe } from '../lib/api.ts';
 import {
   applyCookOptions,
   formatFactor,
@@ -82,19 +83,9 @@ export function CookPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [go, index]);
 
-  if (isPending) return <p className="muted">Loading…</p>;
+  if (isPending) return <Loading />;
 
-  if (error) {
-    const notFound = error instanceof ApiError && error.status === 404;
-    return (
-      <section className="panel">
-        <h2>{notFound ? 'Not found' : 'Something went wrong'}</h2>
-        <p className="muted">
-          {notFound ? 'There is no recipe at this address, or it is private.' : error.message}
-        </p>
-      </section>
-    );
-  }
+  if (error) return <LoadFailure error={error} missing={NO_SUCH_RECIPE} />;
 
   const options = optionsFromSearch(search, native);
   const shown = applyCookOptions(data.doc.frontmatter, options, native);

@@ -1,8 +1,9 @@
 import { and, desc, eq, sql as raw } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import { recipes, stars, users, type User } from '../db/schema.ts';
-import { NotFoundError, type Viewer } from './authorization.ts';
+import { NotFoundError, readableRecipes, type Viewer } from './authorization.ts';
 import { loadRecipe, serializeRecipeSummary } from './recipes.ts';
+import { publicUser, userColumns } from './users.ts';
 
 /**
  * Stars are the only popularity signal the app has, and the input to the
@@ -74,35 +75,25 @@ export async function unstar(
  */
 export async function listStarredBy(db: Db, handle: string, viewer: Viewer) {
   const [owner] = await db
-    .select({ id: users.id, handle: users.handle, name: users.name, image: users.image })
+    .select(userColumns)
     .from(users)
     .where(eq(users.handle, handle.toLowerCase()))
     .limit(1);
   if (!owner) throw new NotFoundError();
 
   const rows = await db
-    .select({
-      recipe: recipes,
-      recipeOwner: { handle: users.handle, name: users.name, image: users.image },
-    })
+    .select({ recipe: recipes, recipeOwner: userColumns })
     .from(stars)
     .innerJoin(recipes, eq(recipes.id, stars.recipeId))
     .innerJoin(users, eq(users.id, recipes.ownerId))
-    .where(
-      and(
-        eq(stars.userId, owner.id),
-        viewer
-          ? raw`(${recipes.visibility} = 'public' or ${recipes.ownerId} = ${viewer.id})`
-          : eq(recipes.visibility, 'public'),
-      ),
-    )
+    .where(and(eq(stars.userId, owner.id), readableRecipes(viewer)))
     .orderBy(desc(stars.createdAt));
 
   return {
-    owner: { handle: owner.handle, name: owner.name, image: owner.image },
+    owner: publicUser(owner),
     recipes: rows.map((row) => ({
       ...serializeRecipeSummary(row.recipe),
-      owner: row.recipeOwner,
+      owner: publicUser(row.recipeOwner),
     })),
   };
 }
