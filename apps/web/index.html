@@ -11,6 +11,24 @@
     <meta name="theme-color" content="#f6f7f3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141713" media="(prefers-color-scheme: dark)" />
     <title>OpenRecipe</title>
+    <script>
+      // Before the first paint, so a reader who chose dark never gets a white
+      // flash while the bundle loads. Mirrors readTheme/applyTheme in
+      // src/lib/theme.ts — the key and the attribute have to stay in step.
+      try {
+        var stored = localStorage.getItem('openrecipe:theme');
+        if (stored === 'light' || stored === 'dark') {
+          document.documentElement.setAttribute('data-theme', stored);
+          // Point both theme-color metas at the chosen colour, or the address
+          // bar keeps answering to the OS while the page does not.
+          var paper = stored === 'dark' ? '#141713' : '#f6f7f3';
+          var metas = document.querySelectorAll('meta[name="theme-color"]');
+          for (var i = 0; i < metas.length; i++) metas[i].content = paper;
+        }
+      } catch (e) {
+        // Site data blocked; the system setting decides, as it did before.
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,21 @@
+/**
+ * Two palettes, three settings.
+ *
+ * `data-theme` on the root is an override the toggle writes and the media
+ * query cannot see; while it is absent — which is what "Auto" means — the
+ * system decides. That is why the dark block is guarded rather than plain: a
+ * reader on a dark OS who asks for light has to beat their own machine, and
+ * `:not([data-theme='light'])` is where that happens. The same tokens then
+ * appear again under `[data-theme='dark']` so the override wins in the other
+ * direction too, on a light OS. Cascade order cannot do this for us: a media
+ * query and a selector do not compete, so both cases have to be written.
+ *
+ * `color-scheme` is set alongside the tokens each time, because form controls,
+ * scrollbars and the canvas behind the page take their cue from it and not
+ * from `--paper`.
+ */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --paper: #f6f7f3;
   --ink: #191d18;
   --ink-2: #565e54;
@@ -10,7 +26,8 @@
   --bad: #a33a2e;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
     --paper: #141713;
     --ink: #e9ece4;
     --ink-2: #a2ab9c;
@@ -20,6 +37,17 @@
     --good: #8fc983;
     --bad: #e58a7b;
   }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #141713;
+  --ink: #e9ece4;
+  --ink-2: #a2ab9c;
+  --rule: #2c312a;
+  --surface: #1b1f1a;
+  --accent: #e389b6;
+  --good: #8fc983;
+  --bad: #e58a7b;
 }
 * {
   box-sizing: border-box;
@@ -222,6 +250,64 @@ button:focus-visible {
 }
 a {
   color: var(--accent);
+}
+
+/**
+ * Segments, not a switch: the pressed one is the setting, and the other two
+ * are the alternatives. Sized off the eyebrow rather than the body text so it
+ * reads as chrome and never competes with the nav links beside it.
+ */
+.theme-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.theme-toggle button {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+}
+.theme-toggle button:hover {
+  color: var(--ink);
+}
+.theme-toggle button[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  padding: calc(0.25rem - 1px) calc(0.5rem - 1px);
+}
+/**
+ * Below 60rem the words go and the glyphs speak alone — the bar holds a brand,
+ * a search box and up to three account links, and 200pt of "AUTO LIGHT DARK"
+ * is what tips it into a sideways scroll long before the phone widths. The
+ * glyph grows as it loses its label, because 0.66rem is a readable size for a
+ * word next to an icon and not for an icon on its own. `aria-label` and
+ * `title` still say the word at every width, so only the sighted-and-roomy
+ * case pays for the extra room.
+ */
+@media (max-width: 60rem) {
+  .theme-toggle .seg-text {
+    display: none;
+  }
+  .theme-toggle button {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.95rem;
+  }
+  .theme-toggle button[aria-pressed='true'] {
+    padding: calc(0.15rem - 1px) calc(0.4rem - 1px);
+  }
 }
 
 .panel-head {
@@ -1417,7 +1503,11 @@ button.star.on {
   @page {
     margin: 16mm;
   }
-  :root {
+  /* `:root` alone loses to `:root[data-theme='dark']` on specificity, and a
+     printer does not have a dark mode — only ink it can waste. */
+  :root,
+  :root[data-theme] {
+    color-scheme: light;
     --paper: #fff;
     --surface: #fff;
     --ink: #000;
