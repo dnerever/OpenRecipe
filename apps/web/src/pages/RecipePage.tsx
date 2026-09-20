@@ -241,6 +241,16 @@ export function RecipePage() {
             onChange={setOptions}
           />
         }
+        cookLink={
+          <Link
+            className="button"
+            to="/$handle/$slug/cook"
+            params={{ handle, slug }}
+            search={search}
+          >
+            Cook
+          </Link>
+        }
         shoppingList={
           showShopping ? (
             <ShoppingList

@@ -5,39 +5,99 @@ import {
   type Frontmatter,
   type Phase,
 } from '@openrecipe/core';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { thumbUrlFor } from '../lib/api.ts';
 import { TagList } from './TagList.tsx';
+
+const SECTIONS = ['ingredients', 'method'] as const;
+
+/**
+ * Which half of the recipe the reader is in. The band is the top of the
+ * screen just under the switcher, so a section becomes the current one when
+ * its heading reaches the bar — the highlight tracks what you are reading
+ * rather than whichever half happens to fill the most pixels.
+ */
+function useActiveSection(): string {
+  const [active, setActive] = useState<string>(SECTIONS[0]);
+
+  useEffect(() => {
+    const seen = new Map<string, boolean>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) seen.set(entry.target.id, entry.isIntersecting);
+        // Document order, so the upper section wins while both are in the band.
+        const current = SECTIONS.find((id) => seen.get(id));
+        if (current) setActive(current);
+      },
+      { rootMargin: '-64px 0px -55% 0px' },
+    );
+
+    for (const id of SECTIONS) {
+      const element = document.getElementById(id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, []);
+
+  return active;
+}
+
+/** The jump is a scroll, not a link: a hash would put every glance at the
+ *  ingredients on the back button, and the way out of a recipe should stay the
+ *  way you came in. */
+function scrollToSection(id: string) {
+  const element = document.getElementById(id);
+  if (!element) return;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  element.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+}
 
 /**
  * The read view renders the *derived* step list the API sends, not the raw
  * markdown — the structure is computed once, server-side, from prose the author
  * actually wrote.
  *
- * `scaleControl` and `shoppingList` are slots rather than features of this
- * component: both are about the ingredient list and belong beside it, but
- * neither is part of what a recipe *is*, and a view of a recipe should still
- * render without them.
+ * `scaleControl`, `shoppingList` and `cookLink` are slots rather than features
+ * of this component: each is about the recipe rather than part of what a
+ * recipe *is*, and a view of a recipe should still render without them. The
+ * cook link comes in from outside for a duller reason too — it is a route, and
+ * routes are the page's business, not the view's.
  */
 export function RecipeView({
   frontmatter,
   phases,
   scaleControl,
   shoppingList,
+  cookLink,
 }: {
   frontmatter: Frontmatter;
   phases: Phase[];
   scaleControl?: ReactNode;
   shoppingList?: ReactNode;
+  cookLink?: ReactNode;
 }) {
   const groups = groupIngredients(frontmatter);
+  const active = useActiveSection();
   const times = Object.entries(frontmatter.time ?? {}).filter(([, v]) => typeof v === 'number');
 
   return (
     <div className="recipe">
       {frontmatter.image && (
-        // No dimensions to give it: the document stores a URL, not a size. The
-        // aspect ratio is fixed in CSS so the page does not jump when it lands.
-        <img className="hero" src={frontmatter.image} alt="" loading="lazy" />
+        /*
+         * Eagerly, and at high priority: this is the largest thing on the page
+         * and almost always the largest thing painted, so `loading="lazy"` on
+         * it only delayed the one image the reader was waiting for.
+         *
+         * A phone gets the thumbnail instead of the full-size upload — a
+         * `media` source rather than `srcset`/`sizes`, because the document
+         * stores a URL and not a size, and a `w` descriptor we cannot compute
+         * is a lie the browser would act on. An author's own `image:` URL has
+         * no thumbnail to ask for, and `thumbUrlFor` hands it back untouched.
+         */
+        <picture>
+          <source media="(max-width: 42rem)" srcSet={thumbUrlFor(frontmatter.image)} />
+          <img className="hero" src={frontmatter.image} alt="" fetchPriority="high" />
+        </picture>
       )}
 
       {(frontmatter.yield || times.length > 0) && (
@@ -58,8 +118,22 @@ export function RecipeView({
         </ul>
       )}
 
+      <nav className="section-switch" aria-label="Recipe sections">
+        {SECTIONS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            aria-current={active === id ? 'true' : undefined}
+            onClick={() => scrollToSection(id)}
+          >
+            {id === 'ingredients' ? 'Ingredients' : 'Method'}
+          </button>
+        ))}
+        {cookLink}
+      </nav>
+
       <div className="cols">
-        <section>
+        <section id="ingredients" aria-label="Ingredients">
           <h3>Ingredients</h3>
           {scaleControl}
           {groups.map(({ group, items }) => (
@@ -91,7 +165,7 @@ export function RecipeView({
           {shoppingList}
         </section>
 
-        <section>
+        <section id="method" aria-label="Method">
           <h3>Method</h3>
           {phases.map((phase, i) => (
             <div key={`${phase.title}-${i}`} className="phase">
