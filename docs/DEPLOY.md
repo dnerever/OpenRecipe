@@ -310,3 +310,36 @@ request still in flight.
 
 It is worth running after any manual surgery on the database. Nothing schedules
 it, and nothing needs to — an orphan is a storage cost, not a correctness one.
+
+## Password reset email
+
+Forgotten passwords (Slice 4) need a mail transport. Resend's free tier (100
+emails/day, no credit card) covers this app's entire mail sending — a password
+reset link is the only email it sends.
+
+1. **Create a Resend account and an API key.** Settings → API Keys → Create API
+   Key. Sending access is enough; it does not need domain access.
+2. **Set the variable on the Render service:**
+
+   ```
+   RESEND_API_KEY=re_…
+   ```
+
+   `MAIL_FROM` is optional and defaults to Resend's own sandbox sender,
+   `OpenRecipe <onboarding@resend.dev>`, which sends without any domain setup
+   but looks like what it is. Verify a domain in Resend and set `MAIL_FROM` to
+   an address on it (e.g. `OpenRecipe <noreply@your-domain>`) when you want the
+   reset email to come from your own domain instead.
+
+**With `RESEND_API_KEY` unset, the app still boots and reset still "works"** —
+`mailer.ts` logs the reset link to the Render log instead of emailing it. That
+is fine for a solo operator who can read the log, and it is why nothing here is
+required. It stops being fine the moment a stranger who is not you forgets
+their password, since they have no way to read that log — set the variable
+before pointing anyone else at the site.
+
+**Verify by requesting a reset, not by checking `/api/health`.** `/api/health`
+reports `auth.passwordResetEmail` (true once `RESEND_API_KEY` is set), which
+only confirms the variable parsed — not that Resend will accept a real send.
+Use "Forgot password?" on the sign-in page with an address you can read, and
+confirm the email arrives.

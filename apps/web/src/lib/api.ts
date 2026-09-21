@@ -14,7 +14,7 @@ export type Health = {
   status: string;
   database: 'up' | 'down';
   schemaVersion: number;
-  auth: { emailPassword: boolean; github: boolean };
+  auth: { emailPassword: boolean; github: boolean; passwordResetEmail: boolean };
   uptimeSeconds: number;
 };
 

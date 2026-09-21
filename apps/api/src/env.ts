@@ -69,6 +69,16 @@ const EnvSchema = z
     S3_BUCKET: emptyAsUndefined(z.string().min(1).optional()),
     S3_ACCESS_KEY: emptyAsUndefined(z.string().min(1).optional()),
     S3_SECRET_KEY: emptyAsUndefined(z.string().min(1).optional()),
+
+    /**
+     * Outbound mail: Resend, for the one email this app sends today (a
+     * password reset link). Optional, the same way storage is — a clone with
+     * no transport configured runs fine and logs the reset link to the
+     * console instead of refusing to boot or breaking sign-up.
+     */
+    RESEND_API_KEY: emptyAsUndefined(z.string().min(1).optional()),
+    /** Resend's own sandbox sender works with no domain verification. */
+    MAIL_FROM: emptyAsUndefined(z.string().min(1).optional()),
   })
   .transform((env) => ({
     ...env,
@@ -138,3 +148,8 @@ export const githubOAuth =
   env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
     ? { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET }
     : null;
+
+/** `null` when no transport is configured — `services/mailer.ts` logs instead of sending. */
+export const mailer = env.RESEND_API_KEY
+  ? { apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM ?? 'OpenRecipe <onboarding@resend.dev>' }
+  : null;
