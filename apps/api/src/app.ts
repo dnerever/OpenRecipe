@@ -7,9 +7,10 @@ import { join } from 'node:path';
 import { RecipeParseError, SCHEMA_VERSION } from '@openrecipe/core';
 import { ZodError } from 'zod';
 import { auth } from './auth.ts';
-import { sql as rawSql } from './db/index.ts';
+import { db, sql as rawSql } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { withViewer, type AppEnv } from './middleware/session.ts';
+import { renderShellWithRecipeMeta } from './og.ts';
 import { listRoutes } from './routes/lists.ts';
 import { mediaRoutes } from './routes/media.ts';
 import { meRoutes } from './routes/me.ts';
@@ -200,6 +201,29 @@ function mountSpa(app: Hono<AppEnv>, dir: string) {
       },
     }),
   );
+
+  /**
+   * A recipe's own page, matched before the catch-all so a shared link
+   * carries a real title, description and photo. Unfurlers (iMessage, Slack,
+   * Discord) fetch this HTML unauthenticated and never run the SPA's JS, so
+   * this is the only place that can reach them. `withViewer` still runs
+   * first so a signed-in owner previewing their own private recipe link sees
+   * it too, not just public ones.
+   *
+   * Falls back to the plain shell for anything that isn't a readable recipe
+   * — a typo, a private recipe, or a reserved two-segment path like
+   * `/:handle/lists` — so the SPA router resolves those exactly as before.
+   */
+  app.get('/:handle/:slug', withViewer, async (c) => {
+    const html = await renderShellWithRecipeMeta(
+      indexHtml,
+      db,
+      c.req.param('handle'),
+      c.req.param('slug'),
+      c.get('viewer'),
+    );
+    return c.html(html, 200, { 'Cache-Control': 'no-cache' });
+  });
 
   // Any path the API did not claim is a client route: hand back the shell and
   // let the router resolve it.

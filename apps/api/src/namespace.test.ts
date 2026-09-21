@@ -28,9 +28,15 @@ function spaTopLevelSegments(): string[] {
   return [...routerSource().matchAll(/path:\s*'\/([^'/$]+)'/g)].map((m) => m[1] as string);
 }
 
-/** `app.get('/health'` / `app.use('/assets/*'` → `health`, `assets`. */
+/**
+ * `app.get('/health'` / `app.use('/assets/*'` → `health`, `assets`.
+ *
+ * Skips `:`-prefixed segments (`app.get('/:handle/:slug'`) the same way
+ * `spaTopLevelSegments` skips `$`-prefixed ones: a route parameter is the
+ * dynamic match arm itself, not a literal word a handle could collide with.
+ */
 function serverTopLevelSegments(): string[] {
-  return [...appSource().matchAll(/\bapp\.(?:get|post|use|route)\(\s*'\/([^'/*$]+)/g)].map(
+  return [...appSource().matchAll(/\bapp\.(?:get|post|use|route)\(\s*'\/([^'/*$:]+)/g)].map(
     (m) => m[1] as string,
   );
 }
