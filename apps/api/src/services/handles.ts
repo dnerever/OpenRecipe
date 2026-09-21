@@ -65,6 +65,7 @@ export const RESERVED_HANDLES = new Set([
   'recipes',
   'register',
   'reset',
+  'reset-password',
   'robots',
   'root',
   'rss',

@@ -15,4 +15,4 @@ export const authClient = createAuthClient({
  * `lib/session.ts` via `/api/me`, which keeps this client — and its store — out
  * of every route that merely reads.
  */
-export const { signIn, signUp, signOut } = authClient;
+export const { signIn, signUp, signOut, requestPasswordReset, resetPassword } = authClient;

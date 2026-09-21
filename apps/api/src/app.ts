@@ -18,6 +18,7 @@ import { proposalRoutes } from './routes/proposals.ts';
 import { recipeRoutes, userRoutes } from './routes/recipes.ts';
 import { ImportUrlError, NotARecipeError } from './import/fetch-recipe.ts';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/authorization.ts';
+import { mailConfigured } from './services/mailer.ts';
 import { UploadError } from './services/media.ts';
 import { ProposalError } from './services/proposals.ts';
 import { StorageUnavailableError } from './services/storage.ts';
@@ -75,7 +76,11 @@ export function createApp() {
         status: database === 'up' ? 'ok' : 'degraded',
         database,
         schemaVersion: SCHEMA_VERSION,
-        auth: { emailPassword: true, github: githubOAuth !== null },
+        auth: {
+          emailPassword: true,
+          github: githubOAuth !== null,
+          passwordResetEmail: mailConfigured,
+        },
         uptimeSeconds: Math.round(process.uptime()),
       },
       database === 'up' ? 200 : 503,

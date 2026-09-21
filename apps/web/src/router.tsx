@@ -141,6 +141,19 @@ const newRoute = createRoute({
   path: '/new',
   component: lazyRouteComponent(() => import('./pages/NewRecipePage.tsx'), 'NewRecipePage'),
 });
+/**
+ * Reached from the reset email's link, which better-auth redirects here with
+ * `?token=...` once it has confirmed the token is unexpired — see
+ * `ForgotPasswordForm`'s `redirectTo` and `ResetPasswordPage`.
+ */
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  validateSearch: (search: Record<string, unknown>) => ({
+    token: typeof search['token'] === 'string' ? search['token'] : undefined,
+  }),
+  component: lazyRouteComponent(() => import('./pages/ResetPasswordPage.tsx'), 'ResetPasswordPage'),
+});
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$handle',
@@ -243,6 +256,7 @@ const routeTree = rootRoute.addChildren([
   searchRoute,
   signInRoute,
   newRoute,
+  resetPasswordRoute,
   profileRoute,
   listsRoute,
   listRoute,

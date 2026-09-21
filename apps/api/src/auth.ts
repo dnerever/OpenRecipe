@@ -3,6 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db, schema } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { claimUniqueHandle } from './services/handles.ts';
+import { sendPasswordResetEmail } from './services/mailer.ts';
 
 /**
  * Mounted at `/auth` rather than better-auth's default `/api/auth`: the API is
@@ -36,10 +37,15 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    // No mail transport yet. Turning this on before Slice 4 would lock every
-    // local signup out of their own account.
+    // Still off: turning this on needs its own verification-email flow, and
+    // locking a signup out of the only account they have is worse than the
+    // bot signups it would deter. Password reset is the mail transport's
+    // first use; verification is the natural fast-follow.
     requireEmailVerification: false,
     minPasswordLength: 10,
+    sendResetPassword: async ({ user, url }) => {
+      await sendPasswordResetEmail(user.email, url);
+    },
   },
 
   ...(githubOAuth ? { socialProviders: { github: githubOAuth } } : {}),
