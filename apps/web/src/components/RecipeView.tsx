@@ -13,56 +13,41 @@ import { TagList } from './TagList.tsx';
 const SECTIONS = ['ingredients', 'method'] as const;
 
 /**
- * Which half of the recipe the reader is in. The band is the top of the
- * screen just under the switcher, so a section becomes the current one when
- * its heading reaches the bar — the highlight tracks what you are reading
- * rather than whichever half happens to fill the most pixels.
- */
-function useActiveSection(): string {
-  const [active, setActive] = useState<string>(SECTIONS[0]);
-
-  useEffect(() => {
-    const seen = new Map<string, boolean>();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) seen.set(entry.target.id, entry.isIntersecting);
-        // Document order, so the upper section wins while both are in the band.
-        const current = SECTIONS.find((id) => seen.get(id));
-        if (current) setActive(current);
-      },
-      { rootMargin: '-64px 0px -55% 0px' },
-    );
-
-    for (const id of SECTIONS) {
-      const element = document.getElementById(id);
-      if (element) observer.observe(element);
-    }
-    return () => observer.disconnect();
-  }, []);
-
-  return active;
-}
-
-/**
- * Where the page has to be scrolled for this section to start just under the
- * bar. Both halves below measure against it — record an offset from it, scroll
- * back to it plus that offset — so they are exact inverses; measuring one from
- * the section's top and the other from its anchor lands the reader a bar's
- * height off every time, which is close enough to look like a bug and be one.
- */
-function anchorOf(element: HTMLElement, bar: HTMLElement | null): number {
-  const top = element.getBoundingClientRect().top + window.scrollY;
-  return top - (bar?.getBoundingClientRect().height ?? 0);
-}
-
-/**
- * Where the reader was in each section, so the switcher puts them back there
- * rather than at the top. Halfway down the method, a glance at the ingredients
- * and back should land where you left off: that glance is the whole reason the
- * bar exists, and charging your place in the recipe for it makes the bar a
- * worse deal than scrolling was.
+ * How much of the top of the screen belongs to the chrome: the switcher, plus
+ * the topbar whether or not it happens to be showing at this instant.
  *
- * Offsets are kept relative to the section's own top, not as page coordinates,
+ * Counting the topbar either way is what keeps the rest of this honest. It is
+ * the same constant on both sides of the record/restore pair, so the pair
+ * stays exact; it is the same line a section has to cross to become current,
+ * so a jump lands a section exactly where it starts being the current one;
+ * and the only case it can be wrong in is a jump to a section never visited,
+ * where assuming the bar is there leaves a little space above the heading and
+ * assuming it is not would hide it.
+ */
+function chromeOf(bar: HTMLElement | null): number {
+  return (
+    (bar?.getBoundingClientRect().height ?? 0) +
+    (document.querySelector('.topbar')?.getBoundingClientRect().height ?? 0)
+  );
+}
+
+/** Where the page has to be scrolled for this section to start at that line. */
+function anchorOf(element: HTMLElement, bar: HTMLElement | null): number {
+  return element.getBoundingClientRect().top + window.scrollY - chromeOf(bar);
+}
+
+/**
+ * Which half of the recipe the reader is in, and where they were in each.
+ *
+ * One hook, because they are one question asked twice. The reader is in the
+ * last section whose top has passed under the chrome — measured against the
+ * chrome itself rather than a fixed band, which is what an `IntersectionObserver`
+ * with a hand-tuned `rootMargin` could not do. That margin was written when
+ * the chrome was one bar tall; a second bar put the band across the boundary
+ * between the two sections, both matched, the earlier one won on document
+ * order, and every mark went into the map under the wrong name.
+ *
+ * Offsets are kept relative to the section's anchor, not as page coordinates,
  * because everything above a section moves — the photo lands, the shopping
  * list opens, `Adjust` grows the scale row. A page coordinate is stale the
  * moment any of that happens; an offset into the section is not.
@@ -71,44 +56,65 @@ function anchorOf(element: HTMLElement, bar: HTMLElement | null): number {
  * page avoids the history: a hash would put every glance at the ingredients on
  * the back button, and the way out of a recipe should stay the way you came in.
  */
-function useSectionMemory(active: string, bar: { current: HTMLElement | null }) {
+function useSectionNav(bar: { current: HTMLElement | null }) {
+  const [active, setActive] = useState<string>(SECTIONS[0]);
   const marks = useRef(new Map<string, number>());
+  /** Read by `goTo`, which must not go stale between renders the way the
+   *  state above can. */
+  const current = useRef<string>(SECTIONS[0]);
   /**
-   * Raised while *we* are the ones scrolling. The recorder below has to stand
-   * down for the duration: a smooth scroll crosses the destination on its way
-   * in, and would otherwise overwrite the very mark it is travelling to with
-   * every frame of the journey.
+   * Raised while *we* are the ones scrolling. The recorder has to stand down
+   * for the duration: a smooth scroll crosses its destination on the way in,
+   * and would otherwise overwrite the very mark it is travelling to with every
+   * frame of the journey. The highlight still follows, because watching the
+   * bar catch up is the feedback that the tap did something.
    */
   const settling = useRef(false);
 
   useEffect(() => {
     let frame = 0;
-    const record = () => {
+
+    const sample = () => {
       frame = 0;
-      const element = document.getElementById(active);
-      if (element) marks.current.set(active, window.scrollY - anchorOf(element, bar.current));
-    };
-    const onScroll = () => {
-      if (settling.current || frame !== 0) return;
-      frame = requestAnimationFrame(record);
+      const chrome = chromeOf(bar.current);
+
+      let now = SECTIONS[0] as string;
+      for (const id of SECTIONS) {
+        const element = document.getElementById(id);
+        if (element && element.getBoundingClientRect().top <= chrome + 1) now = id;
+      }
+      if (now !== current.current) {
+        current.current = now;
+        setActive(now);
+      }
+
+      if (settling.current) return;
+      const element = document.getElementById(now);
+      if (element) marks.current.set(now, window.scrollY - anchorOf(element, bar.current));
     };
 
+    const onScroll = () => {
+      if (frame === 0) frame = requestAnimationFrame(sample);
+    };
+
+    sample();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', onScroll);
       if (frame !== 0) cancelAnimationFrame(frame);
     };
-  }, [active, bar]);
+  }, [bar]);
 
-  return useCallback(
+  const goTo = useCallback(
     (id: string) => {
       const target = document.getElementById(id);
       if (!target) return;
 
       // Tapping the section you are already in means "take me to the top of
       // it", and forgets the mark, so coming back later agrees with that.
-      const remembered = id === active ? 0 : (marks.current.get(id) ?? 0);
-      if (id === active) marks.current.delete(id);
+      const here = id === current.current;
+      const remembered = here ? 0 : (marks.current.get(id) ?? 0);
+      if (here) marks.current.delete(id);
 
       // A section that has shrunk since — a closed shopping list, a shorter
       // scale — must not be scrolled off its own end.
@@ -129,8 +135,10 @@ function useSectionMemory(active: string, bar: { current: HTMLElement | null }) 
       // to go, and is not everywhere yet. The timeout is the actual guarantee.
       window.setTimeout(release, 1000);
     },
-    [active, bar],
+    [bar],
   );
+
+  return { active, goTo };
 }
 
 /**
@@ -160,9 +168,8 @@ export function RecipeView({
   storageKey: string;
 }) {
   const groups = groupIngredients(frontmatter);
-  const active = useActiveSection();
   const bar = useRef<HTMLElement | null>(null);
-  const goToSection = useSectionMemory(active, bar);
+  const { active, goTo } = useSectionNav(bar);
   const { ticked, toggle, clear } = useTicked(storageKey, frontmatter.ingredients.length);
   const times = Object.entries(frontmatter.time ?? {}).filter(([, v]) => typeof v === 'number');
 
@@ -210,7 +217,7 @@ export function RecipeView({
             key={id}
             type="button"
             aria-current={active === id ? 'true' : undefined}
-            onClick={() => goToSection(id)}
+            onClick={() => goTo(id)}
           >
             {id === 'ingredients' ? 'Ingredients' : 'Method'}
           </button>

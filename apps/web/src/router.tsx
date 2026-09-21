@@ -14,6 +14,7 @@ import { BrowsePage } from './pages/BrowsePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
 import { useCurrentUser, useSignOut } from './lib/session.ts';
+import { useRevealOnScrollUp } from './lib/use-reveal-on-scroll-up.ts';
 import { parseCookSearch } from './lib/cook-options.ts';
 import type { SearchSort } from './lib/api.ts';
 
@@ -27,10 +28,11 @@ function RootLayout() {
   const { user } = useCurrentUser();
   const signOut = useSignOut();
   const handle = user?.handle;
+  const chrome = useRevealOnScrollUp();
 
   return (
     <>
-      <nav className="topbar">
+      <nav className={chrome.hidden ? 'topbar is-hidden' : 'topbar'} ref={chrome.bar}>
         <Link to="/" className="brand">
           OpenRecipe
         </Link>
