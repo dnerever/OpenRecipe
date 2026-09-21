@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.ts';
+import { fetchRecipeFromUrl } from '../import/fetch-recipe.ts';
 import { addressed, currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
 import { readBody, readQuery } from './validate.ts';
 import {
@@ -30,6 +31,13 @@ import { validateSlug } from '../services/slugs.ts';
 const CreateBody = z.object({
   content: z.string().min(1, 'A recipe needs content.'),
   slug: z.string().optional(),
+  visibility: z.enum(['public', 'private']).optional(),
+});
+
+const ImportBody = z.object({
+  url: z.string().trim().min(1, 'A URL is required.').url('That is not a valid URL.'),
+  // Private by default: this republishes someone else's page, and whether to
+  // make that public is the importing person's call, not the importer's.
   visibility: z.enum(['public', 'private']).optional(),
 });
 
@@ -131,6 +139,30 @@ export const recipeRoutes = new Hono<AppEnv>()
 
     const loaded = await createRecipe(db, currentUser(c), body);
     return c.json(serializeRecipeResponse(loaded, c.get('viewer')), 201);
+  })
+
+  /**
+   * The CLI bookmark importer (`import-urls.ts`), reachable to any signed-in
+   * user for one URL at a time rather than an operator running a script. Same
+   * conversion, same private-by-default rule; the difference is the caller
+   * types the address themselves, so `fetch-recipe.ts` guards it against
+   * addresses that have no business being fetched from the server.
+   */
+  .post('/recipes/import', requireUser, async (c) => {
+    const { url, visibility } = await readBody(c, ImportBody);
+    const converted = await fetchRecipeFromUrl(url);
+
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    const loaded = await createRecipe(db, currentUser(c), {
+      content: converted.content,
+      visibility: visibility ?? 'private',
+      message: `Import from ${hostname}`,
+    });
+
+    return c.json(
+      { ...serializeRecipeResponse(loaded, c.get('viewer')), warnings: converted.warnings },
+      201,
+    );
   })
 
   .get('/recipes/:handle/:slug', async (c) => {

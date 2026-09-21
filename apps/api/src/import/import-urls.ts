@@ -4,7 +4,7 @@ import { parseArgs } from 'node:util';
 import { safeParseRecipe } from '@openrecipe/core';
 import { and, eq } from 'drizzle-orm';
 import { slugify } from '../services/slugs.ts';
-import { findRecipeNode, NotARecipeError, toRecipeDocument } from './jsonld.ts';
+import { fetchRecipeFromUrl, ImportUrlError, NotARecipeError } from './fetch-recipe.ts';
 
 /**
  * Import recipes from the pages they were published on.
@@ -117,27 +117,9 @@ if (targets.length === 0) {
 
 /* ----------------------------------------------------------------- fetch -- */
 
-/**
- * An honest user agent rather than a borrowed browser one. This fetches one
- * person's own bookmarks, one page at a time, and a site that refuses a
- * self-identified importer should get to say so — the refusal is reported, not
- * worked around.
- */
-const USER_AGENT = 'Mozilla/5.0 (compatible; OpenRecipe-import/1.0; personal bookmark import)';
-
-async function fetchPage(url: string): Promise<string> {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': USER_AGENT,
-      Accept: 'text/html,application/xhtml+xml',
-      'Accept-Language': 'en-US,en;q=0.9',
-    },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.text();
-}
+// Fetching, the honest user agent, and the page-to-document conversion all
+// live in `fetch-recipe.ts` now, shared with `POST /recipes/import` — see
+// that file for both.
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const label = (bookmark: Bookmark) => bookmark.title || bookmark.url;
@@ -162,16 +144,7 @@ for (const [index, bookmark] of targets.entries()) {
   if (index > 0) await sleep(delay);
 
   try {
-    const html = await fetchPage(bookmark.url);
-    const node = findRecipeNode(html);
-    if (!node) {
-      refused.push({ bookmark, reason: 'no schema.org/Recipe on the page' });
-      console.log(`  ✗ ${label(bookmark)} — no recipe data`);
-      continue;
-    }
-
-    const { content, title, warnings } = toRecipeDocument(node, {
-      url: withoutFragment(bookmark.url),
+    const { content, title, warnings } = await fetchRecipeFromUrl(withoutFragment(bookmark.url), {
       tags: bookmark.tags,
       title: bookmark.title || undefined,
     });
@@ -192,9 +165,11 @@ for (const [index, bookmark] of targets.entries()) {
     const reason =
       err instanceof NotARecipeError
         ? `not a recipe: ${err.message}`
-        : err instanceof Error
+        : err instanceof ImportUrlError
           ? err.message
-          : String(err);
+          : err instanceof Error
+            ? err.message
+            : String(err);
     refused.push({ bookmark, reason });
     console.log(`  ✗ ${label(bookmark)} — ${reason}`);
   }
