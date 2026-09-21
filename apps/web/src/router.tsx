@@ -41,10 +41,12 @@ function RootLayout() {
         <ThemeToggle />
         {handle ? (
           <>
+            {user?.isAdmin && <Link to="/admin">Reports</Link>}
             <Link to="/new">Write</Link>
             <Link to="/$handle" params={{ handle }}>
               @{handle}
             </Link>
+            <Link to="/settings">Settings</Link>
             <button type="button" className="linkish" onClick={() => signOut.mutate()}>
               Sign out
             </button>
@@ -154,6 +156,22 @@ const resetPasswordRoute = createRoute({
   }),
   component: lazyRouteComponent(() => import('./pages/ResetPasswordPage.tsx'), 'ResetPasswordPage'),
 });
+/** Account deletion today; the natural home for anything else self-service later. */
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  component: lazyRouteComponent(() => import('./pages/SettingsPage.tsx'), 'SettingsPage'),
+});
+/**
+ * No client-side admin check here — the nav link is hidden for a non-admin,
+ * but the route itself just renders the page, which asks the API and shows
+ * whatever a 404 there looks like. The enforcement lives in one place.
+ */
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
+  component: lazyRouteComponent(() => import('./pages/AdminPage.tsx'), 'AdminPage'),
+});
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/$handle',
@@ -257,6 +275,8 @@ const routeTree = rootRoute.addChildren([
   signInRoute,
   newRoute,
   resetPasswordRoute,
+  settingsRoute,
+  adminRoute,
   profileRoute,
   listsRoute,
   listRoute,

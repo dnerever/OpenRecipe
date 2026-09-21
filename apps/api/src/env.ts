@@ -79,6 +79,15 @@ const EnvSchema = z
     RESEND_API_KEY: emptyAsUndefined(z.string().min(1).optional()),
     /** Resend's own sandbox sender works with no domain verification. */
     MAIL_FROM: emptyAsUndefined(z.string().min(1).optional()),
+
+    /**
+     * Comma-separated emails allowed to see reports and act on them. There is
+     * no admin role in the database — the operator of a site this size is a
+     * fixed, small set of people, and an env var is one fewer thing that can
+     * be granted to the wrong account by a bug. Unset means nobody is an
+     * admin, not everybody: the reports endpoints 404 rather than open up.
+     */
+    ADMIN_EMAILS: emptyAsUndefined(z.string().min(1).optional()),
   })
   .transform((env) => ({
     ...env,
@@ -153,3 +162,11 @@ export const githubOAuth =
 export const mailer = env.RESEND_API_KEY
   ? { apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM ?? 'OpenRecipe <onboarding@resend.dev>' }
   : null;
+
+/** Emails compare lowercase, same as `users.email` itself. */
+export const adminEmails = new Set(
+  (env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+);

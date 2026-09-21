@@ -1,7 +1,8 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { auth } from '../auth.ts';
 import type { User } from '../db/schema.ts';
-import { UnauthorizedError, type Viewer } from '../services/authorization.ts';
+import { adminEmails } from '../env.ts';
+import { NotFoundError, UnauthorizedError, type Viewer } from '../services/authorization.ts';
 
 /** Every route handler and route-level helper takes one of these. */
 export type Ctx = Context<AppEnv>;
@@ -31,6 +32,20 @@ export const withViewer: MiddlewareHandler<AppEnv> = async (c, next) => {
 /** Guards routes that make no sense anonymously. Runs after `withViewer`. */
 export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!c.get('user')) throw new UnauthorizedError();
+  await next();
+};
+
+export function isAdmin(user: User | null): boolean {
+  return user !== null && adminEmails.has(user.email.toLowerCase());
+}
+
+/**
+ * 404s rather than 403s, same reasoning as a private recipe: a stranger
+ * probing `/api/admin/*` should not learn the route exists at all, and with
+ * `ADMIN_EMAILS` unset nobody is an admin, so every request 404s the same way.
+ */
+export const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
+  if (!isAdmin(c.get('user'))) throw new NotFoundError();
   await next();
 };
 

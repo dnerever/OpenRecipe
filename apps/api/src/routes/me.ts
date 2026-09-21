@@ -1,14 +1,17 @@
 import { Hono } from 'hono';
-import { currentUser, requireUser, type AppEnv } from '../middleware/session.ts';
+import { currentUser, isAdmin, requireUser, type AppEnv } from '../middleware/session.ts';
 import { profileUser } from '../services/users.ts';
 
 export const meRoutes = new Hono<AppEnv>()
   /** Who am I? `null` rather than a 401 — the web calls this on every load. */
   .get('/me', (c) => {
     const user = c.get('user');
-    // Your own record, so it carries the id and the email no other user's does.
+    // Your own record, so it carries the id, the email and the admin flag no
+    // other user's does — the nav uses it to show the reports link at all.
     return c.json({
-      user: user ? { ...profileUser(user), id: user.id, email: user.email } : null,
+      user: user
+        ? { ...profileUser(user), id: user.id, email: user.email, isAdmin: isAdmin(user) }
+        : null,
     });
   })
 

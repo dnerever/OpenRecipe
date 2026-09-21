@@ -502,6 +502,39 @@ export const listCollaborators = pgTable(
   ],
 );
 
+/** A report is open until an admin dismisses it or removes what it flagged. */
+export const reportStatus = pgEnum('report_status', ['open', 'resolved']);
+
+/**
+ * A flag on a recipe, not on its author — recipes are the unit a reader can
+ * see and reach a "report" button from, and the unit an admin acts on.
+ * Cascades with the recipe it names: once the content is gone, so is the
+ * report about it. `reporterId` cascades too — deleting an account takes its
+ * own reports with it, the same way it takes its stars.
+ */
+export const reports = pgTable(
+  'reports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    recipeId: uuid('recipe_id')
+      .notNull()
+      .references((): AnyPgColumn => recipes.id, { onDelete: 'cascade' }),
+    reporterId: text('reporter_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    reason: text('reason').notNull(),
+    status: reportStatus('status').notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    /** Not `restrict`: whoever resolved it may later delete their own account. */
+    resolvedById: text('resolved_by_id').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    index('reports_status_created_idx').on(t.status, t.createdAt),
+    index('reports_recipe_idx').on(t.recipeId),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Recipe = typeof recipes.$inferSelect;
@@ -517,3 +550,5 @@ export type ListCollaborator = typeof listCollaborators.$inferSelect;
 export type ListRole = (typeof listRole.enumValues)[number];
 export type ListVisibility = (typeof listVisibility.enumValues)[number];
 export type Visibility = (typeof recipeVisibility.enumValues)[number];
+export type Report = typeof reports.$inferSelect;
+export type ReportStatus = (typeof reportStatus.enumValues)[number];
