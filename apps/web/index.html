@@ -10,7 +10,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f6f7f3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141713" media="(prefers-color-scheme: dark)" />
+    <!--
+      The server (`og.ts`) replaces everything between the default-meta
+      markers below with recipe-specific tags for a `/:handle/:slug` request,
+      so a shared link's title/description/photo is the recipe's, not this
+      generic fallback. Keep the whole block — title included — between the
+      markers, or a crawler that takes the first of a duplicated tag will show
+      this one instead.
+    -->
+    <!-- default-meta:start -->
     <title>OpenRecipe</title>
+    <meta
+      name="description"
+      content="Recipes with real version history — fork, edit and propose changes like a cookbook you can pull-request."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="OpenRecipe" />
+    <meta property="og:title" content="OpenRecipe" />
+    <meta
+      property="og:description"
+      content="Recipes with real version history — fork, edit and propose changes like a cookbook you can pull-request."
+    />
+    <meta name="twitter:card" content="summary" />
+    <!-- default-meta:end -->
     <script>
       // Before the first paint, so a reader who chose dark never gets a white
       // flash while the bundle loads. Mirrors readTheme/applyTheme in
