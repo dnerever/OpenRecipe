@@ -14,18 +14,56 @@ export function initSentry(): void {
 }
 
 /**
- * Plausible's script tag, added from code rather than `index.html` so it
- * loads only for a real browser visit with `VITE_PLAUSIBLE_DOMAIN` set — a
- * crawler fetching the OG-tagged shell (see `og.ts`) never runs this, so
- * link previews cannot inflate a visit count the way an `index.html` embed
- * would. No cookie, no consent banner: that is Plausible's whole pitch.
+ * Plausible's own queue-stub pattern: `window.plausible` exists and can
+ * buffer calls before the real script has even started loading, so nothing
+ * here depends on load order. Matches the snippet Plausible's dashboard
+ * generates per site — copied here rather than left as an inline
+ * `<script>` because this function only runs at all once `initAnalytics`
+ * decides a real browser visit warrants it.
+ */
+type PlausibleFn = {
+  (...args: unknown[]): void;
+  q?: unknown[][];
+  init?: (options?: Record<string, unknown>) => void;
+  o?: Record<string, unknown>;
+};
+
+declare global {
+  interface Window {
+    plausible?: PlausibleFn;
+  }
+}
+
+/**
+ * Loads Plausible's per-site script from code rather than `index.html`, so it
+ * runs only for a real browser visit with `VITE_PLAUSIBLE_SCRIPT_SRC` set —
+ * a crawler fetching the OG-tagged shell (see `og.ts`) never executes JS, so
+ * link previews can't inflate a visit count the way a static embed would. No
+ * cookie, no consent banner: that is Plausible's whole pitch.
+ *
+ * `VITE_PLAUSIBLE_SCRIPT_SRC` holds the *whole* script URL Plausible's
+ * dashboard generates for the site (e.g. `https://plausible.io/js/pa-
+ * <id>.js`), not just a domain — the newer per-site script embeds the site's
+ * identity in its own URL rather than reading a `data-domain` attribute, and
+ * needs an explicit `plausible.init()` call the classic `script.js` never did.
  */
 export function initAnalytics(): void {
-  const domain = import.meta.env.VITE_PLAUSIBLE_DOMAIN;
-  if (!domain) return;
+  const src = import.meta.env.VITE_PLAUSIBLE_SCRIPT_SRC;
+  if (!src) return;
+
+  const plausible: PlausibleFn =
+    window.plausible ||
+    ((...args: unknown[]) => {
+      (plausible.q ??= []).push(args);
+    });
+  plausible.init ??= (options) => {
+    plausible.o = options ?? {};
+  };
+  window.plausible = plausible;
+  plausible.init();
+
   const script = document.createElement('script');
-  script.defer = true;
-  script.dataset['domain'] = domain;
-  script.src = 'https://plausible.io/js/script.js';
+  script.async = true;
+  script.src = src;
   document.head.appendChild(script);
 }

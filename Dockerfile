@@ -27,9 +27,9 @@ COPY apps/web apps/web
 # passes its env vars into `docker build` as build args, but only for names a
 # Dockerfile declares with `ARG` — undeclared ones are invisible to the build.
 # Both are safe to bake in plain: a Sentry DSN only lets the SDK *send*
-# events (it is not a secret), and a Plausible domain is just a domain.
+# events (it is not a secret), and a Plausible script URL is just a URL.
 ARG VITE_SENTRY_DSN
-ARG VITE_PLAUSIBLE_DOMAIN
+ARG VITE_PLAUSIBLE_SCRIPT_SRC
 
 # core -> dist, api -> dist, web -> static bundle
 RUN npm run build -w @openrecipe/core \
