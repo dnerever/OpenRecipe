@@ -375,7 +375,7 @@ None currently open. See SLICES.md's Resolved list for how past ones — includi
 
 ## 10. Roadmap — pre-launch hardening
 
-Everything through Slice 15 is the product. These four are what stand between that and letting strangers sign up unsupervised — account recovery, the legal minimum, a way for abuse to reach a human, and a way to find out something broke before a user has to tell you. Two are done; LICENSE/terms/privacy is next, then error monitoring.
+Everything through Slice 15 is the product. These five are what stand between that and letting strangers sign up unsupervised — account recovery, the legal minimum, a way for abuse to reach a human, a way to find out something broke before a user has to tell you, and not making their first visit wait on a cold start. Two are done; LICENSE/terms/privacy is next, then error monitoring, then the Starter plan once the rest is live.
 
 ### Slice 16 — Password reset ✅ **done**
 better-auth ships `forgetPassword`/`resetPassword` for free once a `sendEmail` function exists — this was mostly plumbing, not a new auth system.
@@ -405,3 +405,7 @@ Two separate licenses live in this slice, deliberately decoupled — and a third
 - Sentry (or similar) on both `apps/api` and `apps/web` — cheap to add, high signal once this is public and errors are no longer just the ones you triggered yourself.
 - Lightweight, privacy-respecting analytics (Plausible or Umami) rather than anything that needs a cookie-consent banner — a consent banner would become its own task, and the whole point here is a launch checklist that stays short.
 **Done when:** a production error surfaces somewhere other than a confused user's bug report, and there's a number for "did anyone show up."
+
+### Slice 20 — Render Starter plan
+Pure config, no code: flip `plan: free` → `plan: starter` in `render.yaml:7` once the rest of this roadmap is live and it's time to post publicly. The free tier's cold start — the instance spins down after 15 minutes idle and a shared link can be the thing that wakes it, 30-50 seconds of nothing before the recipe appears — is the one part of "free" a stranger arriving from a link actually feels. Held for last on purpose: it's a $7/month billing decision, not engineering work, and nothing else here depends on it.
+**Done when:** a cold link no longer reads as broken.
