@@ -366,6 +366,17 @@ SDK, so the Node project's DSN and the browser project's DSN are different
 values even on the same Sentry account — create both, or just the one that
 matters more to you first.
 
+**`VITE_SENTRY_DSN` and `VITE_PLAUSIBLE_DOMAIN` need a redeploy to take
+effect, not just a save.** Everything else in this table is read from
+`process.env` when the container starts, so saving it on Render is enough on
+its own. These two are different: Vite bakes them into the JS bundle during
+`vite build`, inside the Docker build stage — so Render has to pass them into
+`docker build` as build args, which it only does for variables the
+`Dockerfile` declares with `ARG` (`SENTRY_DSN` needs no such declaration,
+since it's read at runtime like everything else). Setting the variable in the
+dashboard queues the build arg for the *next* build; if the service doesn't
+redeploy on its own, trigger one manually.
+
 **Unset, both features compile away rather than half-run.** No `SENTRY_DSN`
 means the API's error handler still logs to the Render log, same as always; no
 `VITE_SENTRY_DSN` means the browser bundle never calls `Sentry.init()` at all
