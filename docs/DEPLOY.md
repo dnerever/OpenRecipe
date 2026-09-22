@@ -358,7 +358,7 @@ Both optional, both off unless you set them:
 ```
 SENTRY_DSN=…       # apps/api — a Sentry project of its own
 VITE_SENTRY_DSN=…  # apps/web — a separate project; Sentry splits by platform
-VITE_PLAUSIBLE_DOMAIN=openrecipe.onrender.com
+VITE_PLAUSIBLE_SCRIPT_SRC=https://plausible.io/js/pa-<id>.js
 ```
 
 **Two Sentry projects, not one.** A Sentry DSN is tied to a single platform's
@@ -366,7 +366,7 @@ SDK, so the Node project's DSN and the browser project's DSN are different
 values even on the same Sentry account — create both, or just the one that
 matters more to you first.
 
-**`VITE_SENTRY_DSN` and `VITE_PLAUSIBLE_DOMAIN` need a redeploy to take
+**`VITE_SENTRY_DSN` and `VITE_PLAUSIBLE_SCRIPT_SRC` need a redeploy to take
 effect, not just a save.** Everything else in this table is read from
 `process.env` when the container starts, so saving it on Render is enough on
 its own. These two are different: Vite bakes them into the JS bundle during
@@ -382,8 +382,13 @@ means the API's error handler still logs to the Render log, same as always; no
 `VITE_SENTRY_DSN` means the browser bundle never calls `Sentry.init()` at all
 (dead-code-eliminated, not just disabled) and an unhandled render error still
 shows the plain fallback screen, it just goes nowhere afterward. No
-`VITE_PLAUSIBLE_DOMAIN` means the app never requests Plausible's script.
+`VITE_PLAUSIBLE_SCRIPT_SRC` means the app never requests Plausible's script.
 
-**Plausible needs a site added on their end first** (plausible.io → Add a
-website, domain matching `VITE_PLAUSIBLE_DOMAIN` exactly) before the script
-will report anything — the variable alone doesn't create the site.
+**`VITE_PLAUSIBLE_SCRIPT_SRC` is the whole script URL, not a domain.**
+Plausible's dashboard (Site Settings → Installation) generates a per-site
+script now — `https://plausible.io/js/pa-<id>.js` — that identifies the site
+by its own URL rather than by a `data-domain` attribute on a shared
+`script.js`, and needs an explicit `plausible.init()` call the older script
+never did (`lib/monitoring.ts` does both). The site still has to exist on
+Plausible's end first (plausible.io → Add a website) before this URL is valid
+— the env var alone doesn't create it.
