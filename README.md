@@ -3,7 +3,8 @@
 Version control for recipes. Fork someone's country loaf, push the hydration to 78%,
 and propose the change back upstream.
 
-The full architecture and slice plan lives in **[docs/PLAN.md](docs/PLAN.md)**.
+The architecture, data model and API surface live in **[docs/PLAN.md](docs/PLAN.md)**;
+the slice-by-slice build log is in **[docs/SLICES.md](docs/SLICES.md)**.
 Deployment is in **[docs/DEPLOY.md](docs/DEPLOY.md)** — Render free + Neon free, $0/month.
 
 ---
@@ -26,12 +27,13 @@ are green, your stack is working.
 
 ## Layout
 
-| Path            | What                                                                                         |
-| --------------- | -------------------------------------------------------------------------------------------- |
-| `packages/core` | **Pure** recipe-document logic: parse, serialize, hash, diff, merge, scale, convert. No I/O. |
-| `apps/api`      | Hono API on Node, Drizzle + Postgres.                                                        |
-| `apps/web`      | Vite + React SPA.                                                                            |
-| `docs/PLAN.md`  | Architecture decisions and the 12-slice build plan.                                          |
+| Path             | What                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| `packages/core`  | **Pure** recipe-document logic: parse, serialize, hash, diff, merge, scale, convert. No I/O. |
+| `apps/api`       | Hono API on Node, Drizzle + Postgres.                                                        |
+| `apps/web`       | Vite + React SPA.                                                                            |
+| `docs/PLAN.md`   | Architecture decisions, data model, API surface, and what's still open.                      |
+| `docs/SLICES.md` | The build log — what shipped, in what order, and why.                                        |
 
 `packages/core` compiles to `dist/` and both apps import the built output —
 Node's TypeScript type-stripping skips `node_modules`, and workspace packages

@@ -1,0 +1,12 @@
+Copyright (c) 2026 dnerever. All rights reserved.
+
+This repository is source-available for reading and reference only. No
+license, express or implied, is granted to any person to use, copy, modify,
+merge, publish, distribute, sublicense, host, or sell copies of this
+software, in whole or in part, without prior written permission from the
+copyright holder.
+
+This license covers the OpenRecipe application code (`apps/`, `packages/`,
+and supporting configuration) only. It does not govern recipe content
+published through the application, which carries its own license as stated
+in the app's Terms of Service.

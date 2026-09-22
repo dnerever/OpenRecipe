@@ -237,6 +237,7 @@ export function RecipePage() {
         frontmatter={shown}
         phases={doc.phases}
         storageKey={tickKey(handle, slug)}
+        visibility={recipe.visibility}
         scaleControl={
           <ScaleControl
             frontmatter={doc.frontmatter}
