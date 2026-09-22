@@ -2,7 +2,7 @@
 
 > Version control for recipes. Fork someone's loaf, tweak the hydration, propose the change back.
 
-**Status: all 16 planned slices are shipped and merged to `main`.** Objectives 1–3 (public MVP, forking, proposals) are complete. Pre-launch hardening (§10) is underway — password reset, report/moderation/account-deletion, and LICENSE/terms/privacy are done; error monitoring and the Render Starter plan are what's left. The build log — what shipped, in what order, and the decisions each slice forced — lives in [SLICES.md](SLICES.md); this document keeps only what's still load-bearing for future work: the architecture decisions, the data model and its authorization rules, the API surface, testing strategy, and what's genuinely still open.
+**Status: all 16 planned slices are shipped and merged to `main`.** Objectives 1–3 (public MVP, forking, proposals) are complete. Pre-launch hardening (§10) is underway — password reset, report/moderation/account-deletion, LICENSE/terms/privacy, and error monitoring & analytics are done; the Render Starter plan is the one thing left, held for last since it's a billing decision nothing else depends on. The build log — what shipped, in what order, and the decisions each slice forced — lives in [SLICES.md](SLICES.md); this document keeps only what's still load-bearing for future work: the architecture decisions, the data model and its authorization rules, the API surface, testing strategy, and what's genuinely still open.
 
 ---
 
@@ -375,7 +375,7 @@ None currently open. See SLICES.md's Resolved list for how past ones — includi
 
 ## 10. Roadmap — pre-launch hardening
 
-Everything through Slice 15 is the product. These five are what stand between that and letting strangers sign up unsupervised — account recovery, the legal minimum, a way for abuse to reach a human, a way to find out something broke before a user has to tell you, and not making their first visit wait on a cold start. Three are done; error monitoring is next, then the Starter plan once the rest is live.
+Everything through Slice 15 is the product. These five are what stand between that and letting strangers sign up unsupervised — account recovery, the legal minimum, a way for abuse to reach a human, a way to find out something broke before a user has to tell you, and not making their first visit wait on a cold start. Four are done; the Render Starter plan is what's left.
 
 ### Slice 16 — Password reset ✅ **done**
 better-auth ships `forgetPassword`/`resetPassword` for free once a `sendEmail` function exists — this was mostly plumbing, not a new auth system.
@@ -404,10 +404,9 @@ Two separate licenses live in this slice, deliberately decoupled — and a third
 **Done when:** a signed-in user can flag a recipe, there's one place to go read what's been flagged, and an account can leave.
 *Shipped:* reports — a signed-in reader can flag a recipe (`POST .../reports`); an admin (anyone in the new `ADMIN_EMAILS` env var — a site this size has no other use for a database-backed role) sees open reports at `/admin` and can dismiss one, make the recipe private, or remove it outright. Removal still refuses a forked recipe, the same guard an owner's own delete button already had (§5.3) — that's the database's referential integrity, not a courtesy an admin can waive; making it private is the same escape hatch. Account deletion hooks into better-auth's own `deleteUser`: refuses if any owned recipe has been forked, for the same reason, otherwise deletes every recipe it safely can and reattributes the records that describe someone else's history (a comment on someone else's proposal, a list invite) so nothing is left restricting the user row.
 
-### Slice 19 — Error monitoring & analytics
-- Sentry (or similar) on both `apps/api` and `apps/web` — cheap to add, high signal once this is public and errors are no longer just the ones you triggered yourself.
-- Lightweight, privacy-respecting analytics (Plausible or Umami) rather than anything that needs a cookie-consent banner — a consent banner would become its own task, and the whole point here is a launch checklist that stays short.
+### Slice 19 — Error monitoring & analytics ✅ **done**
 **Done when:** a production error surfaces somewhere other than a confused user's bug report, and there's a number for "did anyone show up."
+*Shipped:* Sentry on both `apps/api` (`services/sentry.ts`, plus `uncaughtException`/`unhandledRejection` handlers as a safety net outside Hono's own request handling) and `apps/web` (`lib/monitoring.ts`, wrapped in a `Sentry.ErrorBoundary`) — errors only, `tracesSampleRate: 0`, no APM bill. `SENTRY_DSN`/`VITE_SENTRY_DSN` join the usual optional-config pattern: unset, dead-code-eliminated to near-zero bundle cost on the web side and a plain no-op on the API side, so a clone with nothing configured still boots and still just logs to the console. Plausible's analytics script loads from `main.tsx` rather than `index.html`, gated on `VITE_PLAUSIBLE_DOMAIN`, specifically so a link-preview crawler fetching the OG-tagged shell (`og.ts`) — which never runs JS — cannot inflate the visit count the way a static `<script>` embed would. Cookie-free, no consent banner needed.
 
 ### Slice 20 — Render Starter plan
 Pure config, no code: flip `plan: free` → `plan: starter` in `render.yaml:7` once the rest of this roadmap is live and it's time to post publicly. The free tier's cold start — the instance spins down after 15 minutes idle and a shared link can be the thing that wakes it, 30-50 seconds of nothing before the recipe appears — is the one part of "free" a stranger arriving from a link actually feels. Held for last on purpose: it's a $7/month billing decision, not engineering work, and nothing else here depends on it.

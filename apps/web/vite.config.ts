@@ -3,6 +3,9 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
+  // One `.env` for the whole repo (docker-compose, the API, and now this),
+  // rather than a second copy living only under apps/web.
+  envDir: '../..',
   build: {
     rollupOptions: {
       output: {

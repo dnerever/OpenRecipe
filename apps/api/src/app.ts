@@ -20,6 +20,7 @@ import { reportRoutes } from './routes/reports.ts';
 import { ImportUrlError, NotARecipeError } from './import/fetch-recipe.ts';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/authorization.ts';
 import { mailConfigured } from './services/mailer.ts';
+import { captureException } from './services/sentry.ts';
 import { UploadError } from './services/media.ts';
 import { ProposalError } from './services/proposals.ts';
 import { StorageUnavailableError } from './services/storage.ts';
@@ -169,6 +170,9 @@ export function createApp() {
       return c.json({ error: 'storage_unavailable' }, 503);
     }
 
+    // Only this branch — every case above is an expected, handled outcome
+    // (a validation failure, a 404, a refused write), not "something broke."
+    captureException(err);
     console.error(err);
     return c.json({ error: 'internal_error' }, 500);
   });

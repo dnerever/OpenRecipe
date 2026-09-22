@@ -88,6 +88,13 @@ const EnvSchema = z
      * admin, not everybody: the reports endpoints 404 rather than open up.
      */
     ADMIN_EMAILS: emptyAsUndefined(z.string().min(1).optional()),
+
+    /**
+     * Optional, the same way every other integration here is: a clone with no
+     * DSN runs identically, it just has nowhere to send an unhandled error.
+     * See `services/sentry.ts`.
+     */
+    SENTRY_DSN: emptyAsUndefined(z.url().optional()),
   })
   .transform((env) => ({
     ...env,
