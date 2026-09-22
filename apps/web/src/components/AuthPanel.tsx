@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import type { Health } from '../lib/api.ts';
 import { requestPasswordReset, signIn, signUp } from '../lib/auth.ts';
@@ -125,6 +126,13 @@ export function AuthPanel({ health }: { health: Health | null }) {
         )}
 
         {error && <p className="bad">{error}</p>}
+
+        {mode === 'sign-up' && (
+          <p className="hint">
+            By creating an account, you agree to the <Link to="/terms">Terms</Link> and{' '}
+            <Link to="/privacy">Privacy Policy</Link>.
+          </p>
+        )}
 
         <div className="row">
           <button type="submit" disabled={busy}>

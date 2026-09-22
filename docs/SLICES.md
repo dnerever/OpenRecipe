@@ -240,6 +240,12 @@ Every prior slice built for two columns on a laptop. This one went back through 
 Light / Dark / Auto, as three segments rather than a cycling button — a cycle hides two-thirds of its own state and makes "system" invisible. `data-theme` on the root overrides `prefers-color-scheme`; its *absence* is what "Auto" means, which is why dark rules are written once guarded with `:not([data-theme='light'])` and again under `[data-theme='dark']` — a media query and an attribute selector never compete on specificity, so beating the system in both directions takes both blocks. Applied twice: a pre-paint script in `<head>` sets the attribute before first paint (no white flash for a dark reader), and a hook re-applies it live so picking "Auto" hands the page back to the system without a reload.
 *Shipped:* `8500675`, `dc2f6b0`. The address bar's own `theme-color` metas needed a second fix — a `media` attribute can't see `data-theme`, so forcing light on a dark phone left a dark address bar over a light page. An override now points both metas at the resolved color; `system` puts each back to matching its own media query.
 
+### Two follow-ups after Slice 15
+
+**The topbar stopped being static** (`3463a2f`, "Give the topbar back without charging for it, and slim the switcher"). A pinned header is a fifteenth of the screen spent permanently on a phone; it now yields on scroll-down and returns on scroll-up, and the section-switcher tabs lost their own padding since a static height variable — not React state — is what the switcher underneath reads to avoid overlapping it. A single `IntersectionObserver` band tuned for one bar of chrome had gone wrong once there were two; scroll position is now just "the last section whose top has passed under the chrome," measured directly, which can't drift the way a hand-tuned `rootMargin` did.
+
+**Shared links got a real preview** (`0c3a511`, "Give a shared recipe link a real title, description and photo"). iMessage, Slack and Discord fetch a shared link's HTML unauthenticated and never run the SPA — so `<title>OpenRecipe</title>` was all any of them ever showed. The API now recognizes a recipe's own `/:handle/:slug` page and splices its title, description and image into the served shell as Open Graph and Twitter Card tags before the SPA's catch-all serves it, falling back to the plain shell for anything that isn't a readable recipe — private recipes and other client routes (`/:handle/lists`) are unaffected.
+
 ---
 
 ## Resolved open questions

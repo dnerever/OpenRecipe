@@ -7,6 +7,7 @@ import {
 } from '@openrecipe/core';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { thumbUrlFor } from '../lib/api.ts';
+import { DEFAULT_CONTENT_LICENSE, licenseUrlFor } from '../lib/license.ts';
 import { useTicked } from '../lib/use-ticked.ts';
 import { TagList } from './TagList.tsx';
 
@@ -159,6 +160,7 @@ export function RecipeView({
   shoppingList,
   cookLink,
   storageKey,
+  visibility,
 }: {
   frontmatter: Frontmatter;
   phases: Phase[];
@@ -166,6 +168,8 @@ export function RecipeView({
   shoppingList?: ReactNode;
   cookLink?: ReactNode;
   storageKey: string;
+  /** Governs only the license fallback below — a private recipe isn't published, so it gets no default. */
+  visibility?: 'public' | 'private';
 }) {
   const groups = groupIngredients(frontmatter);
   const bar = useRef<HTMLElement | null>(null);
@@ -298,17 +302,41 @@ export function RecipeView({
 
       {frontmatter.tags?.length ? <TagList tags={frontmatter.tags} /> : null}
 
-      {(frontmatter.source || frontmatter.license) && (
-        <p className="source muted">
-          {frontmatter.source?.attribution && <>Adapted from {frontmatter.source.attribution}. </>}
-          {frontmatter.source?.url && (
-            <a href={frontmatter.source.url} rel="noreferrer noopener" target="_blank">
-              Original
-            </a>
-          )}
-          {frontmatter.license && <> · {frontmatter.license}</>}
-        </p>
-      )}
+      {(() => {
+        // A private recipe isn't published, so it gets no default — only an
+        // explicit `license:` shows. A public one falls back to the platform
+        // default (docs/PLAN.md §10, Slice 17) so the line is never blank.
+        const license =
+          frontmatter.license ?? (visibility === 'public' ? DEFAULT_CONTENT_LICENSE : undefined);
+        const licenseUrl = license ? licenseUrlFor(license) : undefined;
+        return (
+          (frontmatter.source || license) && (
+            <p className="source muted">
+              {frontmatter.source?.attribution && (
+                <>Adapted from {frontmatter.source.attribution}. </>
+              )}
+              {frontmatter.source?.url && (
+                <a href={frontmatter.source.url} rel="noreferrer noopener" target="_blank">
+                  Original
+                </a>
+              )}
+              {license && (
+                <>
+                  {' '}
+                  ·{' '}
+                  {licenseUrl ? (
+                    <a href={licenseUrl} rel="noreferrer noopener" target="_blank">
+                      {license}
+                    </a>
+                  ) : (
+                    license
+                  )}
+                </>
+              )}
+            </p>
+          )
+        );
+      })()}
     </div>
   );
 }

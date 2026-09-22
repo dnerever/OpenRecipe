@@ -2,7 +2,7 @@
 
 > Version control for recipes. Fork someone's loaf, tweak the hydration, propose the change back.
 
-**Status: all 16 planned slices are shipped and merged to `main`.** Objectives 1–3 (public MVP, forking, proposals) are complete. Pre-launch hardening (§10) is underway — password reset and report/moderation/account-deletion are done; LICENSE/terms/privacy is in progress. The build log — what shipped, in what order, and the decisions each slice forced — lives in [SLICES.md](SLICES.md); this document keeps only what's still load-bearing for future work: the architecture decisions, the data model and its authorization rules, the API surface, testing strategy, and what's genuinely still open.
+**Status: all 16 planned slices are shipped and merged to `main`.** Objectives 1–3 (public MVP, forking, proposals) are complete. Pre-launch hardening (§10) is underway — password reset, report/moderation/account-deletion, and LICENSE/terms/privacy are done; error monitoring and the Render Starter plan are what's left. The build log — what shipped, in what order, and the decisions each slice forced — lives in [SLICES.md](SLICES.md); this document keeps only what's still load-bearing for future work: the architecture decisions, the data model and its authorization rules, the API surface, testing strategy, and what's genuinely still open.
 
 ---
 
@@ -375,7 +375,7 @@ None currently open. See SLICES.md's Resolved list for how past ones — includi
 
 ## 10. Roadmap — pre-launch hardening
 
-Everything through Slice 15 is the product. These five are what stand between that and letting strangers sign up unsupervised — account recovery, the legal minimum, a way for abuse to reach a human, a way to find out something broke before a user has to tell you, and not making their first visit wait on a cold start. Two are done; LICENSE/terms/privacy is next, then error monitoring, then the Starter plan once the rest is live.
+Everything through Slice 15 is the product. These five are what stand between that and letting strangers sign up unsupervised — account recovery, the legal minimum, a way for abuse to reach a human, a way to find out something broke before a user has to tell you, and not making their first visit wait on a cold start. Three are done; error monitoring is next, then the Starter plan once the rest is live.
 
 ### Slice 16 — Password reset ✅ **done**
 better-auth ships `forgetPassword`/`resetPassword` for free once a `sendEmail` function exists — this was mostly plumbing, not a new auth system.
@@ -384,7 +384,7 @@ better-auth ships `forgetPassword`/`resetPassword` for free once a `sendEmail` f
 
 **`requireEmailVerification` stays `false` for now, deliberately.** Flipping it needs a verification-email flow of its own, and it matters less than not locking people out — a locked-out real user is worse than a bot signup at this stage. File it as a fast-follow now that the mail transport — the hard part — exists.
 
-### Slice 17 — LICENSE, terms & privacy
+### Slice 17 — LICENSE, terms & privacy ✅ **done**
 Two separate licenses live in this slice, deliberately decoupled — and a third layer besides, since the product's fork/merge mechanic needs a grant that neither of them provides.
 
 **Code: proprietary, no public license.** The repo is public on GitHub, so silence still defaults to "all rights reserved" — but for a public repo, an explicit notice beats relying on a viewer to know that. Add a `LICENSE` file at the repo root stating copyright is retained and no rights are granted for use, reproduction, modification or distribution without permission. This preserves full flexibility to sell a commercial/hosted offering later without any prior release having granted rights away — the tradeoff already accepted is no open-source goodwill or outside contributions, which was never the goal here.
@@ -396,6 +396,9 @@ Two separate licenses live in this slice, deliberately decoupled — and a third
 - Imported recipes (Slice 12) are unaffected — they already default to private specifically because the importer doesn't hold rights to license someone else's page, and nothing here changes that.
 - Static `/terms` and `/privacy` routes, linked from the footer and the sign-up form.
 **Done when:** a stranger can read what they're agreeing to before they sign up, what license their own public recipe carries before they publish it, and the `LICENSE` file makes the code's status unambiguous to anyone browsing the repo.
+*Shipped:* the `LICENSE` file at the repo root; `apps/web/src/lib/license.ts` holding the `CC-BY-SA-4.0` default and a small map of known SPDX/CC identifiers to their canonical URL; `RecipeView` takes a `visibility` prop and falls back to the default (linked, when recognized) only for a public recipe with no `frontmatter.license` set — a private one shows nothing, unchanged. A site-wide `SiteFooter` stating both licenses together, and `/terms`/`/privacy` as lazy routes (both `terms` and `privacy` were already in `RESERVED_HANDLES`, reserved ahead of need). The sign-up form gets a one-line agreement note linking both pages.
+
+**The account-deletion terms needed a correction while drafting them.** The first draft said making a forked recipe private unlocks account deletion — it doesn't: `hasDescendants` checks fork ancestry regardless of visibility, and `deleteAccount` refuses outright, before deleting anything, if any owned recipe has one. Both the Terms and Privacy pages now say so plainly rather than imply a workaround that doesn't exist — an owner of a popular forked recipe genuinely cannot delete their account today. Worth a fast-follow (letting an account delete everything *except* forked recipes, and disclaim the leftovers, rather than refusing wholesale) but out of scope for this slice.
 
 ### Slice 18 — Report & moderation, account deletion ✅ **done**
 **Done when:** a signed-in user can flag a recipe, there's one place to go read what's been flagged, and an account can leave.

@@ -9,6 +9,7 @@ import {
   useParams,
 } from '@tanstack/react-router';
 import { useState } from 'react';
+import { SiteFooter } from './components/SiteFooter.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { BrowsePage } from './pages/BrowsePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
@@ -58,6 +59,7 @@ function RootLayout() {
       <main>
         <Outlet />
       </main>
+      <SiteFooter />
     </>
   );
 }
@@ -161,6 +163,17 @@ const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
   component: lazyRouteComponent(() => import('./pages/SettingsPage.tsx'), 'SettingsPage'),
+});
+/** Linked from the footer on every page and from the sign-up form; visited rarely enough to stay lazy. */
+const termsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/terms',
+  component: lazyRouteComponent(() => import('./pages/TermsPage.tsx'), 'TermsPage'),
+});
+const privacyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/privacy',
+  component: lazyRouteComponent(() => import('./pages/PrivacyPage.tsx'), 'PrivacyPage'),
 });
 /**
  * No client-side admin check here — the nav link is hidden for a non-admin,
@@ -276,6 +289,8 @@ const routeTree = rootRoute.addChildren([
   newRoute,
   resetPasswordRoute,
   settingsRoute,
+  termsRoute,
+  privacyRoute,
   adminRoute,
   profileRoute,
   listsRoute,

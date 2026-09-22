@@ -265,6 +265,15 @@ button:focus-visible {
 a {
   color: var(--accent);
 }
+.site-footer {
+  border-top: 1px solid var(--rule);
+  padding: 1.25rem max(1.5rem, env(safe-area-inset-right))
+    calc(1.25rem + env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left));
+}
+.site-footer p {
+  margin: 0;
+  font-size: 0.85rem;
+}
 
 /**
  * Segments, not a switch: the pressed one is the setting, and the other two

@@ -27,13 +27,13 @@ are green, your stack is working.
 
 ## Layout
 
-| Path            | What                                                                                         |
-| --------------- | -------------------------------------------------------------------------------------------- |
-| `packages/core` | **Pure** recipe-document logic: parse, serialize, hash, diff, merge, scale, convert. No I/O. |
-| `apps/api`      | Hono API on Node, Drizzle + Postgres.                                                        |
-| `apps/web`      | Vite + React SPA.                                                                            |
-| `docs/PLAN.md`  | Architecture decisions, data model, API surface, and what's still open.                      |
-| `docs/SLICES.md`| The build log — what shipped, in what order, and why.                                        |
+| Path             | What                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| `packages/core`  | **Pure** recipe-document logic: parse, serialize, hash, diff, merge, scale, convert. No I/O. |
+| `apps/api`       | Hono API on Node, Drizzle + Postgres.                                                        |
+| `apps/web`       | Vite + React SPA.                                                                            |
+| `docs/PLAN.md`   | Architecture decisions, data model, API surface, and what's still open.                      |
+| `docs/SLICES.md` | The build log — what shipped, in what order, and why.                                        |
 
 `packages/core` compiles to `dist/` and both apps import the built output —
 Node's TypeScript type-stripping skips `node_modules`, and workspace packages
