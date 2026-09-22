@@ -248,6 +248,33 @@ Light / Dark / Auto, as three segments rather than a cycling button — a cycle 
 
 ---
 
+## Pre-launch hardening
+
+Everything above is the product — all 16 planned slices, shipped and merged. These four are what stood between that and letting strangers sign up unsupervised: account recovery, the legal minimum, a way for abuse to reach a human, and a way to find out something broke before a user has to tell you. See PLAN.md §10 for what's still open (just the Render Starter plan, a billing decision rather than engineering work).
+
+### Slice 16 — Password reset
+better-auth ships `forgetPassword`/`resetPassword` for free once a `sendEmail` function exists — this was mostly plumbing, not a new auth system.
+*Shipped* (`34e5fe8`): Resend wired in as the transport via `env.ts`'s usual optional-config pattern (same as `S3_*`) — with `RESEND_API_KEY` unset, the reset link is logged instead of sent, so the flow still works on a fresh clone with no Resend account. Request-reset and confirm-reset UI on sign-in plus a new `/reset-password` page.
+
+**`requireEmailVerification` stays `false`, deliberately.** Flipping it needs a verification-email flow of its own, and it matters less than not locking people out — a locked-out real user is worse than a bot signup at this stage. Filed as a fast-follow now that the mail transport — the hard part — exists.
+
+### Slice 17 — LICENSE, terms & privacy
+Two separate licenses, deliberately decoupled — and a third layer besides, since the product's fork/merge mechanic needs a grant that neither of them provides.
+
+*Shipped* (`b7114f4`): the `LICENSE` file at the repo root, stating the code is proprietary — copyright retained, no rights granted without permission, so a commercial/hosted offering stays possible later. `apps/web/src/lib/license.ts` holds `CC-BY-SA-4.0` as the platform-wide default recipe-content license (no per-recipe picker: a proposal merging a CC-BY-NC recipe into a CC0 one has no correct answer for what the result would carry) and a small map of known SPDX/CC identifiers to their canonical URL. `RecipeView` takes a `visibility` prop and falls back to the default (linked, when recognized) only for a public recipe with no `frontmatter.license` set — a private one shows nothing, unchanged. A site-wide `SiteFooter` states both licenses together; `/terms` and `/privacy` land as lazy routes (both handles were already in `RESERVED_HANDLES`, reserved ahead of need), and the sign-up form gets a one-line agreement note linking both. The Terms separately grant every user the right to fork, edit and propose changes back within the app, regardless of either license — the same way GitHub's own ToS lets anyone fork a public repo without that being a claim about the code's license; without this clause the entire fork/proposal/merge mechanic has no stated legal basis.
+
+**Drafting the account-deletion section caught a real gap.** The first draft said making a forked recipe private unlocks account deletion — it doesn't: `hasDescendants` checks fork ancestry regardless of visibility, and `deleteAccount` refuses outright, before deleting anything, if any owned recipe has one. Both the Terms and Privacy pages say so plainly rather than imply a workaround that doesn't exist — an owner of a popular forked recipe genuinely cannot delete their account today. Letting an account delete everything *except* forked recipes, and disclaiming the leftovers, is a fast-follow rather than something this slice solved.
+
+### Slice 18 — Report & moderation, account deletion
+*Shipped* (`bf939e8`): reports — a signed-in reader can flag a recipe (`POST .../reports`); an admin (anyone in the new `ADMIN_EMAILS` env var — a site this size has no other use for a database-backed role) sees open reports at `/admin` and can dismiss one, make the recipe private, or remove it outright. Removal still refuses a forked recipe, the same guard an owner's own delete button already had (§5.3) — that's the database's referential integrity, not a courtesy an admin can waive; making it private is the same escape hatch. Account deletion hooks into better-auth's own `deleteUser`: refuses if any owned recipe has been forked, for the same reason, otherwise deletes every recipe it safely can and reattributes the records that describe someone else's history (a comment on someone else's proposal, a list invite) so nothing is left restricting the user row.
+
+**`deletion.test.ts`'s name is a trap worth flagging for whoever reads it next** — it tests deleting a *recipe*, not an account. This slice was greenfield.
+
+### Slice 19 — Error monitoring & analytics
+*Shipped* (`0aaf708`): Sentry on both `apps/api` (`services/sentry.ts`, plus `uncaughtException`/`unhandledRejection` handlers as a safety net outside Hono's own request handling) and `apps/web` (`lib/monitoring.ts`, wrapped in a `Sentry.ErrorBoundary`) — errors only, `tracesSampleRate: 0`, no APM bill. `SENTRY_DSN`/`VITE_SENTRY_DSN` join the usual optional-config pattern: unset, dead-code-eliminated to near-zero bundle cost on the web side and a plain no-op on the API side, so a clone with nothing configured still boots and still just logs to the console. Plausible's analytics script loads from `main.tsx` rather than `index.html`, gated on `VITE_PLAUSIBLE_DOMAIN`, specifically so a link-preview crawler fetching the OG-tagged shell (Slice 15's follow-up) — which never runs JS — cannot inflate the visit count the way a static `<script>` embed would. Cookie-free, no consent banner needed.
+
+---
+
 ## Resolved open questions
 
 - ~~**Handle namespace**~~ → `RESERVED_HANDLES` in `services/handles.ts`, `RESERVED_SLUGS` in `services/slugs.ts`, and `namespace.test.ts` reading both route tables so the lists cannot drift from the routes again. The audit that closed this found three the hand-maintained list had missed — `health` and `assets` were live top-level routes anyone could have been assigned as a handle at signup, and `cook` was the one recipe sub-route absent from the slug list. Reserving is only free before someone holds the name, so the guard fails the build rather than trusting the next person to remember.
