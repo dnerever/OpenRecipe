@@ -10,6 +10,7 @@ import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.ts
 import { ProposeButton } from '../components/ProposeButton.tsx';
 import { ProposeForm } from '../components/ProposeForm.tsx';
 import { RecipeView } from '../components/RecipeView.tsx';
+import { ReportButton } from '../components/ReportButton.tsx';
 import { ScaleControl } from '../components/ScaleControl.tsx';
 import { ShoppingList } from '../components/ShoppingList.tsx';
 import { StarButton } from '../components/StarButton.tsx';
@@ -185,6 +186,7 @@ export function RecipePage() {
                 Forks{recipe.forkCount > 0 && ` (${recipe.forkCount})`}
               </Link>
               <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
+              {!recipe.canEdit && <ReportButton handle={handle} slug={slug} />}
               <a
                 className="button secondary"
                 href={rawUrl(handle, slug)}

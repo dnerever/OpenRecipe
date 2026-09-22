@@ -10,6 +10,9 @@ export type PublicUser = {
   email?: string;
 };
 
+/** `/api/me` only — the fields nobody else's profile carries. */
+export type CurrentUser = PublicUser & { isAdmin: boolean };
+
 export type Health = {
   status: string;
   database: 'up' | 'down';
@@ -137,7 +140,7 @@ export const fetchPublicIndex = (cursor?: IndexCursor | null) => {
   }
   return request<IndexPage>(`/api/recipes?${params.toString()}`);
 };
-export const fetchMe = () => request<{ user: PublicUser | null }>('/api/me');
+export const fetchMe = () => request<{ user: CurrentUser | null }>('/api/me');
 
 export const fetchRecipe = (handle: string, slug: string) =>
   request<RecipeResponse>(`/api/recipes/${handle}/${slug}`);
@@ -561,4 +564,35 @@ export const unshareList = (handle: string, slug: string, target: string) =>
   request<{ collaborators: ListCollaborator[] }>(
     `/api/lists/${handle}/${slug}/collaborators/${target}`,
     { method: 'DELETE' },
+  );
+
+/* -------------------------------------------------------------- reports -- */
+
+export const reportRecipe = (handle: string, slug: string, reason: string) =>
+  request<{ id: string }>(`/api/recipes/${handle}/${slug}/reports`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+
+export type ReportStatus = 'open' | 'resolved';
+
+export type AdminReport = {
+  id: string;
+  reason: string;
+  status: ReportStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+  recipe: { handle: string; slug: string; title: string; visibility: Visibility };
+  reporter: { handle: string };
+};
+
+export type ResolveAction = 'dismiss' | 'make_private' | 'remove_recipe';
+
+export const fetchAdminReports = (status: ReportStatus = 'open') =>
+  request<{ reports: AdminReport[] }>(`/api/admin/reports?status=${status}`);
+
+export const resolveReport = (id: string, action: ResolveAction) =>
+  request<{ id: string; status: ReportStatus; action: ResolveAction }>(
+    `/api/admin/reports/${id}/resolve`,
+    { method: 'POST', body: JSON.stringify({ action }) },
   );

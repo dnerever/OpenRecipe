@@ -1,7 +1,8 @@
-import { betterAuth } from 'better-auth';
+import { APIError, betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db, schema } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
+import { AccountHasForkedRecipesError, deleteAccount } from './services/account-deletion.ts';
 import { claimUniqueHandle } from './services/handles.ts';
 import { sendPasswordResetEmail } from './services/mailer.ts';
 
@@ -54,6 +55,31 @@ export const auth = betterAuth({
     additionalFields: {
       handle: { type: 'string', required: false, input: true },
       bio: { type: 'string', required: false, input: false },
+    },
+
+    deleteUser: {
+      enabled: true,
+      // No `sendDeleteAccountVerification`: deletion happens immediately once
+      // the request itself is authorized (password, or a fresh-enough
+      // session — better-auth's own rule, see `sensitiveSessionMiddleware`).
+      // A confirmation email would make this depend on the mail transport for
+      // a destructive action nobody is locked out of by skipping it.
+      beforeDelete: async (user) => {
+        try {
+          const handle = (user as { handle?: unknown }).handle;
+          if (typeof handle !== 'string') throw new Error('user record has no handle');
+          await deleteAccount(db, { id: user.id, handle });
+        } catch (err) {
+          if (err instanceof AccountHasForkedRecipesError) {
+            throw APIError.from('BAD_REQUEST', {
+              code: 'account_has_forked_recipes',
+              message:
+                'Some of your recipes have been forked by other people, and deleting your account would break their history. Make them private or get in touch instead.',
+            });
+          }
+          throw err;
+        }
+      },
     },
   },
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchMe, type PublicUser } from './api.ts';
+import { fetchMe, type CurrentUser } from './api.ts';
 
 export const SESSION_KEY = ['me'] as const;
 
@@ -11,7 +11,7 @@ export const SESSION_KEY = ['me'] as const;
  * you may never use. And it leaves one cache holding session state instead of
  * two running in parallel, so "who am I" invalidates like every other query.
  */
-export function useCurrentUser(): { user: PublicUser | null; isPending: boolean } {
+export function useCurrentUser(): { user: CurrentUser | null; isPending: boolean } {
   const { data, isPending } = useQuery({
     queryKey: SESSION_KEY,
     queryFn: fetchMe,

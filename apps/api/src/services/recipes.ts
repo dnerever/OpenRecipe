@@ -239,6 +239,29 @@ export async function setVisibility(
   const { recipe } = await loadRecipe(db, ownerHandle, slug, viewer);
   assertCanWrite(recipe, viewer);
 
+  const updated = await setVisibilityRow(db, recipe, visibility);
+  return { ...updated, owner: recipe.owner };
+}
+
+/**
+ * Moderator override: makes a reported recipe private without touching
+ * ownership or history — the same "escape hatch" `deleteRecipe`'s own doc
+ * comment names for an owner whose recipe has been forked, reached here by id
+ * instead of by owner. Unlike `adminDeleteRecipe`, this never refuses: a fork
+ * has nothing to lose by its source (or by itself) going private.
+ */
+export async function adminSetVisibility(db: Db, recipeId: string, visibility: Visibility) {
+  const [recipe] = await db.select().from(recipes).where(eq(recipes.id, recipeId)).limit(1);
+  if (!recipe) throw new NotFoundError();
+
+  return setVisibilityRow(db, recipe, visibility);
+}
+
+async function setVisibilityRow(
+  db: Db,
+  recipe: Pick<Recipe, 'id' | 'visibility' | 'forkParentRecipeId'>,
+  visibility: Visibility,
+): Promise<Recipe> {
   return db.transaction(async (tx) => {
     const [updated] = await tx
       .update(recipes)
@@ -264,7 +287,7 @@ export async function setVisibility(
         .where(eq(recipes.id, recipe.forkParentRecipeId));
     }
 
-    return { ...updated, owner: recipe.owner };
+    return updated;
   });
 }
 
@@ -776,7 +799,7 @@ export class RecipeHasDescendantsError extends Error {
  * taken from, which is the whole mechanism forking runs on, so this is true for
  * any recipe anyone has ever forked.
  */
-async function hasDescendants(db: Db, recipeId: string): Promise<boolean> {
+export async function hasDescendants(db: Db, recipeId: string): Promise<boolean> {
   const [row] = await db
     .select({ id: versions.id })
     .from(versions)
@@ -810,6 +833,29 @@ export async function deleteRecipe(db: Db, ownerHandle: string, slug: string, vi
 
   if (await hasDescendants(db, recipe.id)) throw new RecipeHasDescendantsError();
 
+  return deleteRecipeRow(db, recipe);
+}
+
+/**
+ * Moderator override: removes a recipe a report was upheld against, by id
+ * rather than by owner — the only difference from `deleteRecipe`. The
+ * fork-descendants guard still applies unchanged: "a recipe with descendants
+ * never goes" is a rule about the database's own referential integrity
+ * (`versions.parent_version_id`'s `restrict`, load-bearing across recipes —
+ * see the `versions` table comment), not a courtesy an admin can waive. A
+ * forked recipe that draws a report gets `adminSetVisibility`'s escape hatch
+ * instead: private, same as it would be for an owner in the same spot.
+ */
+export async function adminDeleteRecipe(db: Db, recipeId: string) {
+  const [recipe] = await db.select().from(recipes).where(eq(recipes.id, recipeId)).limit(1);
+  if (!recipe) throw new NotFoundError();
+
+  if (await hasDescendants(db, recipe.id)) throw new RecipeHasDescendantsError();
+
+  return deleteRecipeRow(db, recipe);
+}
+
+async function deleteRecipeRow(db: Db, recipe: Pick<Recipe, 'id' | 'slug'>) {
   // Read the keys while the rows that name them still exist.
   const keys = await mediaKeysForRecipe(db, recipe.id);
 
