@@ -4,6 +4,7 @@ import { findTimers, splitOnTimers } from './timers.ts';
 
 const durations = (text: string) => findTimers(text).map((t) => t.seconds);
 const phrases = (text: string) => findTimers(text).map((t) => t.text);
+const labels = (text: string) => findTimers(text).map((t) => t.label);
 
 describe('findTimers', () => {
   it('reads the durations cooks actually write', () => {
@@ -50,6 +51,38 @@ describe('findTimers', () => {
 
   it('ignores a range that runs backwards', () => {
     assert.deepEqual(durations('25-20 minutes'), [25 * 60]);
+  });
+
+  it('names a timer after the job it belongs to', () => {
+    assert.deepEqual(labels('Bake for 20–25 minutes until golden.'), ['Bake']);
+    assert.deepEqual(labels('Let the dough rest at room temperature for 1 hour.'), [
+      'Let the dough rest',
+    ]);
+    assert.deepEqual(labels('Blanch 30 seconds.'), ['Blanch']);
+  });
+
+  it('takes the clause nearest the duration, not the top of the sentence', () => {
+    assert.deepEqual(labels('Preheat the oven to 220 C and bake for 12 minutes.'), ['Bake']);
+    assert.deepEqual(labels('Rest 1 hour, then bake 20 minutes.'), ['Rest', 'Bake']);
+  });
+
+  it('falls back to the top of the sentence when the nearest clause is filler', () => {
+    assert.deepEqual(labels('Simmer until reduced, about 20 minutes.'), ['Simmer until reduced']);
+    assert.deepEqual(labels('Rest, covered, for 1 hour.'), ['Rest']);
+    assert.deepEqual(labels('Cook the onions gently, stirring often, for 10 minutes.'), [
+      'Cook the onions gently',
+    ]);
+  });
+
+  it('never ends a name on the word that led into the number', () => {
+    // Both before the four-word cut ("for") and after it ("by hand").
+    assert.deepEqual(labels('Knead the dough by hand for at least 10 minutes.'), [
+      'Knead the dough',
+    ]);
+  });
+
+  it('leaves a duration with nothing in front of it unnamed', () => {
+    assert.deepEqual(labels('20 minutes before serving, remove the pan.'), [undefined]);
   });
 
   it('reports offsets that address the original text', () => {

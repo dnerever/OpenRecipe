@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type RunningTimer = {
   id: number;
+  /** What it is for — "Bake the bread", read out of the step that started it. */
   label: string;
+  /** Where it came from: the step number and the duration as the author wrote it. */
+  detail?: string;
   /** Seconds the timer was started with — the denominator of the progress bar. */
   total: number;
   endsAt: number;
@@ -47,11 +50,18 @@ export function useTimers() {
     }
   }, [timers]);
 
-  const start = useCallback((seconds: number, label: string) => {
+  const start = useCallback((seconds: number, label: string, detail?: string) => {
     const id = nextId.current++;
     setTimers((current) => [
       ...current,
-      { id, label, total: seconds, endsAt: Date.now() + seconds * 1000, remaining: seconds },
+      {
+        id,
+        label,
+        ...(detail === undefined ? {} : { detail }),
+        total: seconds,
+        endsAt: Date.now() + seconds * 1000,
+        remaining: seconds,
+      },
     ]);
   }, []);
 

@@ -19,6 +19,12 @@ export type StepTimer = {
   seconds: number;
   /** The far end, when the author gave a range. */
   maxSeconds?: number;
+  /**
+   * What the timer is *for*, read out of the sentence around it — "Bake the
+   * bread" rather than "20–25 minutes". Absent when the prose does not say:
+   * a duration that opens a sentence has nothing in front of it to name it.
+   */
+  label?: string;
 };
 
 const PATTERN =
@@ -57,7 +63,7 @@ export function findTimers(text: string): StepTimer[] {
     });
   }
 
-  return merge(found, text);
+  return merge(found, text).map((timer) => name(timer, text));
 }
 
 /**
@@ -92,6 +98,118 @@ function merge(timers: StepTimer[], text: string): StepTimer[] {
   }
 
   return merged;
+}
+
+/**
+ * A timer in the tray outlives the step that started it — that is the point of
+ * it — so "20–25 minutes" is the one thing it must not be called: two of those
+ * running at once are indistinguishable, and neither says what is in the oven.
+ *
+ * The name is read out of the prose in front of the duration, which is where
+ * cooks already put it: "Bake the bread for 20–25 minutes" names itself. No
+ * grammar, just the clause the duration sits at the end of, with the words that
+ * only ever lead into a number ("for", "about", "at least") taken off.
+ */
+
+/** Words that introduce a duration rather than describe what it is for. */
+const RUN_IN = new Set([
+  'a',
+  'about',
+  'additional',
+  'after',
+  'an',
+  'another',
+  'approximately',
+  'around',
+  'at',
+  'by',
+  'every',
+  'extra',
+  'for',
+  'further',
+  'in',
+  'least',
+  'more',
+  'of',
+  'on',
+  'over',
+  'roughly',
+  'the',
+  'till',
+  'to',
+  'until',
+  'up',
+  'within',
+]);
+
+/** Words that join a clause to the one before it and name nothing themselves. */
+const JOINERS = new Set([
+  'also',
+  'an',
+  'and',
+  'but',
+  'meanwhile',
+  'next',
+  'now',
+  'once',
+  'or',
+  'so',
+  'the',
+  'then',
+  'a',
+]);
+
+/** Four words is a label; a whole sentence in the tray is the prose again. */
+const MAX_WORDS = 4;
+const MAX_CHARS = 34;
+
+function name(timer: StepTimer, text: string): StepTimer {
+  const sentence = text.slice(sentenceStart(text, timer.start), timer.start);
+  // "Preheat the oven and bake for 12 minutes" is two jobs and the timer
+  // belongs to the second, so the clause nearest the duration wins.
+  const clauses = sentence.split(/[,;:]|\s+(?:and|then)\s+/i);
+  const label =
+    trim(clauses[clauses.length - 1] ?? '') ??
+    // "Simmer until reduced, about 20 minutes" leaves nothing but "about" in
+    // the last clause; what the timer is for is back at the top of the
+    // sentence, which is also where it is in "Rest, covered, for 1 hour".
+    trim(clauses[0] ?? '');
+
+  return label === undefined ? timer : { ...timer, label };
+}
+
+function sentenceStart(text: string, before: number): number {
+  const breaks = /[.!?\n]/g;
+  let start = 0;
+  for (const match of text.slice(0, before).matchAll(breaks)) {
+    start = (match.index ?? 0) + 1;
+  }
+  return start;
+}
+
+function trim(clause: string): string | undefined {
+  const words = clause.split(/\s+/).filter(Boolean);
+
+  while (words.length > 0 && JOINERS.has(strip(words[0] ?? ''))) words.shift();
+  while (words.length > 0 && RUN_IN.has(strip(words[words.length - 1] ?? ''))) words.pop();
+  if (words.length === 0) return undefined;
+
+  const kept: string[] = [];
+  for (const word of words.slice(0, MAX_WORDS)) {
+    if (kept.length > 0 && [...kept, word].join(' ').length > MAX_CHARS) break;
+    kept.push(word);
+  }
+  // Cutting "Knead the dough by hand" at four words leaves it hanging on "by",
+  // so the tail comes off again after the cut as well as before it.
+  while (kept.length > 1 && RUN_IN.has(strip(kept[kept.length - 1] ?? ''))) kept.pop();
+
+  const label = kept.join(' ');
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** Bare enough to look up: "oven," and "oven" are the same word. */
+function strip(word: string): string {
+  return word.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
 }
 
 /**
