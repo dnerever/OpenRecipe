@@ -11,6 +11,7 @@ import { db, sql as rawSql } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { withViewer, type AppEnv } from './middleware/session.ts';
 import { renderShellWithRecipeMeta } from './og.ts';
+import { renderSitemap } from './sitemap.ts';
 import { listRoutes } from './routes/lists.ts';
 import { mediaRoutes } from './routes/media.ts';
 import { meRoutes } from './routes/me.ts';
@@ -105,6 +106,16 @@ export function createApp() {
 
   /** Unprefixed, for load balancers and container health checks. */
   app.get('/health', (c) => c.json({ status: 'ok' }));
+
+  app.get('/sitemap.xml', async (c) => {
+    const xml = await renderSitemap(db);
+    return c.body(xml, 200, { 'Content-Type': 'application/xml; charset=utf-8' });
+  });
+
+  /** A static file cannot know APP_URL, and the sitemap directive needs an absolute one. */
+  app.get('/robots.txt', (c) =>
+    c.text(`User-agent: *\nAllow: /\n\nSitemap: ${env.APP_URL}/sitemap.xml\n`),
+  );
 
   if (env.SERVE_STATIC_DIR) mountSpa(app, env.SERVE_STATIC_DIR);
 

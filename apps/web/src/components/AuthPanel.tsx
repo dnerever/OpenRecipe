@@ -145,13 +145,6 @@ export function AuthPanel({ health }: { health: Health | null }) {
             </button>
           )}
         </div>
-
-        {health && !health.auth.github && (
-          <p className="hint">
-            GitHub sign-in is off — set <code>GITHUB_CLIENT_ID</code> and{' '}
-            <code>GITHUB_CLIENT_SECRET</code> to enable it.
-          </p>
-        )}
       </form>
     </section>
   );
