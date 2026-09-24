@@ -38,6 +38,14 @@ function RootLayout() {
           OpenRecipe
         </Link>
         <TopSearch />
+        <Link
+          to="/search"
+          search={{ q: '', tag: [] }}
+          className="mobile-search-link"
+          aria-label="Search recipes"
+        >
+          🔍
+        </Link>
         <span className="spacer" />
         <ThemeToggle />
         {handle ? (
