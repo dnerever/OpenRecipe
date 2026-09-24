@@ -55,6 +55,12 @@ export function RecipePage() {
   /**
    * `replace`, because scaling is a way of looking at one page rather than a
    * series of pages: twelve taps on ×2 must not become twelve back-presses.
+   *
+   * `resetScroll: false` for the same reason. The reader is usually halfway
+   * down the ingredients when they reach for ×2 or Metric, and the router's
+   * default — treat every navigation as arriving at a new page, and start at
+   * the top — would throw them back to the title on every tap. Nothing about
+   * the page changed except the numbers in front of them.
    */
   const setOptions = (next: CookOptions) =>
     void navigate({
@@ -62,6 +68,7 @@ export function RecipePage() {
       params: { handle, slug },
       search: searchFromOptions(next, native),
       replace: true,
+      resetScroll: false,
     });
 
   const closeMenu = () => setMenuOpen(false);

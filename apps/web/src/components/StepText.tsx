@@ -11,7 +11,8 @@ export function StepText({
   onStartTimer,
 }: {
   text: string;
-  onStartTimer: (seconds: number, label: string) => void;
+  /** The name read out of the sentence, and the phrase the duration came from. */
+  onStartTimer: (seconds: number, label: string, phrase: string) => void;
 }) {
   const segments = useMemo(() => splitOnTimers(text), [text]);
 
@@ -20,13 +21,17 @@ export function StepText({
       {segments.map((segment, index) => {
         const timer = segment.timer;
         if (!timer) return <span key={index}>{segment.text}</span>;
+        const phrase = segment.text.trim();
+        // A sentence that never says what the duration is for leaves the timer
+        // named after itself, which is what it was called before anyway.
+        const label = timer.label ?? phrase;
         return (
           <button
             key={index}
             type="button"
             className="timer-chip"
-            title={`Start a ${segment.text} timer`}
-            onClick={() => onStartTimer(timer.seconds, segment.text.trim())}
+            title={`Start a ${phrase} timer${timer.label ? ` — ${timer.label}` : ''}`}
+            onClick={() => onStartTimer(timer.seconds, label, phrase)}
           >
             {segment.text}
           </button>

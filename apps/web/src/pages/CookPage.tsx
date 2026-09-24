@@ -165,7 +165,15 @@ export function CookPage() {
                 Step {index + 1} of {total}
               </p>
               <p className="cook-text">
-                <StepText text={step.text} onStartTimer={start} />
+                {/* The step number comes from here rather than from the step:
+                    a timer outlives the step that started it, and "Step 4" is
+                    how you find your way back to what it was for. */}
+                <StepText
+                  text={step.text}
+                  onStartTimer={(seconds, label, phrase) =>
+                    start(seconds, label, `Step ${index + 1} · ${phrase}`)
+                  }
+                />
               </p>
             </>
           ) : (

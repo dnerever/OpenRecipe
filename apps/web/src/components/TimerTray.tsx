@@ -18,7 +18,14 @@ export function TimerTray({
         return (
           <li key={timer.id} className={done ? 'done' : ''}>
             <span className="timer-clock">{formatClock(timer.remaining)}</span>
-            <span className="timer-label">{done ? `${timer.label} — done` : timer.label}</span>
+            {/* The name carries the line: two timers running at once are told
+                apart by what they are for, not by how long they had left. The
+                step and the author's phrase follow it, and are the first thing
+                to be dropped when the line runs out of room. */}
+            <span className="timer-label">
+              <strong>{done ? `${timer.label} — done` : timer.label}</strong>
+              {timer.detail && <span className="timer-detail"> · {timer.detail}</span>}
+            </span>
             <span
               className="timer-bar"
               style={{ width: `${100 - (timer.remaining / timer.total) * 100}%` }}

@@ -1546,10 +1546,17 @@ button.star.on {
   flex: 1;
   min-width: 0;
   font-size: 0.9rem;
-  color: var(--ink-2);
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* The step and the duration are how you place a timer you have lost track of,
+   not how you read it at a glance — quieter than the name, and the half of the
+   line a narrow phone gives up first. */
+.timer-tray .timer-detail {
+  color: var(--ink-2);
+  font-weight: 400;
 }
 .timer-tray .timer-bar {
   position: absolute;
@@ -1564,7 +1571,8 @@ button.star.on {
   color: var(--paper);
   animation: timer-flash 1s steps(1) 3;
 }
-.timer-tray li.done .timer-label {
+.timer-tray li.done .timer-label,
+.timer-tray li.done .timer-detail {
   color: var(--paper);
 }
 .timer-tray li.done .secondary {
