@@ -492,6 +492,13 @@ a.button.secondary {
    */
   main:has(.recipe-page) {
     max-width: 78rem;
+    /* Four rems of air above the title is a desktop luxury the recipe cannot
+       afford twice: the header already costs a third of the window before an
+       ingredient appears. */
+    padding-top: 2rem;
+  }
+  .recipe-page .recipe-head {
+    margin-bottom: 1rem;
   }
 
   /*
@@ -501,12 +508,16 @@ a.button.secondary {
    * exactly as it was. `display: contents` dissolves `.cols` so its two
    * sections land in this grid instead of in one cell of it.
    *
-   * The rows are named rather than counted because the photo and the meta
+   * The photo comes last of the three. It is the one thing on the page the
+   * reader has already decided about — they opened this recipe — and at the
+   * head of the rail it spent the top of the window pushing the ingredients
+   * under the fold. Below them it costs nothing: the rail is a column, and a
+   * column has room after its list.
+   *
+   * The areas are named rather than counted because the photo and the meta
    * strip are both optional: an area with nothing in it collapses to nothing,
-   * where a nth-child rule would shift by one and put the ingredients where
-   * the photo should be. `1fr` on the ingredients row is what gives the method
-   * column its full height to spill into — and the ingredients a tall enough
-   * grid area to be sticky inside.
+   * where an nth-child rule would shift by one and put the ingredients where
+   * the meta strip should be.
    */
   .recipe {
     display: grid;
@@ -520,11 +531,18 @@ a.button.secondary {
      */
     grid-template-columns: minmax(22rem, 36rem) minmax(0, 72ch);
     grid-template-areas:
-      'photo  method'
       'meta   method'
       'ing    method'
+      'photo  method'
       'tags   tags'
       'source source';
+    /*
+     * The slack sits in the photo's row — the one place where a gap costs
+     * nothing. A row-spanning item hands its extra height to the `auto` rows
+     * it crosses, so with three of them the method's length would be shared
+     * out between the meta strip, the ingredients and the photo, prising
+     * apart three things that belong against each other.
+     */
     grid-template-rows: auto auto 1fr auto auto;
     column-gap: 3.5rem;
     /* Nothing: every child already carries the margin it wants below it. */
@@ -558,28 +576,21 @@ a.button.secondary {
   }
 
   /*
-   * Ingredients stay while the method scrolls past them. This is the one thing
-   * a cook does over and over — read a step, look up an amount — and on a
-   * screen this tall it costs nothing to leave the answer on it.
-   *
-   * `max-height` and the scroll of its own are the escape hatch for a recipe
-   * with forty ingredients or an open shopping list: a rail taller than the
-   * window cannot stick, and would scroll its own bottom out of reach.
-   */
-  .recipe #ingredients {
-    position: sticky;
-    top: 1.5rem;
-    align-self: start;
-    max-height: calc(100vh - 3rem);
-    overflow-y: auto;
-    scrollbar-gutter: stable;
-  }
-
-  /*
    * Type goes up a notch. A desk is further from the eye than a phone, and
    * the 16px that is right in the hand is small at arm's length across a
    * room — which is where this page is read once the cooking starts.
    */
+  /*
+   * `.equip-head` asks for 1.5rem of space above it and has never got any:
+   * `.cols h3` sets all four margins and outruns it on specificity, so the
+   * heading sits on the last ingredient's rule. It shows here, where the
+   * ingredients are the length of the rail. Fixed at this width only — the
+   * same line is wrong on a phone, but a phone is not what this change is
+   * allowed to touch.
+   */
+  .recipe .equip-head {
+    margin-top: 1.5rem;
+  }
   .steps {
     font-size: 1.05rem;
   }
@@ -2072,7 +2083,9 @@ textarea:focus-visible {
   .recipe .hero {
     aspect-ratio: 4 / 3;
     max-height: 22rem;
-    margin-bottom: 1.25rem;
+    /* It sits at the foot of the rail now, under the ingredients rather than
+       over them, so the margin moves to the side the rail approaches from. */
+    margin: 1.5rem 0 0;
   }
 }
 
