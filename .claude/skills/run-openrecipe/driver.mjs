@@ -331,10 +331,55 @@ async function main() {
       fail(`Next did not advance to step 2 (saw ${step?.[0] ?? 'nothing'})`);
     ok(`stepped to ${step[0]}`);
 
-    await page.getByRole('button', { name: /Ingredients/i }).click();
-    await page.waitForTimeout(500);
+    /*
+     * The ingredients are one panel with two shapes, and the old assertion
+     * covered neither: it clicked the button, screenshotted whatever happened
+     * and declared the panel open. At this width the click now *collapses* a
+     * rail that was already open, and the line still said "opened" — so the
+     * geometry is what gets asserted here, not the clicking.
+     *
+     * Wide: a column beside the step, open on arrival, collapsed by the
+     * header button. Narrow: a sheet over the step, closed on arrival. The
+     * second half runs at a phone width on the same page, because keeping
+     * that behaviour intact is the whole constraint on the first half.
+     */
+    const rail = page.locator('.cook-sheet');
+    const boxes = async () => [
+      await rail.boundingBox(),
+      await page.locator('.cook-step').boundingBox(),
+    ];
+
+    if (!(await rail.isVisible())) fail('the ingredients rail should be open beside the step');
+    const [railBox, stepBox] = await boxes();
+    if (railBox.x < stepBox.x + stepBox.width - 1)
+      fail(
+        `the rail overlaps the step instead of sitting beside it (${railBox.x} < ${stepBox.x + stepBox.width})`,
+      );
     await shot('05-cook-ingredients');
-    ok('ingredients panel opened');
+
+    await page.getByRole('button', { name: /Ingredients/i }).click();
+    await page.waitForTimeout(400);
+    if (await rail.isVisible()) fail('the header button did not collapse the rail');
+    ok('wide: ingredients ride beside the step, and the header button collapses them');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.cook-text');
+    if (await rail.isVisible()) fail('the ingredients sheet should start closed on a phone');
+    await page.getByRole('button', { name: /Ingredients/i }).click();
+    await page.waitForTimeout(400);
+    if (!(await rail.isVisible())) fail('the ingredients sheet did not open on a phone');
+    const [sheetBox, coveredStep] = await boxes();
+    if (
+      sheetBox.x >= coveredStep.x + coveredStep.width ||
+      sheetBox.x + sheetBox.width <= coveredStep.x
+    )
+      fail('the sheet sits beside the step on a phone; it is meant to come up over it');
+    if (!(await page.locator('.cook-scrim').isVisible()))
+      fail('the phone sheet came up without a scrim to dismiss it');
+    await shot('06-cook-ingredients-phone');
+    ok('phone: ingredients still come up over the step, scrim and all');
+    await page.setViewportSize({ width: 1280, height: 900 });
 
     const raw = await page.request.get(`${WEB}/api/recipes/${target.handle}/${target.slug}/raw`);
     if (!raw.ok()) fail(`raw endpoint returned ${raw.status()}`);
