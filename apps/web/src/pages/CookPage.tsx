@@ -14,6 +14,7 @@ import {
 } from '../lib/cook-options.ts';
 import { useTimers } from '../lib/use-timers.ts';
 import { useWakeLock } from '../lib/use-wake-lock.ts';
+import { useWide } from '../lib/use-wide.ts';
 
 /**
  * Cook mode is one step at a time, at arm's length, on a screen that will not
@@ -36,7 +37,19 @@ export function CookPage() {
 
   const { timers, start, dismiss } = useTimers();
   const wakeLock = useWakeLock(true);
-  const [showIngredients, setShowIngredients] = useState(false);
+  /**
+   * On a phone the ingredients are a sheet you pull up over the step; on a
+   * desk they are a column beside it, open from the start. Same element, same
+   * button — what changes is whether it covers anything, and therefore whether
+   * it is modal: a docked rail must not eat Escape, must not take the focus,
+   * and must not stop the arrow keys from paging the step next to it.
+   */
+  const wide = useWide();
+  const [showIngredients, setShowIngredients] = useState(wide);
+  // Crossing the breakpoint changes what this control *is*, so it resets to
+  // that width's default rather than carrying a phone's closed sheet onto a
+  // desk as a missing rail.
+  useEffect(() => setShowIngredients(wide), [wide]);
   const [got, setGot] = useState<ReadonlySet<number>>(new Set());
   const trigger = useRef<HTMLButtonElement>(null);
   const done = useRef<HTMLButtonElement>(null);
@@ -49,10 +62,11 @@ export function CookPage() {
   };
 
   // Into the sheet on open, so the keyboard and the screen reader are looking
-  // at the thing that just covered half the screen.
+  // at the thing that just covered half the screen. The rail covers nothing,
+  // and taking the focus there would only move it away from the step.
   useEffect(() => {
-    if (showIngredients) done.current?.focus();
-  }, [showIngredients]);
+    if (showIngredients && !wide) done.current?.focus();
+  }, [showIngredients, wide]);
 
   /** One flat list: phases are a label on a step, not a level of navigation. */
   const steps = useMemo(
@@ -85,7 +99,7 @@ export function CookPage() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (event.key === 'Escape' && showIngredients) {
+      if (event.key === 'Escape' && showIngredients && !wide) {
         event.preventDefault();
         setShowIngredients(false);
         trigger.current?.focus();
@@ -96,7 +110,7 @@ export function CookPage() {
        * and paging the step underneath something the reader is consulting is
        * not what any of them mean here.
        */
-      if (showIngredients) return;
+      if (showIngredients && !wide) return;
       if (event.key === 'ArrowRight' || event.key === ' ') {
         event.preventDefault();
         go(index + 1);
@@ -108,7 +122,7 @@ export function CookPage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [go, index, showIngredients]);
+  }, [go, index, showIngredients, wide]);
 
   if (isPending) return <Loading />;
 
@@ -154,6 +168,10 @@ export function CookPage() {
         the panel used to push the step down and squeeze it, so the one thing
         you were holding in your head moved the moment you went looking for
         the other.
+
+        On a wide screen the same box is simply a row, and the sheet is a column
+        in it — nothing is over anything, so nothing has to be dismissed to read
+        the step again.
       */}
       <div className="cook-body">
         <main className="cook-step">
@@ -176,19 +194,29 @@ export function CookPage() {
         {showIngredients && (
           <>
             {/* Anywhere off the sheet closes it — the whole step is a dismiss
-                target, which is the only one a thumb can find without looking. */}
-            <button
-              type="button"
-              className="cook-scrim"
-              aria-label="Close the ingredients"
-              onClick={closeIngredients}
-            />
+                target, which is the only one a thumb can find without looking.
+                A docked rail is dismissed by the button that opened it, and a
+                click on the step it sits beside means nothing at all. */}
+            {!wide && (
+              <button
+                type="button"
+                className="cook-scrim"
+                aria-label="Close the ingredients"
+                onClick={closeIngredients}
+              />
+            )}
             <aside className="cook-sheet" aria-label="Ingredients">
               <div className="cook-sheet-head">
                 <h2>Ingredients</h2>
-                <button type="button" className="secondary" ref={done} onClick={closeIngredients}>
-                  Done
-                </button>
+                {/* The way out of a sheet has to be inside it, because the
+                    sheet is what you are looking at. The rail's is the header
+                    button beside it, still on screen and still the thing that
+                    opened it. */}
+                {!wide && (
+                  <button type="button" className="secondary" ref={done} onClick={closeIngredients}>
+                    Done
+                  </button>
+                )}
               </div>
               <ul className="checklist cook-ingredients">
                 {shown.ingredients.map((ing, i) => (

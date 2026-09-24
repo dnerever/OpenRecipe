@@ -67,7 +67,10 @@ export function RecipePage() {
   const closeMenu = () => setMenuOpen(false);
 
   return (
-    <article>
+    /* The class is the page's only say in its own width: `main` is capped at a
+       measure that suits prose, and the wide layout lifts that cap for this
+       route alone. */
+    <article className="recipe-page">
       <header className="recipe-head">
         <p className="crumb">
           <Link to="/$handle" params={{ handle: recipe.owner.handle }}>

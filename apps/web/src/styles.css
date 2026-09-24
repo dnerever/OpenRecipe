@@ -468,6 +468,126 @@ a.button.secondary {
   }
 }
 
+/* --- the wide layout (screens ≥ 64rem) ---
+ *
+ * A desk is not a phone held at arm's length, and until here the page was laid
+ * out as though it were: one 60rem column down the middle of a 120rem screen,
+ * opening with a photo the full width of that column and a third of its height.
+ * The reader had already chosen this recipe — they are looking at a picture of
+ * the thing they came to cook instead of the thing they came to cook.
+ *
+ * So the photo joins the rail rather than crowning the page. The left column
+ * carries what you *consult* — the photo, the times, the ingredients — and the
+ * right carries what you *work through*, starting level with the top of the
+ * photo instead of a screen below it. Both halves of the recipe are on screen
+ * at once, which is the whole argument for a wide screen.
+ *
+ * `screen and`, because a sheet of A4 is under 50rem wide and gets none of
+ * this — but a landscape print would otherwise qualify on width alone.
+ */
+@media screen and (min-width: 64rem) {
+  /*
+   * Only the recipe widens. Terms and Privacy are paragraphs, and a paragraph
+   * 1300px wide is one your eye loses the start of on the way back.
+   */
+  main:has(.recipe-page) {
+    max-width: 78rem;
+  }
+
+  /*
+   * The rail is built out of `.recipe`'s own children — the photo, the meta
+   * strip and the two sections — rather than a wrapper, so the document order
+   * a phone reads down (photo, meta, switcher, ingredients, method) is left
+   * exactly as it was. `display: contents` dissolves `.cols` so its two
+   * sections land in this grid instead of in one cell of it.
+   *
+   * The rows are named rather than counted because the photo and the meta
+   * strip are both optional: an area with nothing in it collapses to nothing,
+   * where a nth-child rule would shift by one and put the ingredients where
+   * the photo should be. `1fr` on the ingredients row is what gives the method
+   * column its full height to spill into — and the ingredients a tall enough
+   * grid area to be sticky inside.
+   */
+  .recipe {
+    display: grid;
+    /*
+     * The method is capped at a measure rather than given the rest of the
+     * row: past about seventy characters the eye stops finding the start of
+     * the next line, and a step you have to re-find your place in is a step
+     * you cook wrong. The slack goes to the rail instead, where width is
+     * worth something — a bigger photo, and ingredient lines that say
+     * "soy milk — unsweetened, unflavoured" on one line instead of two.
+     */
+    grid-template-columns: minmax(22rem, 36rem) minmax(0, 72ch);
+    grid-template-areas:
+      'photo  method'
+      'meta   method'
+      'ing    method'
+      'tags   tags'
+      'source source';
+    grid-template-rows: auto auto 1fr auto auto;
+    column-gap: 3.5rem;
+    /* Nothing: every child already carries the margin it wants below it. */
+    row-gap: 0;
+    align-items: start;
+  }
+  .cols {
+    display: contents;
+  }
+  .recipe > picture {
+    grid-area: photo;
+  }
+  .recipe > .meta {
+    grid-area: meta;
+  }
+  .recipe #ingredients {
+    grid-area: ing;
+  }
+  .recipe #method {
+    grid-area: method;
+  }
+  .recipe > .tags {
+    grid-area: tags;
+  }
+  .recipe > .source {
+    grid-area: source;
+  }
+
+  .meta {
+    gap: 1.25rem;
+  }
+
+  /*
+   * Ingredients stay while the method scrolls past them. This is the one thing
+   * a cook does over and over — read a step, look up an amount — and on a
+   * screen this tall it costs nothing to leave the answer on it.
+   *
+   * `max-height` and the scroll of its own are the escape hatch for a recipe
+   * with forty ingredients or an open shopping list: a rail taller than the
+   * window cannot stick, and would scroll its own bottom out of reach.
+   */
+  .recipe #ingredients {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  /*
+   * Type goes up a notch. A desk is further from the eye than a phone, and
+   * the 16px that is right in the hand is small at arm's length across a
+   * room — which is where this page is read once the cooking starts.
+   */
+  .steps {
+    font-size: 1.05rem;
+  }
+  .ingredients li {
+    font-size: 1rem;
+  }
+}
+
 /* --- section switcher (phones only) ---
  *
  * Stacked into one column, the ingredients and the method are a thousand
@@ -1603,6 +1723,68 @@ button.star.on {
   font-size: 0.75rem;
 }
 
+/* --- cook mode, wide ---
+ *
+ * The sheet becomes a column. Everything a cook needs is then on screen at
+ * once — the step, the amounts it refers to, the timers it started — and the
+ * one interaction this screen had left, opening and closing a panel to compare
+ * two things that were never going to fit on a phone together, disappears.
+ *
+ * It is the same element in the same place in the document: the page only has
+ * to stop it floating. What does not follow from CSS is in `CookPage` — a
+ * panel that covers nothing is not modal, so it takes neither the focus nor
+ * the Escape key nor the arrow keys away from the step beside it.
+ */
+@media screen and (min-width: 64rem) {
+  /*
+   * On the right, which is where the document already puts it and where the
+   * button that opens it already is: a panel that appears on the far side of
+   * the screen from its own control is one you look for twice. It leaves the
+   * step where a step should be, too — first, and on the side reading starts.
+   */
+  .cook-sheet {
+    position: static;
+    flex: 0 0 26rem;
+    max-height: none;
+    border-top: none;
+    border-left: 1px solid var(--rule);
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+  }
+  .cook-sheet-head {
+    padding: 0.8rem 1.25rem;
+  }
+  /*
+   * Read from wherever you happen to be standing, which is further away than a
+   * phone and not always the same distance twice. `clamp` grows the step with
+   * the window and stops before a line of it stops being a line.
+   */
+  /*
+   * Centred in what is left, down as well as across. A step is one or two
+   * sentences and the screen is a thousand pixels tall: pinned to the top it
+   * leaves the reader looking at the ceiling of the room, and the one thing
+   * they came back to the screen to read is furthest from where they glance.
+   *
+   * `safe` is what keeps a long step reachable — centring content taller than
+   * its box pushes the start of it off the top edge, where no scrollbar will
+   * bring it back. Where the keyword is not understood the declaration is
+   * dropped and the step sits at the top, which is where it sits today.
+   */
+  .cook-step {
+    display: grid;
+    align-content: safe center;
+    max-width: 46rem;
+    padding: 3rem 2.5rem;
+  }
+  .cook-text {
+    font-size: clamp(1.45rem, 2.1vw, 2.1rem);
+  }
+  .cook-ingredients {
+    font-size: 1.02rem;
+  }
+}
+
 /* --- print --- */
 .print-only {
   display: none;
@@ -1859,6 +2041,20 @@ textarea:focus-visible {
 @media print {
   .recipe .hero {
     max-height: 12rem;
+  }
+}
+
+/*
+ * In the rail (see the wide layout above) the photo is a fixed width and the
+ * upload is not, so it is given a ratio: a portrait shot would otherwise stand
+ * a foot tall and push the ingredients off the screen the layout just put them
+ * on. The height cap is what a landscape one is held to, for the same reason.
+ */
+@media screen and (min-width: 64rem) {
+  .recipe .hero {
+    aspect-ratio: 4 / 3;
+    max-height: 22rem;
+    margin-bottom: 1.25rem;
   }
 }
 

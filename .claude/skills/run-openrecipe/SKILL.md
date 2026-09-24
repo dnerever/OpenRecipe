@@ -62,6 +62,11 @@ node .claude/skills/run-openrecipe/driver.mjs
 Signs up a throwaway cook, publishes a recipe, then drives the SPA: home →
 recipe → click ×2 → click US → Cook → Next → Ingredients → `/raw`. Each step
 asserts; **exit code is 0 only if every assertion and a clean console pass**.
+
+The ingredients are checked at both widths, because they are one panel with two
+shapes: a rail beside the step from 64rem up, a sheet over it below. The run
+resizes to a phone for the second half and back again, so the geometry of each
+is asserted rather than assumed.
 Screenshots land in `.claude/skills/run-openrecipe/shots/`. Verified output:
 
 ```
@@ -74,7 +79,8 @@ Screenshots land in `.claude/skills/run-openrecipe/shots/`. Verified output:
   ok    units US: 1000 g bread flour -> 2¼ lb bread flour
   ok    cook mode inherited the view: ?scale=2&units=us
   ok    stepped to STEP 2 OF 3
-  ok    ingredients panel opened
+  ok    wide: ingredients ride beside the step, and the header button collapses them
+  ok    phone: ingredients still come up over the step, scrim and all
   ok    raw markdown endpoint serves the portable document
 no console or network errors.
 ```
