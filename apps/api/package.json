@@ -17,7 +17,8 @@
     "db:sweep-media": "node --env-file-if-exists=../../.env src/db/sweep-media.ts",
     "import:notion": "node --env-file-if-exists=../../.env src/import/import-notion.ts",
     "import:urls": "node --env-file-if-exists=../../.env src/import/import-urls.ts",
-    "build": "tsc -b"
+    "build": "tsc -b",
+    "db:seed": "node --env-file-if-exists=../../.env src/seed/seed-demo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

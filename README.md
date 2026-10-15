@@ -51,6 +51,7 @@ resolve through symlinks there. `npm run dev` keeps `tsc -b --watch` running so
 | `npm run db:generate`       | generate a migration from `apps/api/src/db/schema.ts` |
 | `npm run db:migrate`        | apply pending migrations                              |
 | `npm run db:studio`         | Drizzle Studio                                        |
+| `npm run db:seed`           | Demo cooks, recipes, forks and proposals — see below  |
 | `npm run import:notion`     | Load a Notion recipe export — see below               |
 | `npm run import:urls`       | Fetch the recipe pages the Notion import bookmarked   |
 | `npm run format`            | Prettier                                              |
@@ -60,6 +61,26 @@ user/password `openrecipe` / `openrecipe-dev-secret`). Image uploads need
 `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` (`S3_REGION` is
 optional, defaulting to `auto`); without them everything else works and uploads
 answer 503.
+
+## Demo data
+
+`npm run db:seed` fills a database with something to look at: two cooks, a dozen
+recipes from core's fixture corpus, a few versions of history, three forks, one
+merged proposal and one still open, a public list, and some stars.
+
+```bash
+npm run db:seed -- --owner alice --contributor bob --dry-run
+npm run db:seed -- --owner alice --contributor bob
+```
+
+Locally, handles that do not exist yet are created and can sign in with the
+password the script prints. Against any other database both accounts must
+already exist, and it refuses to write without `--yes`, the same as the
+importers below. Re-running is safe: anything already there is left alone.
+
+The scenario itself is data, in `apps/api/src/seed/scenario.ts`. A dry run
+replays it in memory first, every edit and every merge, so a fixture that
+drifts fails the dry run (and `scenario.test.ts`) instead of a real one.
 
 ## Importing from Notion
 
