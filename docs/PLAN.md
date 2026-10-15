@@ -112,18 +112,18 @@ Node 24.20 locally. Built-in test runner (`node --test`), native TS type-strippi
 | Layer | Choice |
 |---|---|
 | Runtime / PM | Node 24 + npm 11 workspaces |
-| API | Hono + `@hono/node-server` + `@hono/zod-openapi` |
+| API | Hono + `@hono/node-server`, request bodies validated with Zod |
 | DB | Postgres 17 via Docker Compose |
 | ORM | Drizzle + drizzle-kit migrations |
 | Auth | better-auth — email/password + GitHub OAuth, cookie sessions |
 | Web | Vite + React 19 + TypeScript |
 | Routing/data | TanStack Router + TanStack Query |
-| UI | Tailwind + shadcn/ui |
+| UI | One hand-written stylesheet — custom properties, light and dark themes, no CSS framework |
 | Editor | CodeMirror 6 — YAML frontmatter over Markdown, core's line-numbered validation, and a change gutter against the version you started from |
 | Objects | RustFS locally → R2 in prod |
 | Hosting | Render (one Docker service) + Neon Postgres |
-| Tests | `node --test` (core + api), Playwright (2–3 critical flows) |
-| CI | GitHub Actions: typecheck → lint → unit → api-integration |
+| Tests | `node --test` (core, api, web), Playwright (three browser flows) |
+| CI | GitHub Actions: format → lint → build/typecheck → migrate → unit + API integration → Playwright; Docker image build alongside |
 
 ---
 
@@ -351,10 +351,10 @@ GET    /recipes/:owner/:slug/raw                text/markdown — the archive pr
 
 ## 6. Testing
 
-- **`packages/core`** — the strictest tier. Round-trip property tests, a fixture corpus of real recipes, merge-engine table tests covering clean merge / conflict / criss-cross / fast-forward / no-op.
-- **`apps/api`** — HTTP integration tests against a throwaway Postgres (second Compose service), reset per suite. Cover authz explicitly: can a non-owner `PUT`? merge a proposal? (No.)
-- **`apps/web`** — Playwright on three flows only: sign up → create → view; fork → edit; propose → merge.
-- **CI gate:** typecheck, lint, core unit, api integration. Web e2e nightly.
+- **`packages/core`** — the strictest tier. A corpus of 20 real recipes, each required to parse and round-trip through the serializer byte for byte; merge-engine table tests covering clean merge / conflict / criss-cross / fast-forward / no-op.
+- **`apps/api`** — HTTP integration tests against a real Postgres and S3-compatible storage — the Compose services locally, service containers in CI. Each run signs up its own users and deletes exactly those rows afterwards (`test-support.ts`), so the suite is safe against a dev database; `test-guard.ts` refuses a non-local one. Cover authz explicitly: can a non-owner `PUT`? merge a proposal? (No.)
+- **`apps/web`** — `node --test` for the pure helpers in `src/lib`, and Playwright (`e2e/`) on three flows only: sign up → create → view; fork → edit; propose → merge. Playwright drives the production build, served the way the container serves it.
+- **CI gate:** format, lint (typescript-eslint, type-aware), typecheck, all three unit/integration suites, and the Playwright flows — on every push, since they take seconds.
 
 ## 7. Standing risks
 
