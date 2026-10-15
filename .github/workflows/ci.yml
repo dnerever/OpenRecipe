@@ -49,26 +49,25 @@ jobs:
 
       - run: npm ci
 
-      # Not a service container: those cannot override an image's command, and
-      # `minio/minio` does nothing without `server /data`. The app creates the
-      # bucket itself on first use, so there is nothing to provision here.
-      # From quay.io, MinIO's own registry: its Docker Hub repository was
-      # removed, and an anonymous pull of `minio/minio` is now refused.
+      # Same image and tag as docker-compose.yml. MinIO no longer publishes
+      # images anywhere an anonymous pull works, so this is RustFS, which
+      # speaks the same S3 API. The app creates the bucket itself on first
+      # use, so there is nothing to provision here.
       - name: Object storage
         run: |
-          docker run -d --name minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=openrecipe \
-            -e MINIO_ROOT_PASSWORD=openrecipe-dev-secret \
-            quay.io/minio/minio:latest server /data
+          docker run -d --name rustfs -p 9000:9000 \
+            -e RUSTFS_ACCESS_KEY=openrecipe \
+            -e RUSTFS_SECRET_KEY=openrecipe-dev-secret \
+            rustfs/rustfs:1.0.1
           for _ in $(seq 1 60); do
-            if curl -sf http://127.0.0.1:9000/minio/health/live > /dev/null; then
-              echo "minio ready"
+            if curl -sf http://127.0.0.1:9000/health > /dev/null; then
+              echo "object storage ready"
               exit 0
             fi
             sleep 1
           done
-          echo "minio never became ready" >&2
-          docker logs minio >&2
+          echo "object storage never became ready" >&2
+          docker logs rustfs >&2
           exit 1
 
       - name: Format check

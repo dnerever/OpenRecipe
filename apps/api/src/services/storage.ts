@@ -13,10 +13,10 @@ import { objectStore } from '../env.ts';
 /**
  * The bucket, behind four functions.
  *
- * MinIO locally and R2 in production speak the same protocol, so the only
+ * RustFS locally and R2 in production speak the same protocol, so the only
  * difference between them is five environment variables — which is the whole
  * reason object storage is worth an abstraction this thin. `forcePathStyle`
- * is what makes MinIO work and costs R2 nothing.
+ * is what makes RustFS work and costs R2 nothing.
  */
 
 export const storageConfigured = objectStore !== null;
@@ -47,7 +47,7 @@ function mustHaveStore(): { client: S3Client; bucket: string } {
 }
 
 /**
- * A fresh MinIO from docker-compose has no buckets, and a first-run failure
+ * A fresh RustFS from docker-compose has no buckets, and a first-run failure
  * that says "NoSuchBucket" is a bad welcome. Created once per process, then
  * remembered — this is a development convenience that costs one HEAD in
  * production, where the bucket already exists.

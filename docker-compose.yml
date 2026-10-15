@@ -18,27 +18,27 @@ services:
       timeout: 3s
       retries: 20
 
-  minio:
-    # MinIO's own registry. The Docker Hub repository was removed, so a fresh
-    # clone could no longer pull `minio/minio` — only machines that already
-    # had it cached kept working.
-    image: quay.io/minio/minio:latest
+  rustfs:
+    # MinIO stopped publishing images (Docker Hub and quay.io both refuse an
+    # anonymous pull now), so local object storage is RustFS: S3-compatible,
+    # Apache-2.0, on Docker Hub. Pinned, so a vendor change cannot break a
+    # fresh clone or CI without a commit here.
+    image: rustfs/rustfs:1.0.1
     restart: unless-stopped
-    command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: openrecipe
-      MINIO_ROOT_PASSWORD: openrecipe-dev-secret
+      RUSTFS_ACCESS_KEY: openrecipe
+      RUSTFS_SECRET_KEY: openrecipe-dev-secret
     ports:
       - '9000:9000'
       - '9001:9001'
     volumes:
-      - minio-data:/data
+      - rustfs-data:/data
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
+      test: ['CMD', 'curl', '-sf', 'http://127.0.0.1:9000/health']
       interval: 5s
       timeout: 3s
       retries: 20
 
 volumes:
   db-data:
-  minio-data:
+  rustfs-data:
