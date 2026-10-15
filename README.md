@@ -17,7 +17,7 @@ Requires **Node 24+** and **Docker**.
 git clone <this repo> && cd OpenRecipe
 cp .env.example .env
 npm install
-npm run db:up        # postgres + minio
+npm run db:up        # postgres + rustfs
 npm run db:migrate
 npm run dev          # core watcher + api :8787 + web :5173
 ```
@@ -47,7 +47,7 @@ resolve through symlinks there. `npm run dev` keeps `tsc -b --watch` running so
 | `npm run dev`               | core watcher + api + web, together                    |
 | `npm run build`             | typecheck and build everything                        |
 | `npm test`                  | `node --test` across core and api                     |
-| `npm run db:up` / `db:down` | Postgres + MinIO via Docker Compose                   |
+| `npm run db:up` / `db:down` | Postgres + RustFS via Docker Compose                  |
 | `npm run db:generate`       | generate a migration from `apps/api/src/db/schema.ts` |
 | `npm run db:migrate`        | apply pending migrations                              |
 | `npm run db:studio`         | Drizzle Studio                                        |
@@ -55,7 +55,7 @@ resolve through symlinks there. `npm run dev` keeps `tsc -b --watch` running so
 | `npm run import:urls`       | Fetch the recipe pages the Notion import bookmarked   |
 | `npm run format`            | Prettier                                              |
 
-Local services: Postgres on `:5432`, MinIO on `:9000` (console `:9001`,
+Local services: Postgres on `:5432`, RustFS on `:9000` (console `:9001`,
 user/password `openrecipe` / `openrecipe-dev-secret`). Image uploads need
 `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` (`S3_REGION` is
 optional, defaulting to `auto`); without them everything else works and uploads

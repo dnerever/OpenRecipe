@@ -34,7 +34,7 @@ npm install --prefix .claude/skills/run-openrecipe
 ```bash
 [ -f .env ] || cp .env.example .env       # DATABASE_URL etc. must exist
 npm install
-npm run db:up                            # postgres :5432 + minio :9000/:9001
+npm run db:up                            # postgres :5432 + rustfs :9000/:9001
 npm run db:migrate
 npm run build -w @openrecipe/core        # REQUIRED before the first `npm run dev` — see Gotchas
 setsid npm run dev > /tmp/openrecipe-dev.log 2>&1 &
@@ -189,7 +189,7 @@ against a non-local `DATABASE_URL`** unless `ALLOW_REMOTE_TEST_DB=1`.
   `GITHUB_CLIENT_SECRET` are set**; `/api/health` reports `auth.github: false`
   otherwise. Email+password always works.
 - **Image uploads need the five `S3_*` vars.** Without them uploads answer 503
-  and everything else is fine. MinIO from `npm run db:up` covers this locally.
+  and everything else is fine. RustFS from `npm run db:up` covers this locally.
 
 ## Troubleshooting
 

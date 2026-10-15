@@ -208,7 +208,7 @@ fresh read out of the bucket, because the app proxies images rather than handing
 out bucket URLs, so egress is the line item that would otherwise decide the
 bill.
 
-Locally, MinIO from `docker-compose.yml` speaks the same S3 API and the app
+Locally, RustFS from `docker-compose.yml` speaks the same S3 API and the app
 creates the bucket on first use. In production it does not: `ensureBucket()`
 tries `HeadBucket`, then `CreateBucket`, and swallows both failures, because a
 correctly scoped production token can do neither. Create the bucket yourself.
@@ -301,7 +301,7 @@ npm run db:sweep-media -- --older-than 5   # minutes to leave alone, default 60
 ```
 
 Point `DATABASE_URL` and the five `S3_*` variables at production to sweep R2 —
-MinIO and R2 speak the same protocol and this asks nothing of either beyond list
+RustFS and R2 speak the same protocol and this asks nothing of either beyond list
 and delete. **Run it dry there first.** It treats every unreferenced key under
 `recipes/` as an orphan, so a bucket shared with anything else would have that
 other thing reported as garbage. `--older-than` exists because an upload writes

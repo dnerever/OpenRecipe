@@ -21,7 +21,7 @@ import { deleteObjects, listObjects, storageConfigured } from '../services/stora
  *   npm run db:sweep-media -- --older-than 5  # minutes, default 60
  *
  * Point `DATABASE_URL` and the `S3_*` variables at production to sweep R2 —
- * MinIO and R2 speak the same protocol, and this asks nothing of either beyond
+ * RustFS and R2 speak the same protocol, and this asks nothing of either beyond
  * list and delete. Run it dry there first: a bucket shared with anything else
  * would see its other keys under `recipes/` listed as orphans.
  */
