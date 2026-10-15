@@ -73,14 +73,16 @@ jobs:
       - name: Format check
         run: npm run format:check
 
-      - name: Lint
-        run: npm run lint
-
       - name: Build (typechecks core + api)
         run: npm run build
 
       - name: Typecheck web
         run: npm run typecheck -w @openrecipe/web
+
+      # After the build: the apps import core's compiled `dist/`, and type-aware
+      # rules see every import from it as an error type until it exists.
+      - name: Lint
+        run: npm run lint
 
       - name: Migrate
         run: npm run db:migrate
