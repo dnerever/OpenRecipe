@@ -1,11 +1,79 @@
 # OpenRecipe
 
-Version control for recipes. Fork someone's country loaf, push the hydration to 78%,
-and propose the change back upstream.
+[![CI](https://github.com/dnerever/OpenRecipe/actions/workflows/ci.yml/badge.svg)](https://github.com/dnerever/OpenRecipe/actions/workflows/ci.yml)
+![Node 24](https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+[![License: source-available](https://img.shields.io/badge/license-source--available-lightgrey)](LICENSE)
 
-The architecture, data model and API surface live in **[docs/PLAN.md](docs/PLAN.md)**;
-the slice-by-slice build log is in **[docs/SLICES.md](docs/SLICES.md)**.
-Deployment is in **[docs/DEPLOY.md](docs/DEPLOY.md)** — one Docker service on Render, Postgres on Neon.
+Version control for recipes. Fork someone's country loaf, push the hydration up,
+and propose the change back — the owner sees a diff in baker's terms, and merges
+it with one click.
+
+**Live: [openrecipe.onrender.com](https://openrecipe.onrender.com)** · try
+[a recipe](https://openrecipe.onrender.com/openrecipe-dev/tartine-country-loaf),
+[an open proposal](https://openrecipe.onrender.com/openrecipe-dev/tartine-country-loaf/proposals/1),
+or [its history](https://openrecipe.onrender.com/openrecipe-dev/tartine-country-loaf/history).
+
+![A recipe page: ingredients with scaling and unit controls beside the method](docs/screenshots/recipe.png)
+
+| A proposal, merging cleanly                     | History, with any two versions compared       | Cook mode, one step at a time                            |
+| ----------------------------------------------- | --------------------------------------------- | -------------------------------------------------------- |
+| ![Proposal page](docs/screenshots/proposal.png) | ![History page](docs/screenshots/history.png) | ![Cook mode, dark theme](docs/screenshots/cook-mode.png) |
+
+## What it does
+
+- **Fork and propose.** Any public recipe can be forked into your own namespace,
+  changed, and proposed back. The owner merges it, or comments; conflicting
+  edits are resolved in the browser.
+- **History that reads like cooking.** Every save is a version. Diffs say
+  `water: 750 g → 780 g` and `Hydration 77.3% → 80%`, not just which lines moved.
+- **Recipes as documents.** Markdown with YAML frontmatter — the same text you
+  can download from `/raw` and keep. Ingredients are structured; the method is
+  prose.
+- **Built for the kitchen.** Scale by yield or by one ingredient, switch metric
+  and US units, and cook step by step with timers lifted from the text and the
+  screen kept awake.
+- **The rest of a real product.** Private recipes, shared lists with
+  collaborators, full-text search, stars, link previews, password reset,
+  reporting and moderation, and account deletion.
+
+## How it works
+
+```mermaid
+flowchart LR
+  SPA["apps/web<br/>React + TanStack Router"] -->|"/api"| API["apps/api<br/>Hono on Node"]
+  API --> PG[("Postgres<br/>Drizzle")]
+  API --> S3[("S3-compatible<br/>object storage")]
+  CORE["packages/core<br/>pure recipe logic"] -.-> SPA
+  CORE -.-> API
+```
+
+A few decisions that carry most of the weight — each is written up in
+[docs/PLAN.md](docs/PLAN.md), and the build log in
+[docs/SLICES.md](docs/SLICES.md) records what each slice forced:
+
+- **The merge engine is pure.** [`packages/core`](packages/core/src) — parse,
+  serialize, diff, three-way [merge](packages/core/src/merge.ts), merge-base
+  [ancestry](packages/core/src/ancestry.ts), scaling, unit conversion — imports
+  no database, network or filesystem, so it is tested exhaustively and shared
+  by the API and the browser.
+- **Versions are whole-document snapshots with parent pointers**, not a git
+  object store. A merge records a second parent, so every later merge base can
+  see through it.
+- **Authorization lives in one place.** Every read and write of a recipe passes
+  through [`services/authorization.ts`](apps/api/src/services/authorization.ts);
+  routes never decide. A private recipe answers **404, never 403** — a 403
+  would confirm it exists.
+- **One container, any host.** Hono serves the built SPA from the same origin as
+  the API: no CORS, no cross-site cookies. Migrations run before the server
+  binds, and the [`Dockerfile`](Dockerfile) is the only contract with the host.
+- **Tests against real infrastructure.** 700+ tests on Node's built-in runner.
+  CI runs the API suite against real Postgres and S3-compatible storage, and
+  [a guard](apps/api/src/test-guard.ts) refuses to run it against a non-local
+  database.
+
+**Stack:** TypeScript · Node 24 · Hono · Drizzle · Postgres · better-auth ·
+React 19 · Vite · TanStack Router & Query · CodeMirror 6 · Sentry
 
 ---
 
@@ -14,7 +82,7 @@ Deployment is in **[docs/DEPLOY.md](docs/DEPLOY.md)** — one Docker service on 
 Requires **Node 24+** and **Docker**.
 
 ```bash
-git clone <this repo> && cd OpenRecipe
+git clone https://github.com/dnerever/OpenRecipe.git && cd OpenRecipe
 cp .env.example .env
 npm install
 npm run db:up        # postgres + rustfs
@@ -34,6 +102,7 @@ are green, your stack is working.
 | `apps/web`       | Vite + React SPA.                                                                            |
 | `docs/PLAN.md`   | Architecture decisions, data model, API surface, and what's still open.                      |
 | `docs/SLICES.md` | The build log — what shipped, in what order, and why.                                        |
+| `docs/DEPLOY.md` | Deploying: one Docker service on Render, Postgres on Neon.                                   |
 
 `packages/core` compiles to `dist/` and both apps import the built output —
 Node's TypeScript type-stripping skips `node_modules`, and workspace packages
