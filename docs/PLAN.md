@@ -2,7 +2,7 @@
 
 > Version control for recipes. Fork someone's loaf, tweak the hydration, propose the change back.
 
-**Status: all 16 planned slices are shipped and merged to `main`.** Objectives 1–3 (public MVP, forking, proposals) are complete. Pre-launch hardening (§10) is underway — password reset, report/moderation/account-deletion, LICENSE/terms/privacy, and error monitoring & analytics are done; the Render Starter plan is the one thing left, held for last since it's a billing decision nothing else depends on. The build log — what shipped, in what order, and the decisions each slice forced — lives in [SLICES.md](SLICES.md); this document keeps only what's still load-bearing for future work: the architecture decisions, the data model and its authorization rules, the API surface, testing strategy, and what's genuinely still open.
+**Status: all 16 planned slices are shipped and merged to `main`.** Objectives 1–3 (public MVP, forking, proposals) are complete. Pre-launch hardening (§10) is complete — password reset, report/moderation/account-deletion, LICENSE/terms/privacy, and error monitoring & analytics. The build log — what shipped, in what order, and the decisions each slice forced — lives in [SLICES.md](SLICES.md); this document keeps only what's still load-bearing for future work: the architecture decisions, the data model and its authorization rules, the API surface, testing strategy, and what's genuinely still open.
 
 ---
 
@@ -121,7 +121,7 @@ Node 24.20 locally. Built-in test runner (`node --test`), native TS type-strippi
 | UI | Tailwind + shadcn/ui |
 | Editor | CodeMirror 6 — YAML frontmatter over Markdown, core's line-numbered validation, and a change gutter against the version you started from |
 | Objects | RustFS locally → R2 in prod |
-| Hosting | Render free (one Docker service) + Neon free Postgres — $0/mo |
+| Hosting | Render (one Docker service) + Neon Postgres |
 | Tests | `node --test` (core + api), Playwright (2–3 critical flows) |
 | CI | GitHub Actions: typecheck → lint → unit → api-integration |
 
@@ -375,8 +375,4 @@ None currently open. See SLICES.md's Resolved list for how past ones — includi
 
 ## 10. Roadmap — pre-launch hardening
 
-Everything through Slice 15 is the product. These five stand between that and letting strangers sign up unsupervised — account recovery, the legal minimum, a way for abuse to reach a human, a way to find out something broke before a user has to tell you, and not making their first visit wait on a cold start. Slices 16–19 (password reset, LICENSE/terms/privacy, report/moderation/account-deletion, error monitoring & analytics) are shipped; their build history moved to [SLICES.md](SLICES.md) once done, the same as everything through Slice 15 — this document keeps only what's still open, which is just the one slice below.
-
-### Slice 20 — Render Starter plan
-Pure config, no code: flip `plan: free` → `plan: starter` in `render.yaml:7` once the rest of this roadmap is live and it's time to post publicly. The free tier's cold start — the instance spins down after 15 minutes idle and a shared link can be the thing that wakes it, 30-50 seconds of nothing before the recipe appears — is the one part of "free" a stranger arriving from a link actually feels. Held for last on purpose: it's a $7/month billing decision, not engineering work, and nothing else here depends on it.
-**Done when:** a cold link no longer reads as broken.
+Everything through Slice 15 is the product. Slices 16–19 — password reset, LICENSE/terms/privacy, report/moderation/account-deletion, error monitoring & analytics — were what stood between that and letting strangers sign up unsupervised. All are shipped, and their build history is in [SLICES.md](SLICES.md) alongside everything before them. Nothing on this roadmap is open.
