@@ -8,5 +8,12 @@ dist/
 apps/web/dist/
 coverage/
 
+# Third-party agent skills, installed locally with the skills CLI, and the
+# worktrees agents work in.
+.claude/skills/neon/
+.claude/skills/neon-postgres/
+skills-lock.json
+.claude/worktrees/
+
 # Personal recipe exports and the bookmark list the Notion importer writes.
 import-data/
