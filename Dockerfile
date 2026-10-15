@@ -5,7 +5,7 @@
 # than a rewrite. Nothing in here knows which host it is on.
 
 # ---------- build ----------
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 
 # Manifests first, so a dependency-free code change reuses the install layer.
@@ -40,7 +40,7 @@ RUN npm run build -w @openrecipe/core \
 RUN cp -r apps/api/src/db/migrations apps/api/dist/db/migrations
 
 # ---------- runtime ----------
-FROM node:24-alpine AS runtime
+FROM node:25-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
