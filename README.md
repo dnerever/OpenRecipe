@@ -5,7 +5,7 @@ and propose the change back upstream.
 
 The architecture, data model and API surface live in **[docs/PLAN.md](docs/PLAN.md)**;
 the slice-by-slice build log is in **[docs/SLICES.md](docs/SLICES.md)**.
-Deployment is in **[docs/DEPLOY.md](docs/DEPLOY.md)** — Render free + Neon free, $0/month.
+Deployment is in **[docs/DEPLOY.md](docs/DEPLOY.md)** — one Docker service on Render, Postgres on Neon.
 
 ---
 

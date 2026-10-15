@@ -1,17 +1,17 @@
 # Deploying OpenRecipe
 
-**Target cost: $0/month.** Budget for the first three months was $20; this plan
-spends none of it, and the upgrade path costs $5–7/month if and when you want it.
+One Docker service on Render, Postgres on Neon, and nothing in the application
+that knows which host it is on.
 
 ---
 
 ## What runs where
 
-| Piece | Where | Cost |
-|---|---|---|
-| Node service (API **and** the SPA) | Render, free plan | $0 |
-| Postgres | Neon, free plan | $0 |
-| TLS, subdomain | included | $0 |
+| Piece | Where |
+|---|---|
+| Node service (API **and** the SPA) | Render |
+| Postgres | Neon |
+| TLS, subdomain | included with Render |
 
 **One service, not two.** In production Hono serves the built SPA from the same
 origin as the API. That means no CORS, no cross-site cookies, no second deploy
@@ -72,7 +72,7 @@ rather than the last.
 
 1. Sign up at [render.com](https://render.com) with GitHub.
 2. **New → Web Service**, connect this repository.
-3. Render reads `render.yaml`. Confirm: runtime **Docker**, plan **Free**,
+3. Render reads `render.yaml`. Confirm: runtime **Docker**,
    health check path **`/health`**, and **region Ohio (US East)**.
 
    > **Render defaults to Oregon.** Leaving it there puts the app on the west
@@ -127,7 +127,7 @@ git push origin main
 
 That is the whole deploy. `render.yaml` sets `autoDeploy: true`, so Render
 watches the repo, builds the image **itself** from the `Dockerfile`, runs the
-migrations, and swaps the service over. Three to five minutes on the free plan.
+migrations, and swaps the service over. A release takes a few minutes.
 
 Watch it on the service page under **Events** and **Logs**.
 
@@ -162,24 +162,11 @@ a migration that has already run stays run. Write migrations so the previous
 release can still function against the new schema, which for everything so far
 has been free: every migration to date has only added tables and columns.
 
-## Living with the free plan
+## An idle database
 
-**Cold starts.** Render's free plan sleeps the service after 15 minutes of
-inactivity. The next visitor waits 30–50 seconds. Everyone after that is normal.
-This is the entire cost of paying nothing.
-
-**Neon suspends too**, after ~5 minutes idle, but wakes in under a second — the
+**Neon suspends** after ~5 minutes idle, and wakes in under a second — the
 connection pool is configured with a 30s connect timeout and a short idle
 timeout so a suspended database is a pause, not an error.
-
-**Free instance hours**: 750/month per workspace, which is roughly one service
-running continuously. One service is all this uses.
-
-## Upgrading when cold starts annoy you
-
-- **Render Starter, $7/month** — a dropdown in the dashboard. No code change, no
-  downtime, same URL.
-- **Railway Hobby, $5/month** — see *Moving hosts*.
 
 ## Moving hosts
 

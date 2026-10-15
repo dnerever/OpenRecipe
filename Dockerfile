@@ -49,8 +49,8 @@ ENV NODE_ENV=production
 # `--omit=optional` is doing real work here, not belt-and-braces: better-auth
 # declares drizzle-kit as an *optional peer*, and npm installs optional peers
 # regardless of --omit=dev. That drags in drizzle-kit, esbuild and tsx — 42 MB
-# of migration tooling this container never runs, and on a free tier that is
-# image pull time on every cold start.
+# of migration tooling this container never runs, and every megabyte of it is
+# image pull time on every deploy.
 COPY package.json package-lock.json ./
 COPY packages/core/package.json packages/core/
 COPY apps/api/package.json apps/api/

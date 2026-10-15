@@ -4,7 +4,6 @@ services:
   - type: web
     name: openrecipe
     runtime: docker
-    plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     autoDeploy: true

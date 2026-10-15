@@ -62,13 +62,13 @@ Route-level code splitting, done once `/` became the public front door and every
 *Deliberately narrow `manualChunks`.* A blanket `node_modules → vendor` rule would have dragged yaml, zod and the auth client back into the initial load and silently undone the route splitting.
 
 ### Slice 5 — Deploy · ~1 day
-**Render free + Neon free = $0/month.** Runbook: [DEPLOY.md](DEPLOY.md).
+**Render + Neon.** Runbook: [DEPLOY.md](DEPLOY.md).
 
 The original plan here — Fly for the API, Cloudflare Pages for the SPA, a purchased domain — was wrong on both cost and complexity. Fly's free tier no longer exists for new organizations, and splitting the SPA from the API across two hosts buys a CDN at the price of CORS, cross-site cookies and a domain purchase to share one.
 
 **Instead, Hono serves the built SPA from the same origin as the API.** One service, one origin, one deploy target, no CORS anywhere in production. Static assets come off a Node process rather than a CDN, which at this traffic is worth nothing against the complexity it removes.
 
-Four rules keep the host swappable, because the free plan's cold starts will eventually annoy someone:
+Four rules keep the host swappable, because no hosting choice is permanent:
 1. **Postgres is Neon, not Render's** — data never moves when compute does
 2. **A Dockerfile is the contract** — any host that runs a container runs this
 3. **Config is plain env vars** — no platform secret APIs
@@ -77,7 +77,7 @@ Four rules keep the host swappable, because the free plan's cold starts will eve
 **Done when:** MVP-1 is live and every later slice deploys on merge.
 *Shipped:* SPA served by Hono with correct cache headers, a 310 MB image verified end to end locally (12 checks), migrations on release, Docker build in CI, and production env guards that refuse to boot on a misconfigured `APP_URL`.
 
-**Two things this slice caught.** `index.html` was being served by the static middleware before the no-cache handler ran — a deploy would have left browsers holding a shell pointing at chunks that no longer existed. And better-auth declares `drizzle-kit` as an *optional peer*, which npm installs regardless of `--omit=dev`; 42 MB of migration tooling was riding along in the runtime image, which on a free tier is pull time on every cold start.
+**Two things this slice caught.** `index.html` was being served by the static middleware before the no-cache handler ran — a deploy would have left browsers holding a shell pointing at chunks that no longer existed. And better-auth declares `drizzle-kit` as an *optional peer*, which npm installs regardless of `--omit=dev`; 42 MB of migration tooling was riding along in the runtime image, pulled on every deploy.
 *Pulled this far forward deliberately — continuous deployment from here is far cheaper than a big-bang launch later.*
 
 ### Slice 6 — Edit, history, diff, revert · ~2 days
@@ -250,7 +250,7 @@ Light / Dark / Auto, as three segments rather than a cycling button — a cycle 
 
 ## Pre-launch hardening
 
-Everything above is the product — all 16 planned slices, shipped and merged. These four are what stood between that and letting strangers sign up unsupervised: account recovery, the legal minimum, a way for abuse to reach a human, and a way to find out something broke before a user has to tell you. See PLAN.md §10 for what's still open (just the Render Starter plan, a billing decision rather than engineering work).
+Everything above is the product — all 16 planned slices, shipped and merged. These four are what stood between that and letting strangers sign up unsupervised: account recovery, the legal minimum, a way for abuse to reach a human, and a way to find out something broke before a user has to tell you. With them shipped, pre-launch hardening is complete.
 
 ### Slice 16 — Password reset
 better-auth ships `forgetPassword`/`resetPassword` for free once a `sendEmail` function exists — this was mostly plumbing, not a new auth system.
@@ -284,4 +284,4 @@ Two separate licenses, deliberately decoupled — and a third layer besides, sin
 - ~~**Anonymous suggestions**~~ → deferred; proposals require an account.
 - ~~**Private recipes**~~ → shipped in Slice 3, binary `visibility` field. See PLAN.md §5.1.
 - ~~**Runtime**~~ → Node 24 + npm workspaces.
-- ~~**Licensing**~~ → three decisions, kept deliberately separate: the code is proprietary (no public license, an explicit `LICENSE` file rather than silence, since the repo is public); public recipe content defaults to CC BY-SA 4.0 platform-wide, with no per-recipe picker, because a picker has no correct answer for what license a proposal merge carries when source and target differ; and the Terms separately grant every user the right to fork/edit/propose-changes-back within the app regardless of either license, the same way GitHub's ToS lets anyone fork a public repo without that being a statement about the code's license. See PLAN.md §10, Slice 17.
+- ~~**Licensing**~~ → three decisions, kept deliberately separate: the code is proprietary (no public license, an explicit `LICENSE` file rather than silence, since the repo is public); public recipe content defaults to CC BY-SA 4.0 platform-wide, with no per-recipe picker, because a picker has no correct answer for what license a proposal merge carries when source and target differ; and the Terms separately grant every user the right to fork/edit/propose-changes-back within the app regardless of either license, the same way GitHub's ToS lets anyone fork a public repo without that being a statement about the code's license. See Slice 17 above.
