@@ -124,14 +124,14 @@ export const forks: SeedFork[] = [
   {
     of: 'tartine-country-loaf',
     change: {
-      message: 'Push hydration to 78%',
+      message: 'Push hydration to 80%',
       edits: [
         { find: '{ qty: 750, unit: g, item: water,', replace: '{ qty: 780, unit: g, item: water,' },
         { find: 'with 700g of the water', replace: 'with 730g of the water' },
       ],
     },
     proposal: {
-      title: 'Push the hydration to 78%',
+      title: 'Push the hydration to 80%',
       body:
         'Thirty grams more water, all of it in the autolyse. The crumb opens up noticeably ' +
         'and it still holds its shape out of the banneton, as long as the shaping is tight.',
@@ -142,7 +142,7 @@ export const forks: SeedFork[] = [
         },
         {
           role: 'contributor',
-          body: 'One thing: it bulks a little faster at 78%, so start checking it half an hour early.',
+          body: 'One thing: it bulks a little faster at 80%, so start checking it half an hour early.',
         },
       ],
       merge: false,
