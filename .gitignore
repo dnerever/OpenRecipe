@@ -7,6 +7,8 @@ dist/
 .DS_Store
 apps/web/dist/
 coverage/
+test-results/
+playwright-report/
 
 # Third-party agent skills, installed locally with the skills CLI, and the
 # worktrees agents work in.

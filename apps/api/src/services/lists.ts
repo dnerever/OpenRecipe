@@ -514,7 +514,7 @@ export async function listsForOwner(db: Db, handle: string, viewer: Viewer) {
         viewer.id,
         rows.map((r) => r.list.id),
       )
-    : new Map();
+    : new Map<string, ListRole>();
 
   return {
     owner: publicUser(owner),
@@ -536,11 +536,7 @@ export async function listsForOwner(db: Db, handle: string, viewer: Viewer) {
  * in it, which is what makes the add-to-list picker one request instead of one
  * per list.
  */
-export async function listsForViewer(
-  db: Db,
-  actor: User,
-  ref?: { handle: string; slug: string } | undefined,
-) {
+export async function listsForViewer(db: Db, actor: User, ref?: { handle: string; slug: string }) {
   const viewer: Viewer = { id: actor.id };
   const shared = await sharedListIds(db, actor.id);
 

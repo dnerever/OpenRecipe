@@ -209,7 +209,7 @@ export function RecipeView({
           {times.map(([label, minutes]) => (
             <li key={label}>
               <span>{label}</span>
-              {humanizeDuration(minutes as number)}
+              {humanizeDuration(minutes)}
             </li>
           ))}
         </ul>

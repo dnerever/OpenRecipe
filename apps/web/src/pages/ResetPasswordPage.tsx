@@ -60,7 +60,7 @@ export function ResetPasswordPage() {
   return (
     <section className="narrow">
       <h1>Reset your password</h1>
-      <form onSubmit={submit} className="panel">
+      <form onSubmit={(event) => void submit(event)} className="panel">
         <label>
           New password <span className="hint">at least 10 characters</span>
           <input

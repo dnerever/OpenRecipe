@@ -79,11 +79,33 @@ jobs:
       - name: Typecheck web
         run: npm run typecheck -w @openrecipe/web
 
+      # After the build: the apps import core's compiled `dist/`, and type-aware
+      # rules see every import from it as an error type until it exists.
+      - name: Lint
+        run: npm run lint
+
       - name: Migrate
         run: npm run db:migrate
 
       - name: Test
         run: npm test
+
+      # The three browser flows, against the build above served the way the
+      # container serves it. A few seconds of browser time; cheap enough to run
+      # on every push rather than nightly.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
 
   # The Dockerfile is the portability contract — if it stops building, moving
   # hosts stops being a 20-minute job. Cheaper to catch here than at deploy.

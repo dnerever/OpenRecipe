@@ -60,10 +60,10 @@ export function findRecipeNode(html: string): Node | null {
     while (stack.length > 0) {
       const node = stack.pop();
       if (Array.isArray(node)) {
-        stack.push(...node);
+        stack.push(...(node as unknown[]));
       } else if (isNode(node)) {
         const graph = node['@graph'];
-        if (graph) stack.push(...(Array.isArray(graph) ? graph : [graph]));
+        if (graph) stack.push(...(Array.isArray(graph) ? (graph as unknown[]) : [graph]));
         if (typesOf(node).includes('recipe')) found.push(node);
         // Index whole nodes by id so a bare `{"@id": …}` pointer can be
         // followed later. A pointer is a node with nothing but the id, and it
@@ -407,7 +407,7 @@ export function tagsFrom(node: Node): string[] {
 
 function authorFrom(node: Node): string | undefined {
   const author = node['author'];
-  const first = Array.isArray(author) ? author[0] : author;
+  const first: unknown = Array.isArray(author) ? author[0] : author;
   if (typeof first === 'string') return plainText(first) || undefined;
   if (isNode(first) && typeof first['name'] === 'string')
     return plainText(first['name']) || undefined;

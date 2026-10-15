@@ -1,7 +1,7 @@
 import { stringify } from 'yaml';
 import { normalizeBody } from './body.ts';
 import { formatDuration } from './duration.ts';
-import type { Frontmatter, Ingredient, RecipeDoc } from './types.ts';
+import type { Ingredient, RecipeDoc } from './types.ts';
 
 /**
  * Canonical serialization. One document always produces exactly one string, so

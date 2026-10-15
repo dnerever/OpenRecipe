@@ -358,7 +358,7 @@ export async function listProposals(
   db: Db,
   targetRecipeId: string,
   viewer: Viewer,
-  state?: ProposalState | undefined,
+  state?: ProposalState,
 ) {
   const rows = await db
     .select({ proposal: proposals, author: userColumns })

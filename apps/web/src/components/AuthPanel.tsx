@@ -72,7 +72,7 @@ export function AuthPanel({ health }: { health: Health | null }) {
         ))}
       </div>
 
-      <form onSubmit={submit}>
+      <form onSubmit={(event) => void submit(event)}>
         {mode === 'sign-up' && (
           <>
             <label>
@@ -140,7 +140,7 @@ export function AuthPanel({ health }: { health: Health | null }) {
           </button>
 
           {health?.auth.github && (
-            <button type="button" onClick={() => signIn.social({ provider: 'github' })}>
+            <button type="button" onClick={() => void signIn.social({ provider: 'github' })}>
               Continue with GitHub
             </button>
           )}
@@ -204,7 +204,7 @@ function ForgotPasswordForm({
   return (
     <section className="panel">
       <h2>Reset your password</h2>
-      <form onSubmit={submit}>
+      <form onSubmit={(event) => void submit(event)}>
         <label>
           Email
           <input

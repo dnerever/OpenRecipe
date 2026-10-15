@@ -98,10 +98,7 @@ export function EditRecipePage() {
       {proposing ? (
         <p className="lede">
           This is your own copy of{' '}
-          <Link
-            to="/$handle/$slug"
-            params={{ handle: targetHandle as string, slug: targetSlug as string }}
-          >
+          <Link to="/$handle/$slug" params={{ handle: targetHandle, slug: targetSlug }}>
             @{targetHandle}/{targetSlug}
           </Link>
           . Change whatever you like here — saving offers it back to the author, who decides whether

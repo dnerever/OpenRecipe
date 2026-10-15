@@ -115,7 +115,9 @@ resolve through symlinks there. `npm run dev` keeps `tsc -b --watch` running so
 | --------------------------- | ----------------------------------------------------- |
 | `npm run dev`               | core watcher + api + web, together                    |
 | `npm run build`             | typecheck and build everything                        |
-| `npm test`                  | `node --test` across core and api                     |
+| `npm test`                  | `node --test` across core, api and web                |
+| `npm run test:e2e`          | Playwright flows against the built app — see below    |
+| `npm run lint`              | ESLint, type-aware                                    |
 | `npm run db:up` / `db:down` | Postgres + RustFS via Docker Compose                  |
 | `npm run db:generate`       | generate a migration from `apps/api/src/db/schema.ts` |
 | `npm run db:migrate`        | apply pending migrations                              |
@@ -130,6 +132,18 @@ user/password `openrecipe` / `openrecipe-dev-secret`). Image uploads need
 `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` (`S3_REGION` is
 optional, defaulting to `auto`); without them everything else works and uploads
 answer 503.
+
+## End-to-end tests
+
+`npm run test:e2e` drives the three flows `docs/PLAN.md` §6 names in a real
+browser, against the production build served the way the container serves it.
+Build and migrate first; on a machine with Chrome but no Playwright browsers,
+point it at Chrome:
+
+```bash
+npm run build && npm run db:migrate
+PLAYWRIGHT_CHANNEL=chrome npm run test:e2e
+```
 
 ## Demo data
 
