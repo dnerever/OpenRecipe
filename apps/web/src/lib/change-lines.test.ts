@@ -29,7 +29,7 @@ describe('the editor change gutter', () => {
     // Two lines added up top, then a change at what used to be line 4.
     const doc = ['one', 'two', 'alpha', 'bravo', 'charlie', 'DELTA', 'echo'].join('\n');
     const { edited } = changedLineNumbers(BASE, doc);
-    assert.ok(edited.has(6), `expected the changed line at 6, got ${[...edited]}`);
+    assert.ok(edited.has(6), `expected the changed line at 6, got ${[...edited].join(', ')}`);
     assert.ok(!edited.has(4), 'must not mark the line at the pre-insert position');
   });
 

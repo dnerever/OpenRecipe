@@ -10,7 +10,7 @@ const DELIMITER = /^(?:---|\.\.\.)\s*$/;
 
 /** Parse without throwing. Prefer this in request handlers and editors. */
 export function safeParseRecipe(text: string): ParseResult {
-  const source = text.replace(/\r\n?/g, '\n').replace(/^﻿/, '');
+  const source = text.replace(/\r\n?/g, '\n').replace(/^\uFEFF/, '');
   const lines = source.split('\n');
 
   if (lines[0]?.trim() !== '---') {

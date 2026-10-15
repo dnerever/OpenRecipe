@@ -146,7 +146,7 @@ Step.
     const text = '---\nschema: 1\ntitle: [unclosed\n---\n\nStep.\n';
     const [issue] = issuesOf(text);
     assert.ok(issue!.position, 'YAML errors must carry a position');
-    assert.ok(issue!.position!.line >= 1);
+    assert.ok(issue!.position.line >= 1);
   });
 
   it('collects every issue rather than stopping at the first', () => {

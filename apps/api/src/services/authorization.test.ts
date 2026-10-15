@@ -65,7 +65,7 @@ describe('assertCanRead', () => {
     }
     assert.ok(missing instanceof NotFoundError);
     assert.ok(hidden instanceof NotFoundError);
-    assert.equal((missing as NotFoundError).message, (hidden as NotFoundError).message);
+    assert.equal(missing.message, hidden.message);
   });
 });
 

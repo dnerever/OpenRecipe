@@ -61,7 +61,7 @@ export function SettingsPage() {
           — deleting your account cannot take their copy's history with it — but stays attributed to
           your handle.
         </p>
-        <form onSubmit={submit}>
+        <form onSubmit={(event) => void submit(event)}>
           <label>
             Password <span className="hint">leave blank if you signed in with GitHub only</span>
             <input

@@ -23,7 +23,7 @@ import {
   setVisibility,
   updateRecipe,
 } from '../services/recipes.ts';
-import { listTags, searchRecipes, type SearchSort } from '../services/search.ts';
+import { listTags, searchRecipes } from '../services/search.ts';
 import { profileUser, publicUser } from '../services/users.ts';
 import { listStarredBy, star, unstar } from '../services/stars.ts';
 import { validateSlug } from '../services/slugs.ts';
@@ -117,7 +117,7 @@ export const recipeRoutes = new Hono<AppEnv>()
       await searchRecipes(db, {
         q: q || undefined,
         tags: tags?.map((t) => t.trim().toLowerCase()).filter(Boolean),
-        sort: sort as SearchSort | undefined,
+        sort,
         limit,
         offset,
       }),
