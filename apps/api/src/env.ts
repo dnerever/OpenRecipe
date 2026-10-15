@@ -59,7 +59,7 @@ const EnvSchema = z
     GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
 
     /**
-     * Object storage: MinIO from docker-compose locally, R2 or S3 in
+     * Object storage: RustFS from docker-compose locally, R2 or S3 in
      * production. All five are optional together — a clone with no storage
      * configured runs fine and simply refuses image uploads, which is better
      * than refusing to boot over a feature most pages never touch.

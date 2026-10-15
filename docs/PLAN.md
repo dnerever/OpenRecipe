@@ -120,7 +120,7 @@ Node 24.20 locally. Built-in test runner (`node --test`), native TS type-strippi
 | Routing/data | TanStack Router + TanStack Query |
 | UI | Tailwind + shadcn/ui |
 | Editor | CodeMirror 6 — YAML frontmatter over Markdown, core's line-numbered validation, and a change gutter against the version you started from |
-| Objects | MinIO locally → R2 in prod |
+| Objects | RustFS locally → R2 in prod |
 | Hosting | Render free (one Docker service) + Neon free Postgres — $0/mo |
 | Tests | `node --test` (core + api), Playwright (2–3 critical flows) |
 | CI | GitHub Actions: typecheck → lint → unit → api-integration |
@@ -163,7 +163,7 @@ OpenRecipe/
 ├── docs/
 │   ├── PLAN.md                     # this file — standing architecture, what's open
 │   └── SLICES.md                   # build log — what shipped and why
-├── docker-compose.yml              # postgres + minio
+├── docker-compose.yml              # postgres + rustfs
 ├── tsconfig.base.json              # project references live here
 └── package.json                    # npm workspaces
 ```
