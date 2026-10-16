@@ -21,19 +21,19 @@
     "db:seed": "node --env-file-if-exists=../../.env src/seed/seed-demo.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1127.0",
+    "@aws-sdk/client-s3": "^3.1149.0",
     "@hono/node-server": "^1.13.8",
     "@openrecipe/core": "*",
     "@sentry/node": "^10.75.1",
-    "better-auth": "^1.7.2",
-    "drizzle-orm": "^0.45.2",
-    "hono": "^4.6.20",
+    "better-auth": "^1.7.7",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
     "postgres": "^3.4.5",
-    "resend": "^6.28.1",
-    "sharp": "^0.35.4",
-    "zod": "^4.3.6"
+    "resend": "^6.32.1",
+    "sharp": "^0.35.5",
+    "zod": "^4.6.6"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.11"
   }
 }
