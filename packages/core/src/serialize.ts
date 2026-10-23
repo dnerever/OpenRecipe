@@ -88,7 +88,7 @@ function flow(value: unknown): string {
     ...EMIT,
     collectionStyle: 'flow',
     // Maps read better padded, sequences read better tight — matching the
-    // format spec in docs/PLAN.md §3.
+    // format spec in docs/ARCHITECTURE.md §3.
     flowCollectionPadding: !Array.isArray(value),
   }).trimEnd();
 }

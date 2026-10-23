@@ -21,7 +21,7 @@ const tsvector = customType<{ data: string; driverData: string }>({
 
 /**
  * Binary visibility, per ADR-005. `private` means owner-only — enforced in the
- * service layer, never per-route. See docs/PLAN.md §5.1 for the seven cases
+ * service layer, never per-route. See docs/ARCHITECTURE.md §5.1 for the seven cases
  * that actually leak.
  */
 export const recipeVisibility = pgEnum('recipe_visibility', ['public', 'private']);
@@ -30,7 +30,7 @@ export const recipeVisibility = pgEnum('recipe_visibility', ['public', 'private'
 export const proposalState = pgEnum('proposal_state', ['open', 'merged', 'closed']);
 
 /**
- * Shaped to match what better-auth expects (Slice 2) so wiring auth in later is
+ * Shaped to match what better-auth expects so wiring auth in later is
  * additive — it brings its own session/account/verification tables and adopts
  * this one. `handle` and `bio` are our additions.
  */
@@ -156,7 +156,7 @@ export const recipes = pgTable(
     }),
 
     /**
-     * **Public** forks only, per docs/PLAN.md §5.1 rule 7 — a private fork must
+     * **Public** forks only, per docs/ARCHITECTURE.md §5.1 rule 7 — a private fork must
      * not announce its own existence by bumping a number on a page strangers
      * can read. Maintained on fork and on every visibility flip, so listings
      * can show it without a second query.
@@ -259,7 +259,7 @@ export const versions = pgTable(
     parentVersionId: uuid('parent_version_id').references((): AnyPgColumn => versions.id, {
       onDelete: 'restrict',
     }),
-    // Second parent. Set only by proposal merges (Slice 8).
+    // Second parent. Set only by proposal merges.
     mergeParentVersionId: uuid('merge_parent_version_id').references(
       (): AnyPgColumn => versions.id,
       {

@@ -4,9 +4,8 @@ import { Link } from '@tanstack/react-router';
  * Describes what the app actually does today, not a boilerplate policy —
  * each paragraph maps to a real table or service (better-auth's users/
  * sessions/accounts, the media pipeline's EXIF stripping, Resend for reset
- * emails). Update this alongside Slice 19 once error monitoring and
- * analytics land; until then there's nothing here to disclose beyond what's
- * already true.
+ * emails). Keep this in step with whatever error monitoring and
+ * analytics are actually configured.
  */
 export function PrivacyPage() {
   return (

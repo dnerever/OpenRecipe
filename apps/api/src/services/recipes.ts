@@ -531,7 +531,7 @@ export async function revertRecipe(
  * Version ids are globally addressable and ancestry crosses recipe boundaries
  * after a fork, so the recipe id must be part of the lookup — otherwise a
  * readable recipe's URL becomes a way to read a private ancestor's content.
- * See docs/PLAN.md §5.1 rule 1.
+ * See docs/ARCHITECTURE.md §5.1 rule 1.
  */
 export async function loadVersion(db: Db, recipeId: string, versionId: string) {
   const [version] = await db
@@ -615,7 +615,7 @@ export function serializeVersion(version: {
 /**
  * A fork is a new recipe whose root version's parent belongs to a *different*
  * recipe. That one crossing edge is the entire feature: ancestry reads in both
- * directions from it, and Slice 8's merge base is a walk up the same pointers.
+ * directions from it, and the merge base is a walk up the same pointers.
  *
  * Visibility is inherited rather than chosen (§5.1 rule 5). Forking a private
  * recipe is only possible for its owner — that falls out of `loadRecipe`

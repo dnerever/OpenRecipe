@@ -1,6 +1,6 @@
 /**
- * The platform-wide default for public recipe content — see docs/PLAN.md
- * §10, Slice 17. Deliberately one constant rather than a per-recipe choice:
+ * The platform-wide default for public recipe content — see
+ * docs/ARCHITECTURE.md §8. Deliberately one constant rather than a per-recipe choice:
  * a proposal merging a CC-BY-NC recipe into a CC0 one has no correct answer
  * for what license the merge carries, so there is nothing to pick from.
  *

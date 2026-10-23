@@ -49,8 +49,7 @@ flowchart LR
 ```
 
 A few decisions that carry most of the weight — each is written up in
-[docs/PLAN.md](docs/PLAN.md), and the build log in
-[docs/SLICES.md](docs/SLICES.md) records what each slice forced:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md):
 
 - **The merge engine is pure.** [`packages/core`](packages/core/src) — parse,
   serialize, diff, three-way [merge](packages/core/src/merge.ts), merge-base
@@ -95,14 +94,13 @@ are green, your stack is working.
 
 ## Layout
 
-| Path             | What                                                                                         |
-| ---------------- | -------------------------------------------------------------------------------------------- |
-| `packages/core`  | **Pure** recipe-document logic: parse, serialize, hash, diff, merge, scale, convert. No I/O. |
-| `apps/api`       | Hono API on Node, Drizzle + Postgres.                                                        |
-| `apps/web`       | Vite + React SPA.                                                                            |
-| `docs/PLAN.md`   | Architecture decisions, data model, API surface, and what's still open.                      |
-| `docs/SLICES.md` | The build log — what shipped, in what order, and why.                                        |
-| `docs/DEPLOY.md` | Deploying: one Docker service on Render, Postgres on Neon.                                   |
+| Path                   | What                                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `packages/core`        | **Pure** recipe-document logic: parse, serialize, hash, diff, merge, scale, convert. No I/O. |
+| `apps/api`             | Hono API on Node, Drizzle + Postgres.                                                        |
+| `apps/web`             | Vite + React SPA.                                                                            |
+| `docs/ARCHITECTURE.md` | Architecture decisions, data model, authorization rules and API surface.                     |
+| `docs/DEPLOY.md`       | Deploying: one Docker service on Render, Postgres on Neon.                                   |
 
 `packages/core` compiles to `dist/` and both apps import the built output —
 Node's TypeScript type-stripping skips `node_modules`, and workspace packages
@@ -135,7 +133,7 @@ answer 503.
 
 ## End-to-end tests
 
-`npm run test:e2e` drives the three flows `docs/PLAN.md` §6 names in a real
+`npm run test:e2e` drives the three flows `docs/ARCHITECTURE.md` §6 names in a real
 browser, against the production build served the way the container serves it.
 Build and migrate first; on a machine with Chrome but no Playwright browsers,
 point it at Chrome:
@@ -268,7 +266,7 @@ could become a route.
   The merge engine's testability depends on it.
 - **Relative imports carry `.ts` extensions.** Node runs the TypeScript directly;
   `tsc` rewrites the extension on emit.
-- **Authorization lives in services, not routes** — see `docs/PLAN.md` §5.1.
+- **Authorization lives in services, not routes** — see `docs/ARCHITECTURE.md` §5.1.
   `canRead` / `canWrite` live in `apps/api/src/services/authorization.ts`; a
   route that could return a recipe without passing through them is a bug.
 - **Everything the browser calls is under `/api`, and the dev proxy forwards

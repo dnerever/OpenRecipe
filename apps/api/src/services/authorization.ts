@@ -2,7 +2,7 @@ import { eq, or, type SQL } from 'drizzle-orm';
 import { recipes, type Recipe } from '../db/schema.ts';
 
 /**
- * The whole visibility model, in two functions. See docs/PLAN.md §5.1.
+ * The whole visibility model, in two functions. See docs/ARCHITECTURE.md §5.1.
  *
  * These live in the service layer on purpose: a route that forgets to check is
  * the failure mode we are designing against, so nothing that can return a

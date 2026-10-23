@@ -1,8 +1,8 @@
-# OpenRecipe — Development Plan
+# OpenRecipe — Architecture
 
 > Version control for recipes. Fork someone's loaf, tweak the hydration, propose the change back.
 
-**Status: all 16 planned slices are shipped and merged to `main`.** Objectives 1–3 (public MVP, forking, proposals) are complete. Pre-launch hardening (§10) is complete — password reset, report/moderation/account-deletion, LICENSE/terms/privacy, and error monitoring & analytics. The build log — what shipped, in what order, and the decisions each slice forced — lives in [SLICES.md](SLICES.md); this document keeps only what's still load-bearing for future work: the architecture decisions, the data model and its authorization rules, the API surface, testing strategy, and what's genuinely still open.
+The standing reference for how OpenRecipe is built: the architecture decisions, the data model and its authorization rules, the API surface, and the testing strategy.
 
 ---
 
@@ -15,9 +15,9 @@
 | `HEAD` / default branch | `recipe.head_version_id` | A single mutable pointer |
 | Fork | **Fork** | New recipe whose ancestry crosses into another recipe |
 | Pull request | **Proposal** | Source version → target recipe, 3-way merged |
-| Branch | *(deferred)* | Forking covers the MVP need |
+| Branch | *(not modelled)* | Forking covers the need |
 
-Recipes are **public by default**, with a binary private toggle (§5.1). What stays out of scope is the *sharing* layer on top of it: subscriptions and paid access to other people's private recipes (§8).
+Recipes are **public by default**, with a binary private toggle (§5.1). The *sharing* layer on top of it — subscriptions and paid access to other people's private recipes — is deliberately not built.
 
 ---
 
@@ -161,8 +161,8 @@ OpenRecipe/
 │       └── steps.ts                # body -> derived step list
 │       └── dist/                   # tsc --build output; what api and web import
 ├── docs/
-│   ├── PLAN.md                     # this file — standing architecture, what's open
-│   └── SLICES.md                   # build log — what shipped and why
+│   ├── ARCHITECTURE.md             # this file — architecture, data model, API surface
+│   └── DEPLOY.md                   # deploying: Render + Neon
 ├── docker-compose.yml              # postgres + rustfs
 ├── tsconfig.base.json              # project references live here
 └── package.json                    # npm workspaces
@@ -290,7 +290,7 @@ still do, and still say so.
 
 ---
 
-**Phase 2, deliberately not built:** list membership granting read on the *private* recipes inside a list you can read. That is the sharing layer §8 rules out, and it is a change to rule 12's single predicate — which is why that predicate is a named function with nothing else depending on its shape. §8 and this section both move when it lands.
+**Phase 2, deliberately not built:** list membership granting read on the *private* recipes inside a list you can read. That is the sharing layer, which is deliberately not built, and it is a change to rule 12's single predicate — which is why that predicate is a named function with nothing else depending on its shape. §8 and this section both move when it lands.
 
 ---
 
@@ -358,21 +358,17 @@ GET    /recipes/:owner/:slug/raw                text/markdown — the archive pr
 
 ## 7. Standing risks
 
-Most of the risks that shaped early slices are resolved and recorded in [SLICES.md](SLICES.md). Two remain standing principles for anything built on top of this:
+Two standing principles for anything built on top of this:
 
 | Risk | Mitigation |
 |---|---|
 | Frontmatter schema churns | `schema: 1` + a versioned migration function in core. Any breaking change to the frontmatter shape needs a `schema: 2` and a migrator, never an in-place reinterpretation of `schema: 1`. |
 | A read path forgets the visibility check | Authorization lives in the service layer, never per-route (§5.1). Any new surface that touches a recipe, version, or proposal needs an explicit authz test, the way §5.1's cases and §5.2's rules are each a test. |
 
-## 8. Explicitly out of scope for now
+## 8. Licensing
 
-Paid subscriptions and subscriber access to others' private recipes (the `visibility` field is the foundation; the sharing/monetization layer is not MVP — **shared lists are its first half**, and they deliberately stop short of granting read on a private recipe: see §5.2's Phase 2 note), **anonymous suggestions** — proposals require an account, named branches, real `git clone`, org/team accounts, comments on recipes themselves (only on proposals), mobile apps (a mobile-optimized web experience shipped — see SLICES.md — but no native app), meal planning, nutrition data, notifications beyond in-app.
+Three decisions, kept deliberately separate:
 
-## 9. Open questions
-
-None currently open. See SLICES.md's Resolved list for how past ones — including licensing — were settled.
-
-## 10. Roadmap — pre-launch hardening
-
-Everything through Slice 15 is the product. Slices 16–19 — password reset, LICENSE/terms/privacy, report/moderation/account-deletion, error monitoring & analytics — were what stood between that and letting strangers sign up unsupervised. All are shipped, and their build history is in [SLICES.md](SLICES.md) alongside everything before them. Nothing on this roadmap is open.
+- **The code is proprietary.** No public license; an explicit `LICENSE` file rather than silence, since the repo is public.
+- **Public recipe content defaults to CC BY-SA 4.0**, platform-wide, with no per-recipe picker: a picker has no correct answer for what license a proposal merge carries when source and target differ. A recipe's own `frontmatter.license` is shown when set.
+- **The Terms separately grant every user the right to fork, edit and propose changes back** within the app, regardless of either license — the same way GitHub's ToS lets anyone fork a public repo without that being a statement about the code's license. Without this clause the fork/proposal/merge mechanic has no stated legal basis.

@@ -305,7 +305,7 @@ export function RecipeView({
       {(() => {
         // A private recipe isn't published, so it gets no default — only an
         // explicit `license:` shows. A public one falls back to the platform
-        // default (docs/PLAN.md §10, Slice 17) so the line is never blank.
+        // default (docs/ARCHITECTURE.md §8) so the line is never blank.
         const license =
           frontmatter.license ?? (visibility === 'public' ? DEFAULT_CONTENT_LICENSE : undefined);
         const licenseUrl = license ? licenseUrlFor(license) : undefined;
