@@ -19,12 +19,26 @@ describe('mailer', () => {
     }
 
     assert.ok(
-      logs.some(
-        (args) =>
-          typeof args[0] === 'string' &&
-          args[0].includes('someone@example.test') &&
-          args[0].includes('https://example.test/reset/abc'),
-      ),
+      logs.some((args) => {
+        if (typeof args[0] !== 'string') return false;
+        if (!args[0].includes('someone@example.test')) return false;
+
+        const expected = new URL('https://example.test/reset/abc');
+        const candidates = args[0].match(/https?:\/\/\S+/g) ?? [];
+
+        return candidates.some((candidate) => {
+          try {
+            const parsed = new URL(candidate);
+            return (
+              parsed.protocol === expected.protocol &&
+              parsed.host === expected.host &&
+              parsed.pathname === expected.pathname
+            );
+          } catch {
+            return false;
+          }
+        });
+      }),
       `expected the reset link to be logged, got: ${JSON.stringify(logs)}`,
     );
   });
