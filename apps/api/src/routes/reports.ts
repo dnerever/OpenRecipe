@@ -15,7 +15,7 @@ const ResolveBody = z.object({ action: z.enum(['dismiss', 'make_private', 'remov
 
 export const reportRoutes = new Hono<AppEnv>()
   /**
-   * Requires an account, same as proposals — PLAN.md's §9 already rules out
+   * Requires an account, same as proposals — ARCHITECTURE.md already rules out
    * anonymous suggestions for the same reason it would rule out anonymous
    * reports: nothing to slow down someone using it to spam a rival's recipe.
    */

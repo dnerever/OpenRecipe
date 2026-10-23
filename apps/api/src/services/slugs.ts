@@ -70,7 +70,7 @@ export function validateSlug(input: string): SlugCheck {
  * Advisory only: the unique index on (owner_id, slug) is the real guarantee, so
  * callers must run this inside the same transaction as the insert and be ready
  * to retry — `withUniqueRetry` is what turns the loser of a race into one more
- * attempt. Slice 6's fork flow uses exactly this.
+ * attempt. The fork flow uses exactly this.
  */
 export const claimUniqueSlug = (db: Db, ownerId: string, base: string) =>
   claimIn(db, recipes, ownerId, base);

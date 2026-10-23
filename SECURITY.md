@@ -18,7 +18,7 @@ interest:
 
 - anything that reads a **private recipe**, or its versions, images, forks or
   proposals, without being its owner — including learning that one exists
-  ([docs/PLAN.md §5.1](docs/PLAN.md) is the rulebook; a private recipe should
+  ([docs/ARCHITECTURE.md §5.1](docs/ARCHITECTURE.md) is the rulebook; a private recipe should
   be indistinguishable from a missing one);
 - anything that writes to a recipe, list or proposal without the right to;
 - session, password-reset or account-deletion flaws.

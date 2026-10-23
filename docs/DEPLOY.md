@@ -189,7 +189,7 @@ only when both are present, so until then nothing changes.
 
 ## Object storage
 
-Images (Slice 11) need a bucket. Cloudflare R2's free tier is the target — 10 GB
+Images need a bucket. Cloudflare R2's free tier is the target — 10 GB
 of storage and, more to the point, **no egress charges**. Every image view is a
 fresh read out of the bucket, because the app proxies images rather than handing
 out bucket URLs, so egress is the line item that would otherwise decide the
@@ -300,7 +300,7 @@ it, and nothing needs to — an orphan is a storage cost, not a correctness one.
 
 ## Password reset email
 
-Forgotten passwords (Slice 4) need a mail transport. Resend's free tier (100
+Forgotten passwords need a mail transport. Resend's free tier (100
 emails/day, no credit card) covers this app's entire mail sending — a password
 reset link is the only email it sends.
 

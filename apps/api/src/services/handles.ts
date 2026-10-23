@@ -153,7 +153,7 @@ export function deriveHandleCandidate(source: string): string {
 
 /**
  * Resolve a candidate to a handle nobody holds, suffixing `-2`, `-3`, … the
- * same way fork slugs will in Slice 6.
+ * same way fork slugs do.
  *
  * This is advisory, not a reservation: the unique index on `users.handle` is
  * the real guarantee, and the caller must be prepared for an insert to still

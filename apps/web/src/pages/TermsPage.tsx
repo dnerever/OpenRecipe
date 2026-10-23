@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router';
 
 /**
- * Three things live here, deliberately kept separate — see docs/PLAN.md §10,
- * Slice 17: the platform grant that makes forking/proposing/merging legal at
+ * Three things live here, deliberately kept separate — see
+ * docs/ARCHITECTURE.md §8: the platform grant that makes forking/proposing/merging legal at
  * all, the recipe-content license that governs reuse outside the app, and the
  * ordinary account/conduct terms. Conflating the first two would make the
  * content license do a job it was never meant to.

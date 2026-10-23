@@ -24,7 +24,7 @@ import { changedLineNumbers } from '../lib/change-lines.ts';
  * while you edit, the gutter shows which lines differ from the version you
  * started from, so "what am I actually changing" is answerable without leaving
  * the page. That is the same question the diff view answers after the fact, and
- * it is the reason docs/PLAN.md parked CodeMirror here rather than in Slice 3.
+ * it is the reason CodeMirror is loaded here, lazily, rather than in the main bundle.
  *
  * The language is `yamlFrontmatter` over `markdown`, which is precisely the
  * recipe format — the fence really is a YAML/Markdown boundary, not a

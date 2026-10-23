@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 
 /**
- * The one place both licenses in docs/PLAN.md §10 (Slice 17) get a mention
+ * The one place both licenses in docs/ARCHITECTURE.md §8 get a mention
  * together: the code's own status, and the default recipe-content license —
  * two different things, kept visibly separate rather than implied by one link.
  */

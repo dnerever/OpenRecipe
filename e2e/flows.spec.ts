@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
 /**
- * The three flows docs/PLAN.md §6 names — sign up → create → view, fork →
+ * The three flows docs/ARCHITECTURE.md §6 names — sign up → create → view, fork →
  * edit, propose → merge — driven through the browser the way a person would.
  * The API suites already cover the rules underneath; these cover the wiring:
  * that each button reaches the endpoint it should and the page that follows

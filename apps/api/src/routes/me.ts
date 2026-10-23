@@ -15,7 +15,7 @@ export const meRoutes = new Hono<AppEnv>()
     });
   })
 
-  /** Proves the auth guard works end to end; a real profile editor lands in Slice 8. */
+  /** Proves the auth guard works end to end; a real profile editor can replace it. */
   .get('/me/session', requireUser, (c) => {
     const user = currentUser(c);
     return c.json({ id: user.id, handle: user.handle });
