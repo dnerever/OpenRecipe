@@ -1,4 +1,4 @@
-# Deploying OpenRecipe
+# Deploying OpenSkillet
 
 One Docker service on Render, Postgres on Neon, and nothing in the application
 that knows which host it is on.
@@ -103,6 +103,44 @@ You cannot know that URL before the service exists, so the app falls back to
 
 On any other host, just set `APP_URL` — the fallback is absent there and nothing
 depends on it.
+
+## Custom domain
+
+Done in this order, so nothing is ever pointed at a host that is not ready for it.
+
+1. **Render → the service → Settings → Custom Domains → Add.** Add
+   `openskillet.com` and `www.openskillet.com`. Render shows the exact DNS
+   records it wants; use those if they differ from the ones below.
+2. **Namecheap → Domain List → Manage → Advanced DNS.** Delete the parking
+   records Namecheap created (the `CNAME www → parkingpage.namecheap.com` and
+   the `URL Redirect` row), then add:
+
+   | Type | Host | Value |
+   |---|---|---|
+   | `A Record` | `@` | `216.24.57.1` |
+   | `CNAME Record` | `www` | `openrecipe.onrender.com` |
+
+   Leave the nameservers on _Namecheap BasicDNS_. Any other `A`, `AAAA` or
+   `CNAME` row on `@` or `www` conflicts and stops Render verifying the domain.
+3. **Back in Render, click Verify** on both rows. DNS usually settles in minutes
+   but can take an hour; Render issues the TLS certificate once it verifies.
+   Render redirects one of the two names to the other, so pick the canonical
+   one in step 4 and expect the other to bounce to it.
+4. **Set `APP_URL=https://openskillet.com`** on the service and redeploy. This
+   is the step that matters: session cookies, OAuth callbacks, the sitemap, and
+   the `og:` tags all derive from it. Until it is set, login on the new domain
+   will not work, because the app still believes it lives on `onrender.com`.
+5. **Email.** Add `openskillet.com` as the Resend domain (see
+   [Email](#email-sign-up-codes-and-password-reset)), paste its SPF/DKIM
+   records into the same Namecheap Advanced DNS page, and set
+   `MAIL_FROM=OpenSkillet <noreply@openskillet.com>`. Resend's records live on a
+   subdomain, so they do not collide with the `A` record above.
+6. **GitHub sign-in, if enabled:** change the OAuth app's callback URL to
+   `https://openskillet.com/api/auth/callback/github`.
+
+Verify with `curl -I https://openskillet.com/health`, then sign in on the new
+domain. Sessions created on `onrender.com` do not carry over; the cookie is
+host-scoped, so everyone signs in once more.
 
 ## 3. Verify
 
@@ -312,11 +350,11 @@ card) covers both.
 
    ```
    RESEND_API_KEY=re_…
-   MAIL_FROM=OpenRecipe <noreply@your-domain>
+   MAIL_FROM=OpenSkillet <noreply@your-domain>
    ```
 
    `MAIL_FROM` is optional and defaults to Resend's sandbox sender,
-   `OpenRecipe <onboarding@resend.dev>`. **The sandbox sender can only deliver
+   `OpenSkillet <onboarding@resend.dev>`. **The sandbox sender can only deliver
    to the email address on the Resend account itself** — any other recipient is
    rejected, so a stranger signing up would never get their code. It is fine for
    a first smoke test with your own address and nothing else.

@@ -1,4 +1,4 @@
-# OpenRecipe
+# OpenSkillet
 
 [![CI](https://github.com/dnerever/OpenRecipe/actions/workflows/ci.yml/badge.svg)](https://github.com/dnerever/OpenRecipe/actions/workflows/ci.yml)
 ![Node 24](https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white)
@@ -9,10 +9,10 @@ Version control for recipes. Fork someone's country loaf, push the hydration up,
 and propose the change back — the owner sees a diff in baker's terms, and merges
 it with one click.
 
-**Live: [openrecipe.onrender.com](https://openrecipe.onrender.com)** · try
-[a recipe](https://openrecipe.onrender.com/openrecipe-dev/tartine-country-loaf),
-[an open proposal](https://openrecipe.onrender.com/openrecipe-dev/tartine-country-loaf/proposals/1),
-or [its history](https://openrecipe.onrender.com/openrecipe-dev/tartine-country-loaf/history).
+**Live: [openskillet.com](https://openskillet.com)** · try
+[a recipe](https://openskillet.com/openrecipe-dev/tartine-country-loaf),
+[an open proposal](https://openskillet.com/openrecipe-dev/tartine-country-loaf/proposals/1),
+or [its history](https://openskillet.com/openrecipe-dev/tartine-country-loaf/history).
 
 ![A recipe page: ingredients with scaling and unit controls beside the method](docs/screenshots/recipe.png)
 

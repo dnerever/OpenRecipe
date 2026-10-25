@@ -49,7 +49,7 @@ export function PrivacyPage() {
         Resend delivers password-reset emails. Our hosting provider (Render) and database provider
         (Neon) process data as part of running the service. Object storage for images is RustFS in
         development and S3-compatible storage (such as R2) in production. None of these receive your
-        data for any purpose beyond operating OpenRecipe.
+        data for any purpose beyond operating OpenSkillet.
       </p>
 
       <h2>How long we keep it</h2>
