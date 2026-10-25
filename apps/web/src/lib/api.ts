@@ -140,6 +140,10 @@ export const fetchPublicIndex = (cursor?: IndexCursor | null) => {
   }
   return request<IndexPage>(`/api/recipes?${params.toString()}`);
 };
+/** Last step of email sign-up; 400 when the account already has a password. */
+export const setPassword = (password: string) =>
+  request<{ ok: true }>('/api/me/password', { method: 'POST', body: JSON.stringify({ password }) });
+
 export const fetchMe = () => request<{ user: CurrentUser | null }>('/api/me');
 
 export const fetchRecipe = (handle: string, slug: string) =>

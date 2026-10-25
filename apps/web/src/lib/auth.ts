@@ -1,4 +1,5 @@
 import { createAuthClient } from 'better-auth/client';
+import { emailOTPClient } from 'better-auth/client/plugins';
 
 /**
  * Same-origin: the dev server proxies `/api/*` to the API without rewriting the
@@ -8,6 +9,7 @@ import { createAuthClient } from 'better-auth/client';
 export const authClient = createAuthClient({
   baseURL: window.location.origin,
   basePath: '/api/auth',
+  plugins: [emailOTPClient()],
 });
 
 /**
@@ -17,3 +19,6 @@ export const authClient = createAuthClient({
  */
 export const { signIn, signUp, signOut, requestPasswordReset, resetPassword, deleteUser } =
   authClient;
+
+/** Email-code sign-up: `emailOtp.sendVerificationOtp`, then `signIn.emailOtp`. */
+export const { emailOtp } = authClient;
