@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { fetchProposals, type ProposalState, type ProposalSummary } from '../lib/api.ts';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
+import { useTitle } from '../lib/use-title.ts';
 
 const STATE_LABEL: Record<ProposalState, string> = {
   open: 'Open',
@@ -23,6 +24,7 @@ export function ProposalsPage() {
     queryFn: () => fetchProposals(handle, slug),
     retry: false,
   });
+  useTitle(`Proposals · ${handle}/${slug}`);
 
   if (isPending) return <Loading />;
 

@@ -5,6 +5,7 @@ import { ImageUpload } from '../components/ImageUpload.tsx';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { RecipeEditor } from '../components/RecipeEditor.tsx';
 import { ApiError, fetchRecipe, updateRecipe, type RecipeIssueWire } from '../lib/api.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * Editing is writing a new version, never overwriting one.
@@ -29,6 +30,8 @@ export function EditRecipePage() {
     queryFn: () => fetchRecipe(handle, slug),
     retry: false,
   });
+  const recipeName = data?.recipe.title ?? `${handle}/${slug}`;
+  useTitle(proposeTo ? `Proposing a change to ${recipeName}` : `Editing ${recipeName}`);
 
   // Seeded once from the loaded recipe; after that the textarea owns it.
   const [draft, setDraft] = useState<string | null>(null);

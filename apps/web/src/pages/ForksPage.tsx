@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
 import { fetchForks } from '../lib/api.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * Ancestry downward. The list is filtered on the server to what this viewer may
@@ -16,6 +17,7 @@ export function ForksPage() {
     queryFn: () => fetchForks(handle, slug),
     retry: false,
   });
+  useTitle(`Forks · ${handle}/${slug}`);
 
   if (isPending) return <Loading />;
 

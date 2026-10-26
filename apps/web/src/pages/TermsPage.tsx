@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * Three things live here, deliberately kept separate — see
@@ -8,6 +9,7 @@ import { Link } from '@tanstack/react-router';
  * content license do a job it was never meant to.
  */
 export function TermsPage() {
+  useTitle('Terms of Service');
   return (
     <section>
       <h1>Terms of Service</h1>

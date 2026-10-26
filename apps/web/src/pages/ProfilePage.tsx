@@ -5,6 +5,7 @@ import { LoadFailure, Loading } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
 import { fetchStarredBy, fetchUserLists, fetchUserRecipes } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 type Tab = 'recipes' | 'starred' | 'lists';
 
@@ -23,6 +24,13 @@ export function ProfilePage({
   const { user } = useCurrentUser();
   const isSelf = user?.handle === handle;
   const [tab, setTab] = useState<Tab>(initialTab);
+  useTitle(
+    tab === 'lists'
+      ? `Lists · @${handle}`
+      : tab === 'starred'
+        ? `Starred · @${handle}`
+        : `@${handle}`,
+  );
 
   const { data, isPending, error } = useQuery({
     queryKey: ['user-recipes', handle],

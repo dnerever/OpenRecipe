@@ -115,6 +115,11 @@ test('sign up, publish a recipe, and read it back', async ({ browser }) => {
   await visitor.goto(path);
   await expect(visitor.getByRole('heading', { level: 1 })).toHaveText('My First Loaf');
   await expect(visitor.getByText(`@${cook.handle}`).first()).toBeVisible();
+
+  // Each page names its tab, including after client-side navigation.
+  await expect(visitor).toHaveTitle('My First Loaf · OpenSkillet');
+  await visitor.getByRole('link', { name: 'Cook' }).first().click();
+  await expect(visitor).toHaveTitle('Cooking: My First Loaf · OpenSkillet');
 });
 
 test('fork someone else’s recipe and edit the copy', async ({ browser }) => {

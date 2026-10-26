@@ -9,6 +9,7 @@ import {
   type ReportStatus,
   type ResolveAction,
 } from '../lib/api.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 const REPORTS_KEY = (status: ReportStatus) => ['admin-reports', status] as const;
 
@@ -18,6 +19,7 @@ const REPORTS_KEY = (status: ReportStatus) => ['admin-reports', status] as const
  * this size has one moderator, not a team to route work between.
  */
 export function AdminPage() {
+  useTitle('Reports');
   const [status, setStatus] = useState<ReportStatus>('open');
   const queryClient = useQueryClient();
   const { data, isPending, error } = useQuery({

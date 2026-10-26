@@ -6,6 +6,7 @@ import { LoadFailure, Loading } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
 import { ShareListPanel } from '../components/ShareListPanel.tsx';
 import { deleteList, fetchList, removeFromList, renameList } from '../lib/api.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 export function ListPage() {
   const { handle, listSlug } = useParams({ from: '/$handle/lists/$listSlug' });
@@ -22,6 +23,7 @@ export function ListPage() {
     queryFn: () => fetchList(handle, listSlug),
     retry: false,
   });
+  useTitle(list?.title);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['list', handle, listSlug] });
 

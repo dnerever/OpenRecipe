@@ -1,6 +1,7 @@
 import { Link, useSearch } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { resetPassword } from '../lib/auth.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * Reached from the reset email's link. better-auth's own `/api/auth/reset-
@@ -9,6 +10,7 @@ import { resetPassword } from '../lib/auth.ts';
  * instead, with no token, so that case is handled the same as a missing one.
  */
 export function ResetPasswordPage() {
+  useTitle('Reset your password');
   const { token } = useSearch({ from: '/reset-password' });
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
