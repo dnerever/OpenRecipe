@@ -83,6 +83,8 @@ export function CookPage() {
   const index = Math.min(Math.max(1, search.step ?? 1), Math.max(1, total)) - 1;
   const step = steps[index];
 
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+
   const go = useMemo(
     () => (next: number) => {
       if (next < 0 || next >= total) return;
@@ -176,7 +178,31 @@ export function CookPage() {
         the step again.
       */}
       <div className="cook-body">
-        <main className="cook-step">
+        {/*
+          A sideways swipe turns the page, the way every reading app on a
+          phone does — and with dough on your fingers it is easier to land
+          than the Next button. Touch only: a mouse drag here is selecting
+          text. Vertical movement is left to the browser (`touch-action:
+          pan-y`), so a long step still scrolls.
+        */}
+        <main
+          className="cook-step"
+          onPointerDown={(e) => {
+            swipe.current = e.pointerType === 'touch' ? { x: e.clientX, y: e.clientY } : null;
+          }}
+          onPointerUp={(e) => {
+            const from = swipe.current;
+            swipe.current = null;
+            if (!from || (showIngredients && !wide)) return;
+            const dx = e.clientX - from.x;
+            const dy = e.clientY - from.y;
+            if (Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy))
+              go(index + (dx < 0 ? 1 : -1));
+          }}
+          onPointerCancel={() => {
+            swipe.current = null;
+          }}
+        >
           {step ? (
             <>
               <p className="cook-where muted">

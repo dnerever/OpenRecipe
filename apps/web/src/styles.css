@@ -386,6 +386,12 @@ a.button.secondary {
   background: transparent;
   border-color: var(--rule-strong, var(--rule));
 }
+/* A plain <button> among `.button` links in a row of actions has to look like
+   one of them: "Propose changes" was a size up from its neighbours. */
+.recipe-head .row > button {
+  font-size: 0.9rem;
+  padding: 0.45rem 0.9rem;
+}
 .badge {
   margin-left: 0.5rem;
   font-size: 0.68rem;
@@ -2740,5 +2746,28 @@ dialog.confirm h2 {
   .crumb a {
     display: inline-block;
     padding: 0.6rem 0;
+  }
+}
+
+/* Sideways belongs to the step (a swipe turns it); up and down to the page. */
+.cook-step {
+  touch-action: pan-y;
+}
+
+.home-tags .tags {
+  margin: 0 0 1.5rem;
+}
+/* One row that scrolls sideways on a phone, rather than three rows of chips
+   between the reader and the first recipe. */
+@media (max-width: 42rem) {
+  .home-tags .tags {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--gutter));
+    padding-inline: var(--gutter);
+  }
+  .home-tags .tags li {
+    flex: 0 0 auto;
   }
 }

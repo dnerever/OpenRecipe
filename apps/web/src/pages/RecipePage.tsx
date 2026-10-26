@@ -26,6 +26,7 @@ import {
   type CookOptions,
 } from '../lib/cook-options.ts';
 import { useTitle } from '../lib/use-title.ts';
+import { timeAgo } from '../lib/words.ts';
 
 export function RecipePage() {
   const { handle, slug } = useParams({ from: '/$handle/$slug' });
@@ -296,11 +297,17 @@ export function RecipePage() {
         }
       />
 
+      {/* When and why it last changed, in words; the version id is for the
+          history page, where versions are compared, not for a reader. */}
       <footer className="version-line muted">
+        Last changed{' '}
+        <time dateTime={version.createdAt} title={new Date(version.createdAt).toLocaleString()}>
+          {timeAgo(new Date(version.createdAt))}
+        </time>{' '}
+        — “{version.message}” ·{' '}
         <Link to="/$handle/$slug/history" params={{ handle, slug }}>
-          Version {version.id.slice(0, 8)}
-        </Link>{' '}
-        · {version.message} · {new Date(version.createdAt).toLocaleString()}
+          See all changes
+        </Link>
       </footer>
     </article>
   );

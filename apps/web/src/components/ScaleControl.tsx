@@ -1,6 +1,7 @@
 import type { Frontmatter, MeasurementSystem } from '@openrecipe/core';
 import { useEffect, useMemo, useState } from 'react';
 import { applyCookOptions, formatFactor, type CookOptions } from '../lib/cook-options.ts';
+import { pluralUnit } from '../lib/words.ts';
 
 const PRESETS = [0.5, 1, 2, 3];
 
@@ -102,7 +103,7 @@ export function ScaleControl({
           {authoredYield && (
             <NumberField
               label="Makes"
-              suffix={authoredYield.unit}
+              suffix={pluralUnit(shown.yield?.count ?? authoredYield.count, authoredYield.unit)}
               value={shown.yield?.count ?? authoredYield.count}
               onCommit={(next) => onChange({ ...options, scale: next / authoredYield.count })}
             />
