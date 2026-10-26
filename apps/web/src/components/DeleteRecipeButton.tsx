@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { ApiError, deleteRecipe } from '../lib/api.ts';
+import { useFeedback } from './Feedback.tsx';
 
 /**
  * Deleting is refused once somebody has forked the recipe, and the refusal is
@@ -23,12 +24,14 @@ export function DeleteRecipeButton({
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { confirm, announce } = useFeedback();
 
   const mutation = useMutation({
     mutationFn: () => deleteRecipe(handle, slug),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['user-recipes', handle] });
       void queryClient.invalidateQueries({ queryKey: ['recipes-index'] });
+      announce('Recipe deleted.');
       void navigate({ to: '/$handle', params: { handle } });
     },
     onError: (error) => {
@@ -45,14 +48,22 @@ export function DeleteRecipeButton({
         type="button"
         className="secondary danger"
         disabled={mutation.isPending}
-        onClick={() => {
-          const ok = window.confirm(
-            'Delete this recipe?\n\n' +
-              'Its whole history goes with it, along with any photos on it. ' +
-              'This cannot be undone.',
-          );
-          if (ok) mutation.mutate();
-        }}
+        onClick={() =>
+          void (async () => {
+            const ok = await confirm({
+              title: 'Delete this recipe?',
+              body: (
+                <p>
+                  Its whole history goes with it, along with any photos on it.{' '}
+                  <strong>This cannot be undone.</strong>
+                </p>
+              ),
+              confirm: 'Delete recipe',
+              danger: true,
+            });
+            if (ok) mutation.mutate();
+          })()
+        }
       >
         {mutation.isPending ? 'Deleting…' : 'Delete recipe'}
       </button>

@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Loading } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
 import { SignInLink } from '../components/SignInLink.tsx';
 import { fetchPublicIndex, type IndexCursor } from '../lib/api.ts';
@@ -92,7 +93,7 @@ export function BrowsePage() {
         </header>
       )}
 
-      {isPending && <p className="muted">Loading recipes…</p>}
+      {isPending && <Loading what="Loading recipes…" shape="cards" />}
       {error && <p className="bad">Couldn’t load the index. {error.message}</p>}
 
       {!isPending && !error && recipes.length === 0 && (

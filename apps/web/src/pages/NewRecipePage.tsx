@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
+import { Loading } from '../components/LoadState.tsx';
 import { RecipeEditor } from '../components/RecipeEditor.tsx';
 import { RestoredDraft } from '../components/RestoredDraft.tsx';
 import {
@@ -14,16 +15,17 @@ import { SignInLink } from '../components/SignInLink.tsx';
 import { BLANK_SOURCE } from '../lib/recipe-draft.ts';
 import { loadSavedDraft, useDraftAutosave } from '../lib/saved-draft.ts';
 import { STARTER_RECIPE } from '../lib/starter-recipe.ts';
-import { useLeaveGuard } from '../lib/use-leave-guard.ts';
+import { useLeaveGuard } from '../lib/use-leave-guard.tsx';
 import { useCurrentUser } from '../lib/session.ts';
 import { useTitle } from '../lib/use-title.ts';
+import { useFeedback } from '../components/Feedback.tsx';
 
 export function NewRecipePage() {
   useTitle('New recipe');
   const { user, isPending } = useCurrentUser();
   const [mode, setMode] = useState<'write' | 'import'>('write');
 
-  if (isPending) return <p className="muted">Loading…</p>;
+  if (isPending) return <Loading />;
 
   if (!user) {
     return (
@@ -75,6 +77,7 @@ const PRISTINE = [BLANK_SOURCE, STARTER_RECIPE];
 
 function WriteForm({ userId }: { userId: string }) {
   const navigate = useNavigate();
+  const { announce } = useFeedback();
   // Per account, so a shared computer does not hand one cook's draft to the next.
   const draftKey = `new:${userId}`;
   const [restored, setRestored] = useState(() => loadSavedDraft(draftKey, 'new'));
@@ -98,6 +101,7 @@ function WriteForm({ userId }: { userId: string }) {
     onSuccess: (data) => {
       autosave.finish();
       allowLeave();
+      announce('Published.');
       void navigate({
         to: '/$handle/$slug',
         params: { handle: data.recipe.owner.handle, slug: data.recipe.slug },

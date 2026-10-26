@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { setListVisibility, type ListResponse, type Visibility } from '../lib/api.ts';
+import { useFeedback } from './Feedback.tsx';
 
 /**
  * A list's own toggle, not the recipe one, because the consequences are
@@ -12,10 +13,12 @@ import { setListVisibility, type ListResponse, type Visibility } from '../lib/ap
  */
 export function ListVisibilityToggle({ list }: { list: ListResponse }) {
   const queryClient = useQueryClient();
+  const { confirm, announce } = useFeedback();
 
   const mutation = useMutation({
     mutationFn: (next: Visibility) => setListVisibility(list.owner.handle, list.slug, next),
-    onSuccess: () => {
+    onSuccess: (_, next) => {
+      announce(next === 'private' ? 'This list is private now.' : 'This list is public now.');
       void queryClient.invalidateQueries({ queryKey: ['list', list.owner.handle, list.slug] });
       void queryClient.invalidateQueries({ queryKey: ['user-lists', list.owner.handle] });
     },
@@ -29,20 +32,34 @@ export function ListVisibilityToggle({ list }: { list: ListResponse }) {
         type="button"
         className="secondary"
         disabled={mutation.isPending}
-        onClick={() => {
-          if (next === 'public') {
-            const shared = list.collaborators.length;
-            const ok = window.confirm(
-              `Anyone with the link will be able to read this list.\n\n` +
-                `Only the recipes in it that are already public will show — making a list public never publishes a private recipe.` +
-                (shared > 0
-                  ? `\n\nThe ${shared} ${shared === 1 ? 'person' : 'people'} you shared it with keep the access they have.`
-                  : ''),
-            );
-            if (!ok) return;
-          }
-          mutation.mutate(next);
-        }}
+        onClick={() =>
+          void (async () => {
+            if (next === 'public') {
+              const shared = list.collaborators.length;
+              const ok = await confirm({
+                title: 'Make this list public?',
+                body: (
+                  <>
+                    <p>Anyone with the link will be able to read it.</p>
+                    <p>
+                      Only the recipes in it that are already public will show — making a list
+                      public never publishes a private recipe.
+                    </p>
+                    {shared > 0 && (
+                      <p>
+                        The {shared} {shared === 1 ? 'person' : 'people'} you shared it with keep
+                        the access they have.
+                      </p>
+                    )}
+                  </>
+                ),
+                confirm: 'Make public',
+              });
+              if (!ok) return;
+            }
+            mutation.mutate(next);
+          })()
+        }
       >
         {mutation.isPending ? 'Saving…' : next === 'private' ? 'Make private' : 'Make public'}
       </button>

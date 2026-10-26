@@ -7,11 +7,13 @@ import { RecipeCard } from '../components/RecipeCard.tsx';
 import { ShareListPanel } from '../components/ShareListPanel.tsx';
 import { deleteList, fetchList, removeFromList, renameList } from '../lib/api.ts';
 import { useTitle } from '../lib/use-title.ts';
+import { useFeedback } from '../components/Feedback.tsx';
 
 export function ListPage() {
   const { handle, listSlug } = useParams({ from: '/$handle/lists/$listSlug' });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { confirm, announce } = useFeedback();
   const [renaming, setRenaming] = useState<string | null>(null);
 
   const {
@@ -45,6 +47,7 @@ export function ListPage() {
     mutationFn: () => deleteList(handle, listSlug),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['user-lists', handle] });
+      announce('List deleted. The recipes in it are untouched.');
       void navigate({ to: '/$handle/lists', params: { handle } });
     },
   });
@@ -117,11 +120,17 @@ export function ListPage() {
               type="button"
               className="secondary"
               disabled={destroy.isPending}
-              onClick={() => {
-                if (window.confirm('Delete this list? The recipes in it are not affected.')) {
-                  destroy.mutate();
-                }
-              }}
+              onClick={() =>
+                void (async () => {
+                  const ok = await confirm({
+                    title: 'Delete this list?',
+                    body: <p>The recipes in it are not affected — only the list goes.</p>,
+                    confirm: 'Delete list',
+                    danger: true,
+                  });
+                  if (ok) destroy.mutate();
+                })()
+              }
             >
               Delete list
             </button>
