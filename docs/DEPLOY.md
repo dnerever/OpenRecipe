@@ -420,7 +420,9 @@ production and off elsewhere, so the test suites are not throttled):
   then set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` on Render. Both or
   neither: unset, the check is skipped. The site key reaches the browser
   through `/api/health`, so there is no rebuild. A missing, rejected or
-  unverifiable token fails closed with `captcha_failed`. The code-entry step is
+  unverifiable token fails closed with `captcha_failed`. To switch it off without
+  deleting the keys, set `TURNSTILE_ENABLED=false` and redeploy; set it to
+  `true` (or remove it) to turn the check back on. The code-entry step is
   not gated: a token is single use and wrong codes are already attempt-capped.
 - **Auth rate limits** (better-auth, in memory, per client address): sign-in
   10/min, sign-up 10/hour, password reset 5/hour, code requests 3/min.

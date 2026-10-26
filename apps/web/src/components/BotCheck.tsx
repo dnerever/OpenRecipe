@@ -12,8 +12,6 @@ type TurnstileApi = {
       callback: (token: string) => void;
       'expired-callback': () => void;
       'error-callback': () => void;
-      'before-interactive-callback': () => void;
-      'after-interactive-callback': () => void;
     },
   ) => string;
   reset: (id: string) => void;
@@ -87,9 +85,6 @@ export function useBotCheck(siteKey: string | null): BotCheck {
           callback: setToken,
           'expired-callback': () => setToken(null),
           'error-callback': () => setToken(null),
-          // Collapsed by default (see `.bot-check`); open only for a real click.
-          'before-interactive-callback': () => container.classList.add('needs-click'),
-          'after-interactive-callback': () => container.classList.remove('needs-click'),
         });
       })
       .catch(() => setToken(null));
