@@ -1,14 +1,14 @@
-# OpenRecipe — Architecture
+# OpenSkillet — Architecture
 
 > Version control for recipes. Fork someone's loaf, tweak the hydration, propose the change back.
 
-The standing reference for how OpenRecipe is built: the architecture decisions, the data model and its authorization rules, the API surface, and the testing strategy.
+The standing reference for how OpenSkillet is built: the architecture decisions, the data model and its authorization rules, the API surface, and the testing strategy.
 
 ---
 
 ## 1. Product framing
 
-| Git concept | OpenRecipe concept | Notes |
+| Git concept | OpenSkillet concept | Notes |
 |---|---|---|
 | Repository | **Recipe** (`@owner/slug`) | One document, not a tree of files |
 | Commit | **Version** | Immutable full snapshot + parent pointer |

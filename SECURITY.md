@@ -13,7 +13,7 @@ issue is understood.
 ## Scope
 
 The application in this repository and the deployment at
-[openrecipe.onrender.com](https://openrecipe.onrender.com). Of particular
+[openskillet.com](https://openskillet.com). Of particular
 interest:
 
 - anything that reads a **private recipe**, or its versions, images, forks or

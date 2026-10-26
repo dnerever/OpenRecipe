@@ -23,12 +23,12 @@ export function TermsPage() {
 
       <h2>Forking, editing, and proposing changes</h2>
       <p>
-        OpenRecipe's whole purpose is letting people fork, edit, and propose changes back to recipes
-        they didn't write. Publishing a recipe as public means you grant every other user the right
-        to fork it, edit their fork, and propose merging their changes back — within the app —
-        regardless of what license the recipe itself carries. Without this, forking wouldn't have a
-        legal basis; it's the same principle GitHub's own terms use to let anyone fork a public
-        repository without that being a statement about the code's license.
+        OpenSkillet's whole purpose is letting people fork, edit, and propose changes back to
+        recipes they didn't write. Publishing a recipe as public means you grant every other user
+        the right to fork it, edit their fork, and propose merging their changes back — within the
+        app — regardless of what license the recipe itself carries. Without this, forking wouldn't
+        have a legal basis; it's the same principle GitHub's own terms use to let anyone fork a
+        public repository without that being a statement about the code's license.
       </p>
       <p>
         This grant doesn't extend to using a recipe's content outside the app — that's governed
@@ -47,7 +47,7 @@ export function TermsPage() {
         </a>{' '}
         unless the recipe explicitly states a different license — an imported recipe may carry its
         source page's own terms instead. CC BY-SA 4.0 means anyone may reuse or adapt the content
-        outside OpenRecipe as long as they credit the author and license their own adaptation under
+        outside OpenSkillet as long as they credit the author and license their own adaptation under
         the same terms.
       </p>
       <p>
@@ -78,14 +78,14 @@ export function TermsPage() {
 
       <h2>The code itself</h2>
       <p>
-        OpenRecipe's source is publicly viewable but proprietary — no license is granted to use,
+        OpenSkillet's source is publicly viewable but proprietary — no license is granted to use,
         copy, or redistribute it. See the repository's <code>LICENSE</code> file. This is entirely
         separate from the recipe-content license above.
       </p>
 
       <h2>No warranty</h2>
       <p>
-        OpenRecipe is provided as-is, without warranty of any kind. We aren't liable for content
+        OpenSkillet is provided as-is, without warranty of any kind. We aren't liable for content
         other users publish, or for any damages arising from your use of the service.
       </p>
 

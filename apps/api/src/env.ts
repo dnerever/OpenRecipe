@@ -167,7 +167,7 @@ export const githubOAuth =
 
 /** `null` when no transport is configured — `services/mailer.ts` logs instead of sending. */
 export const mailer = env.RESEND_API_KEY
-  ? { apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM ?? 'OpenRecipe <onboarding@resend.dev>' }
+  ? { apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM ?? 'OpenSkillet <onboarding@resend.dev>' }
   : null;
 
 /** Emails compare lowercase, same as `users.email` itself. */

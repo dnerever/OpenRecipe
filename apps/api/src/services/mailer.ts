@@ -41,9 +41,9 @@ export function sendPasswordResetEmail(to: string, url: string): Promise<void> {
   return deliver(
     {
       to,
-      subject: 'Reset your OpenRecipe password',
+      subject: 'Reset your OpenSkillet password',
       html: `
-      <p>Someone asked to reset the password for this OpenRecipe account.</p>
+      <p>Someone asked to reset the password for this OpenSkillet account.</p>
       <p><a href="${url}">Choose a new password</a></p>
       <p>If this wasn't you, you can ignore this email.</p>
     `,
@@ -57,9 +57,9 @@ export function sendVerificationCodeEmail(to: string, code: string): Promise<voi
   return deliver(
     {
       to,
-      subject: `${code} is your OpenRecipe verification code`,
+      subject: `${code} is your OpenSkillet verification code`,
       html: `
-      <p>Your OpenRecipe verification code is:</p>
+      <p>Your OpenSkillet verification code is:</p>
       <p style="font-size:24px;font-weight:bold;letter-spacing:4px">${code}</p>
       <p>It expires in 10 minutes. If you didn't ask for it, you can ignore this email.</p>
     `,
