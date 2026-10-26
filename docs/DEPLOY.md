@@ -438,13 +438,16 @@ Hits are reported to Sentry as warnings (`Rate limit hit: <name>`) and return
 ### Client address behind a proxy
 
 Limits are keyed on the client address, so the app must read the right header.
-The default, `x-forwarded-for`, uses the **last** entry — the hop Render's own
-router appended — because earlier entries are client-supplied. If Cloudflare's
-proxy is in front of Render (orange cloud on the DNS record), the last entry is
-a Cloudflare edge address shared by many users: set
-`CLIENT_IP_HEADER=cf-connecting-ip` instead. Check it after deploying: hit the
-sign-in endpoint 11 times from one machine and confirm a second machine is not
-limited.
+DNS points straight at Render (Namecheap, no Cloudflare proxy), so Render's
+router is the only proxy and the default needs no configuration: it reads the
+**last** `x-forwarded-for` entry, the hop Render appended, because earlier
+entries are client-supplied.
+
+Only if DNS later moves behind Cloudflare's proxy (orange cloud) does this
+change: the last entry becomes a Cloudflare edge address shared by many users,
+so set `CLIENT_IP_HEADER=cf-connecting-ip`. Either way, check it after
+deploying: hit the sign-in endpoint 11 times from one machine and confirm a
+second machine on another network is not limited.
 
 ## Moderation
 
