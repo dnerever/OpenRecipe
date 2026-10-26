@@ -1,7 +1,7 @@
 import { detectSystem } from '@openrecipe/core';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { AddToListButton } from '../components/AddToListButton.tsx';
 import { DeleteRecipeButton } from '../components/DeleteRecipeButton.tsx';
 import { ForkButton } from '../components/ForkButton.tsx';
@@ -16,6 +16,7 @@ import { ShoppingList } from '../components/ShoppingList.tsx';
 import { StarButton } from '../components/StarButton.tsx';
 import { VisibilityToggle } from '../components/VisibilityToggle.tsx';
 import { fetchRecipe, rawUrl } from '../lib/api.ts';
+import { useDismiss } from '../lib/use-dismiss.ts';
 import { tickKey } from '../lib/use-ticked.ts';
 import {
   applyCookOptions,
@@ -33,6 +34,8 @@ export function RecipePage() {
   const [showShopping, setShowShopping] = useState(false);
   const [proposing, setProposing] = useState('propose' in search && search.propose === true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const menuRef = useDismiss(menuOpen, closeMenu);
 
   const { data, isPending, error } = useQuery({
     queryKey: ['recipe', handle, slug],
@@ -72,8 +75,6 @@ export function RecipePage() {
       replace: true,
       resetScroll: false,
     });
-
-  const closeMenu = () => setMenuOpen(false);
 
   return (
     /* The class is the page's only say in its own width: `main` is capped at a
@@ -148,13 +149,21 @@ export function RecipePage() {
           )}
           {!recipe.canEdit && <ProposeButton handle={handle} slug={slug} />}
 
+          {/*
+            Grouped by what the reader is after: using the recipe, looking
+            at where it came from and went, and changing it. Links that go
+            elsewhere close the menu; actions that happen here leave it
+            open, so their result or refusal is still in view.
+          */}
           <details
+            ref={menuRef}
             className="more"
             open={menuOpen}
             onToggle={(e) => setMenuOpen(e.currentTarget.open)}
           >
             <summary className="button secondary">More</summary>
             <div className="more-menu">
+              <p className="more-label">Use it</p>
               <button
                 type="button"
                 className="secondary"
@@ -176,10 +185,22 @@ export function RecipePage() {
               >
                 Print
               </button>
+              <a
+                className="button secondary"
+                href={rawUrl(handle, slug)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={closeMenu}
+              >
+                View as text
+              </a>
+
+              <p className="more-label">Versions and copies</p>
               <Link
                 className="button secondary"
                 to="/$handle/$slug/proposals"
                 params={{ handle, slug }}
+                onClick={closeMenu}
               >
                 Proposals
               </Link>
@@ -187,6 +208,7 @@ export function RecipePage() {
                 className="button secondary"
                 to="/$handle/$slug/history"
                 params={{ handle, slug }}
+                onClick={closeMenu}
               >
                 History
               </Link>
@@ -194,19 +216,14 @@ export function RecipePage() {
                 className="button secondary"
                 to="/$handle/$slug/forks"
                 params={{ handle, slug }}
+                onClick={closeMenu}
               >
                 Forks{recipe.forkCount > 0 && ` (${recipe.forkCount})`}
               </Link>
+
+              <hr className="more-rule" />
               <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
               {!recipe.canEdit && <ReportButton handle={handle} slug={slug} />}
-              <a
-                className="button secondary"
-                href={rawUrl(handle, slug)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View raw
-              </a>
               {recipe.canEdit && (
                 <VisibilityToggle
                   handle={handle}
