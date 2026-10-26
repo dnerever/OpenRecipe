@@ -52,6 +52,49 @@ export function sendPasswordResetEmail(to: string, url: string): Promise<void> {
   );
 }
 
+/**
+ * First step of an email change for a verified account: sent to the address
+ * being replaced, so that a stolen session alone cannot move the account.
+ */
+export function sendChangeEmailConfirmationEmail(
+  to: string,
+  newEmail: string,
+  url: string,
+): Promise<void> {
+  return deliver(
+    {
+      to,
+      subject: 'Confirm changing your OpenSkillet email',
+      html: `
+      <p>Someone asked to change the email on this OpenSkillet account to <b>${escapeHtml(newEmail)}</b>.</p>
+      <p><a href="${url}">Approve the change</a></p>
+      <p>If this wasn't you, ignore this email and change your password.</p>
+    `,
+    },
+    `Change-email confirmation for ${to} (to ${newEmail}):\n${url}`,
+  );
+}
+
+/** Sent to the new address; following the link is what makes it the account's email. */
+export function sendEmailVerificationLinkEmail(to: string, url: string): Promise<void> {
+  return deliver(
+    {
+      to,
+      subject: 'Verify your email for OpenSkillet',
+      html: `
+      <p>Confirm that this address belongs to you to finish updating your OpenSkillet account.</p>
+      <p><a href="${url}">Verify this email</a></p>
+      <p>If you didn't ask for this, you can ignore this email.</p>
+    `,
+    },
+    `Email verification link for ${to}:\n${url}`,
+  );
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
 /** `code` is digits only, so it needs no HTML escaping. */
 export function sendVerificationCodeEmail(to: string, code: string): Promise<void> {
   return deliver(

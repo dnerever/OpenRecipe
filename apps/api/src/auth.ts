@@ -7,7 +7,12 @@ import { env, githubOAuth } from './env.ts';
 import { AccountHasForkedRecipesError, deleteAccount } from './services/account-deletion.ts';
 import { claimUniqueHandle } from './services/handles.ts';
 import { clientIp, clientIpHeader } from './services/client-ip.ts';
-import { sendPasswordResetEmail, sendVerificationCodeEmail } from './services/mailer.ts';
+import {
+  sendChangeEmailConfirmationEmail,
+  sendEmailVerificationLinkEmail,
+  sendPasswordResetEmail,
+  sendVerificationCodeEmail,
+} from './services/mailer.ts';
 import { TURNSTILE_HEADER, verifyTurnstile } from './services/turnstile.ts';
 
 /** Auth endpoints that need a Turnstile token when it is configured. */
@@ -58,6 +63,14 @@ export const auth = betterAuth({
     minPasswordLength: 10,
     sendResetPassword: async ({ user, url }) => {
       await sendPasswordResetEmail(user.email, url);
+    },
+  },
+
+  // Only reached from an email change; nothing is sent at sign-up, which has
+  // its own code flow.
+  emailVerification: {
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmailVerificationLinkEmail(user.email, url);
     },
   },
 
@@ -134,6 +147,16 @@ export const auth = betterAuth({
     additionalFields: {
       handle: { type: 'string', required: false, input: true },
       bio: { type: 'string', required: false, input: false },
+    },
+
+    // The new address is always verified before it replaces the old one (no
+    // `updateEmailWithoutVerification`), and a verified account also has to
+    // approve the change from its current address first.
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
+        await sendChangeEmailConfirmationEmail(user.email, newEmail, url);
+      },
     },
 
     deleteUser: {

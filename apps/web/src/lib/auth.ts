@@ -20,5 +20,18 @@ export const authClient = createAuthClient({
 export const { signIn, signUp, signOut, requestPasswordReset, resetPassword, deleteUser } =
   authClient;
 
+/** Account settings: credentials, sessions and linked sign-in methods. */
+export const {
+  changeEmail,
+  changePassword,
+  getSession,
+  linkSocial,
+  listAccounts,
+  listSessions,
+  revokeOtherSessions,
+  revokeSession,
+  unlinkAccount,
+} = authClient;
+
 /** Email-code sign-up: `emailOtp.sendVerificationOtp`, then `signIn.emailOtp`. */
 export const { emailOtp } = authClient;
