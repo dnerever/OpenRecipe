@@ -87,6 +87,11 @@ const EnvSchema = z
      */
     TURNSTILE_SITE_KEY: emptyAsUndefined(z.string().min(1).optional()),
     TURNSTILE_SECRET_KEY: emptyAsUndefined(z.string().min(1).optional()),
+    /**
+     * Switch for keeping the keys configured while the check is off. Anything
+     * but `false` leaves it on, so setting the keys alone still enables it.
+     */
+    TURNSTILE_ENABLED: emptyAsUndefined(z.enum(['true', 'false']).optional()),
 
     /**
      * Which request header carries the real client address, for rate limits.
@@ -181,9 +186,12 @@ export const githubOAuth =
     ? { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET }
     : null;
 
-/** `null` unless both keys are set, which `services/turnstile.ts` treats as "skip the check". */
+/**
+ * `null` unless both keys are set and it is not switched off, which
+ * `services/turnstile.ts` treats as "skip the check".
+ */
 export const turnstile =
-  env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY
+  env.TURNSTILE_ENABLED !== 'false' && env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY
     ? { siteKey: env.TURNSTILE_SITE_KEY, secretKey: env.TURNSTILE_SECRET_KEY }
     : null;
 
