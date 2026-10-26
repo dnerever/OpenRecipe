@@ -410,6 +410,40 @@ From a signed-out browser, with an address that is _not_ the Resend account's:
 - A health check that distinguishes "configured" from "can actually send".
   Today the only proof is a real send (above).
 
+## Bot protection and rate limits
+
+Three layers, each optional except the limits themselves (which are on in
+production and off elsewhere, so the test suites are not throttled):
+
+- **Turnstile** on sign-up, sign-in, password reset and code requests. Create a
+  widget in Cloudflare (Turnstile → Add widget, hostname `openskillet.com`),
+  then set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` on Render. Both or
+  neither: unset, the check is skipped. The site key reaches the browser
+  through `/api/health`, so there is no rebuild. A missing, rejected or
+  unverifiable token fails closed with `captcha_failed`. The code-entry step is
+  not gated: a token is single use and wrong codes are already attempt-capped.
+- **Auth rate limits** (better-auth, in memory, per client address): sign-in
+  10/min, sign-up 10/hour, password reset 5/hour, code requests 3/min.
+- **Write limits** (the API's own, in memory, per user — per address when
+  signed out): recipe create, fork, import, proposal, report, upload and list
+  create, 10–30 per 10 minutes each. See `services/rate-limit.ts`. Both
+  limiters are per process; if the service ever runs more than one instance,
+  move the counters to shared storage.
+
+Hits are reported to Sentry as warnings (`Rate limit hit: <name>`) and return
+`429` with `Retry-After`.
+
+### Client address behind a proxy
+
+Limits are keyed on the client address, so the app must read the right header.
+The default, `x-forwarded-for`, uses the **last** entry — the hop Render's own
+router appended — because earlier entries are client-supplied. If Cloudflare's
+proxy is in front of Render (orange cloud on the DNS record), the last entry is
+a Cloudflare edge address shared by many users: set
+`CLIENT_IP_HEADER=cf-connecting-ip` instead. Check it after deploying: hit the
+sign-in endpoint 11 times from one machine and confirm a second machine is not
+limited.
+
 ## Moderation
 
 `ADMIN_EMAILS` is a comma-separated list, not a database role — set it to your

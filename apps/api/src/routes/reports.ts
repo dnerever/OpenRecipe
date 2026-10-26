@@ -4,6 +4,7 @@ import { db } from '../db/index.ts';
 import { currentUser, requireAdmin, requireUser, type AppEnv } from '../middleware/session.ts';
 import { createReport, listReports, resolveReport } from '../services/reports.ts';
 import { readBody, readQuery } from './validate.ts';
+import { limits } from '../services/rate-limit.ts';
 
 const ReportBody = z.object({
   reason: z.string().trim().min(1, 'Say what the problem is.').max(1000),
@@ -19,7 +20,7 @@ export const reportRoutes = new Hono<AppEnv>()
    * anonymous suggestions for the same reason it would rule out anonymous
    * reports: nothing to slow down someone using it to spam a rival's recipe.
    */
-  .post('/recipes/:handle/:slug/reports', requireUser, async (c) => {
+  .post('/recipes/:handle/:slug/reports', requireUser, limits.report, async (c) => {
     const { reason } = await readBody(c, ReportBody);
     const report = await createReport(
       db,

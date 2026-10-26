@@ -27,6 +27,7 @@ import { listTags, searchRecipes } from '../services/search.ts';
 import { profileUser, publicUser } from '../services/users.ts';
 import { listStarredBy, star, unstar } from '../services/stars.ts';
 import { validateSlug } from '../services/slugs.ts';
+import { limits } from '../services/rate-limit.ts';
 
 const CreateBody = z.object({
   content: z.string().min(1, 'A recipe needs content.'),
@@ -129,7 +130,7 @@ export const recipeRoutes = new Hono<AppEnv>()
     return c.json({ tags: await listTags(db, limit) });
   })
 
-  .post('/recipes', requireUser, async (c) => {
+  .post('/recipes', requireUser, limits.recipeCreate, async (c) => {
     const body = await readBody(c, CreateBody);
 
     if (body.slug !== undefined) {
@@ -148,7 +149,7 @@ export const recipeRoutes = new Hono<AppEnv>()
    * types the address themselves, so `fetch-recipe.ts` guards it against
    * addresses that have no business being fetched from the server.
    */
-  .post('/recipes/import', requireUser, async (c) => {
+  .post('/recipes/import', requireUser, limits.recipeImport, async (c) => {
     const { url, visibility } = await readBody(c, ImportBody);
     const converted = await fetchRecipeFromUrl(url);
 
@@ -228,7 +229,7 @@ export const recipeRoutes = new Hono<AppEnv>()
    * Objective 2. The caller's own namespace absorbs the slug collision, so
    * forking the same recipe twice yields `-2` and `-3` rather than an error.
    */
-  .post('/recipes/:handle/:slug/fork', requireUser, async (c) => {
+  .post('/recipes/:handle/:slug/fork', requireUser, limits.fork, async (c) => {
     const requested = (await readBody(c, ForkBody))?.slug;
     if (requested !== undefined) {
       const check = validateSlug(requested);

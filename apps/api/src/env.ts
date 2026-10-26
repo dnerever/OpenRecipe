@@ -81,6 +81,22 @@ const EnvSchema = z
     MAIL_FROM: emptyAsUndefined(z.string().min(1).optional()),
 
     /**
+     * Cloudflare Turnstile. Both or neither: with both set, sign-up, sign-in,
+     * password reset and code requests require a valid token; unset, the check
+     * is skipped. The site key is public and handed to the web via /api/health.
+     */
+    TURNSTILE_SITE_KEY: emptyAsUndefined(z.string().min(1).optional()),
+    TURNSTILE_SECRET_KEY: emptyAsUndefined(z.string().min(1).optional()),
+
+    /**
+     * Which request header carries the real client address, for rate limits.
+     * See `services/client-ip.ts` for why this matters behind a proxy.
+     */
+    CLIENT_IP_HEADER: emptyAsUndefined(z.string().min(1).optional()).transform((v) =>
+      (v ?? 'x-forwarded-for').toLowerCase(),
+    ),
+
+    /**
      * Comma-separated emails allowed to see reports and act on them. There is
      * no admin role in the database — the operator of a site this size is a
      * fixed, small set of people, and an env var is one fewer thing that can
@@ -163,6 +179,12 @@ export const objectStore =
 export const githubOAuth =
   env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
     ? { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET }
+    : null;
+
+/** `null` unless both keys are set, which `services/turnstile.ts` treats as "skip the check". */
+export const turnstile =
+  env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY
+    ? { siteKey: env.TURNSTILE_SITE_KEY, secretKey: env.TURNSTILE_SECRET_KEY }
     : null;
 
 /** `null` when no transport is configured — `services/mailer.ts` logs instead of sending. */

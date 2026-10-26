@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, setPassword, type Health } from '../lib/api.ts';
 import { emailOtp, requestPasswordReset, signIn } from '../lib/auth.ts';
 import { SESSION_KEY } from '../lib/session.ts';
+import { useBotCheck, type BotCheck } from './BotCheck.tsx';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot';
 
@@ -14,6 +15,25 @@ type Mode = 'sign-in' | 'sign-up' | 'forgot';
  * signed-in state itself, so there is only ever one source of truth.
  */
 export function AuthPanel({ health }: { health: Health | null }) {
+  const bot = useBotCheck(health?.auth.turnstileSiteKey ?? null);
+  return (
+    <>
+      <AuthForms health={health} bot={bot} />
+      {bot.widget}
+    </>
+  );
+}
+
+const BOT_PENDING = 'Still checking that you are not a bot. Try again in a moment.';
+
+/** Turns a failed request into the message to show, with the cases worth naming. */
+function failure(error: { status?: number; code?: string; message?: string }): string {
+  if (error.status === 429) return 'Too many attempts. Wait a minute and try again.';
+  if (error.code === 'captcha_failed') return 'Bot check failed. Reload the page and try again.';
+  return error.message ?? 'That did not work. Try again.';
+}
+
+function AuthForms({ health, bot }: { health: Health | null; bot: BotCheck }) {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>('sign-up');
   const [email, setEmail] = useState('');
@@ -31,11 +51,16 @@ export function AuthPanel({ health }: { health: Health | null }) {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (bot.blocked) {
+      setError(BOT_PENDING);
+      return;
+    }
     setBusy(true);
     try {
-      const result = await signIn.email({ email, password });
+      const result = await signIn.email({ email, password }, bot.options());
+      bot.reset();
       if (result.error) {
-        setError(result.error.message ?? 'That did not work. Try again.');
+        setError(failure(result.error));
         return;
       }
       setPasswordValue('');
@@ -48,7 +73,7 @@ export function AuthPanel({ health }: { health: Health | null }) {
   }
 
   if (mode === 'forgot') {
-    return <ForgotPasswordForm email={email} onBack={() => switchMode('sign-in')} />;
+    return <ForgotPasswordForm email={email} bot={bot} onBack={() => switchMode('sign-in')} />;
   }
 
   return (
@@ -73,6 +98,7 @@ export function AuthPanel({ health }: { health: Health | null }) {
           email={email}
           onEmail={setEmail}
           github={health?.auth.github === true}
+          bot={bot}
           onDone={signedIn}
         />
       ) : (
@@ -135,11 +161,13 @@ function SignUpFlow({
   email,
   onEmail,
   github,
+  bot,
   onDone,
 }: {
   email: string;
   onEmail: (email: string) => void;
   github: boolean;
+  bot: BotCheck;
   onDone: () => Promise<unknown>;
 }) {
   const [step, setStep] = useState<'email' | 'code' | 'password'>('email');
@@ -170,12 +198,17 @@ function SignUpFlow({
   }
 
   async function sendCode() {
-    const result = await emailOtp.sendVerificationOtp({ email, type: 'sign-in' });
+    if (bot.blocked) {
+      setError(BOT_PENDING);
+      return false;
+    }
+    const result = await emailOtp.sendVerificationOtp({ email, type: 'sign-in' }, bot.options());
+    bot.reset();
     if (result.error) {
       setError(
         result.error.status === 429
           ? 'Too many codes requested. Wait a minute and try again.'
-          : (result.error.message ?? 'That did not work. Try again.'),
+          : failure(result.error),
       );
       return false;
     }
@@ -365,9 +398,11 @@ function SignUpFlow({
  */
 function ForgotPasswordForm({
   email: initialEmail,
+  bot,
   onBack,
 }: {
   email: string;
+  bot: BotCheck;
   onBack: () => void;
 }) {
   const [email, setEmail] = useState(initialEmail);
@@ -378,14 +413,19 @@ function ForgotPasswordForm({
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (bot.blocked) {
+      setError(BOT_PENDING);
+      return;
+    }
     setBusy(true);
     try {
-      const result = await requestPasswordReset({
-        email,
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      const result = await requestPasswordReset(
+        { email, redirectTo: `${window.location.origin}/reset-password` },
+        bot.options(),
+      );
+      bot.reset();
       if (result.error) {
-        setError(result.error.message ?? 'That did not work. Try again.');
+        setError(failure(result.error));
         return;
       }
       setSent(true);

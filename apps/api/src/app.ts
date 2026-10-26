@@ -8,7 +8,7 @@ import { RecipeParseError, SCHEMA_VERSION } from '@openrecipe/core';
 import { ZodError } from 'zod';
 import { auth } from './auth.ts';
 import { db, sql as rawSql } from './db/index.ts';
-import { env, githubOAuth } from './env.ts';
+import { env, githubOAuth, turnstile } from './env.ts';
 import { withViewer, type AppEnv } from './middleware/session.ts';
 import { renderShellWithRecipeMeta } from './og.ts';
 import { renderSitemap } from './sitemap.ts';
@@ -83,6 +83,9 @@ export function createApp() {
           emailPassword: true,
           github: githubOAuth !== null,
           passwordResetEmail: mailConfigured,
+          // The site key is public by design; its presence tells the web to
+          // render the widget and send the token.
+          turnstileSiteKey: turnstile?.siteKey ?? null,
         },
         uptimeSeconds: Math.round(process.uptime()),
       },

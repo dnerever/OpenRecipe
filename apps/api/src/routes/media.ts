@@ -16,6 +16,7 @@ import {
 } from '../services/media.ts';
 import { loadRecipe } from '../services/recipes.ts';
 import { getObject } from '../services/storage.ts';
+import { limits } from '../services/rate-limit.ts';
 
 /**
  * Uploads are scoped to a recipe that already exists, which is what makes the
@@ -25,7 +26,7 @@ import { getObject } from '../services/storage.ts';
  * photo, which the editor says out loud.
  */
 export const mediaRoutes = new Hono<AppEnv>()
-  .post('/recipes/:handle/:slug/media', requireUser, async (c) => {
+  .post('/recipes/:handle/:slug/media', requireUser, limits.upload, async (c) => {
     const form = await c.req.formData().catch(() => null);
     const file = form?.get('file');
     if (!(file instanceof File)) return c.json({ error: 'no_file' }, 400);
