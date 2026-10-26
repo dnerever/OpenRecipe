@@ -2208,11 +2208,3 @@ textarea:focus-visible {
   color: var(--bad);
   background: color-mix(in oklab, var(--bad) 12%, transparent);
 }
-
-/* Turnstile mounts here. Collapsed, with the form's flex gap cancelled, until
-   Cloudflare needs a click; the challenge keeps running while it is collapsed. */
-.bot-check:not(.needs-click) {
-  height: 0;
-  overflow: hidden;
-  margin-top: -0.9rem;
-}
