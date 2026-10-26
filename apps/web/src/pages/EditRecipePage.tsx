@@ -4,15 +4,18 @@ import { useState } from 'react';
 import { ImageUpload } from '../components/ImageUpload.tsx';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { RecipeEditor } from '../components/RecipeEditor.tsx';
+import { RestoredDraft } from '../components/RestoredDraft.tsx';
 import { ApiError, fetchRecipe, updateRecipe, type RecipeIssueWire } from '../lib/api.ts';
+import { loadSavedDraft, useDraftAutosave, type SavedDraft } from '../lib/saved-draft.ts';
+import { useLeaveGuard } from '../lib/use-leave-guard.ts';
 import { useTitle } from '../lib/use-title.ts';
 
 /**
- * Editing is writing a new version, never overwriting one.
- *
- * The page therefore has no "unsaved" concept worth defending: the server keeps
- * every state you have ever saved, so the cost of saving early is zero and the
- * cost of losing the tab is one edit. `message` is the commit message.
+ * Editing is writing a new version, never overwriting one, so saving early
+ * costs nothing. Losing the tab still costs whatever was typed since the last
+ * save, which can be a great deal: unsaved edits are kept in this browser and
+ * offered back, and leaving with them asks first. `message` is the commit
+ * message.
  */
 export function EditRecipePage() {
   const { handle, slug } = useParams({ from: '/$handle/$slug/edit' });
@@ -38,6 +41,33 @@ export function EditRecipePage() {
   const [message, setMessage] = useState('');
   const [serverIssues, setServerIssues] = useState<RecipeIssueWire[] | undefined>();
 
+  /**
+   * Edits kept from a visit that ended without saving, offered back only while
+   * the recipe is still the version they were made to — see `SavedDraft`.
+   * Checked once, as soon as that version has loaded.
+   */
+  const draftKey = `edit:${handle}/${slug}`;
+  const [restored, setRestored] = useState<SavedDraft | null>(null);
+  const [restoreChecked, setRestoreChecked] = useState(false);
+  if (!restoreChecked && data) {
+    setRestoreChecked(true);
+    const saved = loadSavedDraft(draftKey, data.content);
+    if (saved) {
+      setRestored(saved);
+      setDraft(saved.content);
+    }
+  }
+  const autosave = useDraftAutosave({
+    key: draftKey,
+    base: data?.content,
+    content: draft ?? undefined,
+    pristine: data ? [data.content] : [],
+  });
+  const allowLeave = useLeaveGuard(
+    draft !== null && data !== undefined && draft !== data.content,
+    'Your changes aren’t saved yet. Leave anyway? A copy stays in this browser.',
+  );
+
   const mutation = useMutation({
     mutationFn: () =>
       updateRecipe(handle, slug, {
@@ -54,6 +84,8 @@ export function EditRecipePage() {
        * typed here, and it captures the default once on mount.
        */
       await queryClient.invalidateQueries({ queryKey: ['recipe', handle, slug] });
+      autosave.finish();
+      allowLeave();
       void navigate({
         to: '/$handle/$slug',
         params: { handle, slug },
@@ -111,6 +143,18 @@ export function EditRecipePage() {
         <p className="lede">
           Saving writes a new version. Nothing you have already saved is overwritten.
         </p>
+      )}
+
+      {restored && (
+        <RestoredDraft
+          draft={restored}
+          what="changes you hadn’t saved"
+          onDiscard={() => {
+            autosave.discard();
+            setRestored(null);
+            setDraft(null);
+          }}
+        />
       )}
 
       <ImageUpload handle={handle} slug={slug} draft={content} onChange={setDraft} />

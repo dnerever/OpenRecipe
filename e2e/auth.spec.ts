@@ -217,7 +217,9 @@ test('delete an account from settings', async ({ page }) => {
     await expect(page).toHaveURL(`/${account.handle}`);
 
     await page.goto('/settings');
-    await page.getByLabel('Password').fill(PASSWORD);
+    // The deletion form's field — "Password" alone also matches the
+    // change-password fields once they have loaded.
+    await page.getByLabel(/^Password leave blank/).fill(PASSWORD);
     page.once('dialog', (dialog) => void dialog.accept());
     await page.getByRole('button', { name: 'Delete my account' }).click();
     await expect(page).toHaveURL('/');

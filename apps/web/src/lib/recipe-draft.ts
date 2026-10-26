@@ -6,7 +6,7 @@ import {
   type Frontmatter,
   type RecipeDoc,
 } from '@openrecipe/core';
-import { stringify } from 'yaml';
+import { parse as parseYaml, stringify } from 'yaml';
 
 /**
  * The form editor's model of a recipe: what someone has *typed*, which is not
@@ -303,3 +303,123 @@ export function ingredientPaths(draft: RecipeDraft): Map<number, string> {
 
 /** What `/new` opens with in the form: the text of a draft with nothing in it. */
 export const BLANK_SOURCE = draftToSource(blankDraft());
+
+/**
+ * A draft from any recipe text the form can show faithfully — including text
+ * that is not a valid recipe yet. A half-filled form is invalid by nature (no
+ * title, an amount still being typed), and whether it comes back from the
+ * source tab or from a draft saved before the tab closed, it has to come back
+ * as the same boxes with the same things in them.
+ *
+ * Valid text goes through the parser as usual. Otherwise the frontmatter is
+ * read as plain YAML and each field taken as written, so that writing the
+ * draft back out reproduces the same problems for the parser to report.
+ * Anything the form has no box for — an unknown key, a field of the wrong
+ * shape, YAML that does not parse — gives `null`: the form would have to drop
+ * or rewrite it, and that is the source view's job.
+ */
+export function draftFromSource(text: string): RecipeDraft | null {
+  const parsed = safeParseRecipe(text);
+  if (parsed.ok) return draftFromDoc(parsed.doc);
+
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  if (lines[0]?.trim() !== '---') return null;
+  const close = lines.findIndex((line, i) => i > 0 && /^(?:---|\.\.\.)\s*$/.test(line));
+  if (close === -1) return null;
+
+  let raw: unknown;
+  try {
+    raw = parseYaml(lines.slice(1, close).join('\n'));
+  } catch {
+    return null;
+  }
+  raw ??= {};
+  if (!isRecord(raw) || !onlyKeys(raw, FRONTMATTER_KEYS)) return null;
+
+  // A list or a map where one value belongs is a shape the form has no box
+  // for; finding one anywhere sends the whole text to the source view.
+  let misshapen = false;
+  const str = (v: unknown): string => {
+    if (v === undefined || v === null) return '';
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v);
+    misshapen = true;
+    return '';
+  };
+  const strings = (v: unknown) => (Array.isArray(v) ? v.map(str).join(', ') : str(v));
+
+  const yieldRaw = raw['yield'];
+  if (yieldRaw !== undefined && !(isRecord(yieldRaw) && onlyKeys(yieldRaw, ['count', 'unit']))) {
+    return null;
+  }
+  const timeRaw = raw['time'];
+  if (timeRaw !== undefined && !(isRecord(timeRaw) && onlyKeys(timeRaw, TIME_FIELDS))) {
+    return null;
+  }
+  const ingredientsRaw = raw['ingredients'] ?? [];
+  if (!Array.isArray(ingredientsRaw)) return null;
+  if (!ingredientsRaw.every((i) => isRecord(i) && onlyKeys(i, INGREDIENT_KEYS))) return null;
+
+  const time = { prep: '', active: '', cook: '', total: '' };
+  for (const field of TIME_FIELDS) {
+    if (isRecord(timeRaw)) time[field] = str(timeRaw[field]);
+  }
+
+  const groups: IngredientGroupDraft[] = [];
+  for (const ing of ingredientsRaw as Record<string, unknown>[]) {
+    const name = str(ing['group']);
+    let last = groups[groups.length - 1];
+    if (!last || last.name !== name) {
+      last = { key: newKey(), name, items: [] };
+      groups.push(last);
+    }
+    last.items.push({
+      key: newKey(),
+      qty: str(ing['qty']),
+      unit: str(ing['unit']),
+      item: str(ing['item']),
+      note: str(ing['note']),
+    });
+  }
+  if (groups.length === 0) groups.push({ key: newKey(), name: '', items: [blankIngredient()] });
+
+  const kept: RecipeDraft['kept'] = {};
+  if (raw['image'] !== undefined) kept.image = raw['image'] as string;
+  if (raw['source'] !== undefined)
+    kept.source = raw['source'] as NonNullable<Frontmatter['source']>;
+  if (raw['license'] !== undefined) kept.license = raw['license'] as string;
+
+  const draft: RecipeDraft = {
+    title: str(raw['title']),
+    description: str(raw['description']),
+    yieldCount: isRecord(yieldRaw) ? str(yieldRaw['count']) : '',
+    yieldUnit: isRecord(yieldRaw) ? str(yieldRaw['unit']) : '',
+    time,
+    groups,
+    method: methodFromBody(lines.slice(close + 1).join('\n')),
+    equipment: strings(raw['equipment']),
+    tags: strings(raw['tags']),
+    // Passed through exactly as written; the parser has the last word on them.
+    kept,
+  };
+  return misshapen ? null : draft;
+}
+
+const FRONTMATTER_KEYS = [
+  'schema',
+  'title',
+  'description',
+  'image',
+  'yield',
+  'time',
+  'ingredients',
+  'equipment',
+  'tags',
+  'source',
+  'license',
+] as const;
+const INGREDIENT_KEYS = ['qty', 'unit', 'item', 'note', 'group'] as const;
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+const onlyKeys = (record: Record<string, unknown>, keys: readonly string[]) =>
+  Object.keys(record).every((k) => keys.includes(k));

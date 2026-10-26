@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { RecipeEditor } from '../components/RecipeEditor.tsx';
+import { RestoredDraft } from '../components/RestoredDraft.tsx';
 import {
   ApiError,
   createRecipe,
@@ -11,6 +12,9 @@ import {
 } from '../lib/api.ts';
 import { SignInLink } from '../components/SignInLink.tsx';
 import { BLANK_SOURCE } from '../lib/recipe-draft.ts';
+import { loadSavedDraft, useDraftAutosave } from '../lib/saved-draft.ts';
+import { STARTER_RECIPE } from '../lib/starter-recipe.ts';
+import { useLeaveGuard } from '../lib/use-leave-guard.ts';
 import { useCurrentUser } from '../lib/session.ts';
 import { useTitle } from '../lib/use-title.ts';
 
@@ -61,14 +65,25 @@ export function NewRecipePage() {
         </button>
       </div>
 
-      {mode === 'write' ? <WriteForm /> : <ImportForm />}
+      {mode === 'write' ? <WriteForm userId={user.id} /> : <ImportForm />}
     </section>
   );
 }
 
-function WriteForm() {
+/** Neither is worth keeping: one is empty and the other is our example. */
+const PRISTINE = [BLANK_SOURCE, STARTER_RECIPE];
+
+function WriteForm({ userId }: { userId: string }) {
   const navigate = useNavigate();
-  const [content, setContent] = useState(BLANK_SOURCE);
+  // Per account, so a shared computer does not hand one cook's draft to the next.
+  const draftKey = `new:${userId}`;
+  const [restored, setRestored] = useState(() => loadSavedDraft(draftKey, 'new'));
+  const [content, setContent] = useState(restored?.content ?? BLANK_SOURCE);
+  const autosave = useDraftAutosave({ key: draftKey, base: 'new', content, pristine: PRISTINE });
+  const allowLeave = useLeaveGuard(
+    !PRISTINE.includes(content),
+    'This recipe isn’t published yet. Leave anyway? A copy stays in this browser.',
+  );
   const [slug, setSlug] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [serverIssues, setServerIssues] = useState<RecipeIssueWire[] | undefined>();
@@ -81,6 +96,8 @@ function WriteForm() {
         visibility,
       }),
     onSuccess: (data) => {
+      autosave.finish();
+      allowLeave();
       void navigate({
         to: '/$handle/$slug',
         params: { handle: data.recipe.owner.handle, slug: data.recipe.slug },
@@ -93,6 +110,17 @@ function WriteForm() {
 
   return (
     <>
+      {restored && (
+        <RestoredDraft
+          draft={restored}
+          what="a recipe you hadn’t published"
+          onDiscard={() => {
+            autosave.discard();
+            setRestored(null);
+            setContent(BLANK_SOURCE);
+          }}
+        />
+      )}
       <RecipeEditor value={content} onChange={setContent} serverIssues={serverIssues} fresh />
 
       <div className="publish">
