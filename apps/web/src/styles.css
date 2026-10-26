@@ -2208,3 +2208,22 @@ textarea:focus-visible {
   color: var(--bad);
   background: color-mix(in oklab, var(--bad) 12%, transparent);
 }
+
+/* Settings: the session and sign-in-method lists. */
+.plain {
+  list-style: none;
+  margin: 0 0 var(--space-3, 1rem);
+  padding: 0;
+}
+
+.plain li {
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+}
+
+label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
