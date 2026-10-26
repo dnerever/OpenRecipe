@@ -394,7 +394,8 @@ function DeleteSection({ handle }: { handle: string }) {
     const confirmed = window.confirm(
       `Delete your account, @${handle}?\n\n` +
         'Recipes nobody has forked go with it, along with your lists, stars ' +
-        'and comments. This cannot be undone.',
+        'and comments. Recipes others have forked stay, no longer linked to you. ' +
+        'This cannot be undone.',
     );
     if (!confirmed) return;
 
@@ -420,9 +421,11 @@ function DeleteSection({ handle }: { handle: string }) {
     <section className="panel">
       <h2>Delete account</h2>
       <p>
-        Removes your recipes, lists, stars and comments. A recipe someone else has forked survives —
-        deleting your account cannot take their copy's history with it — but stays attributed to
-        your handle.
+        Removes your profile, email, lists, stars and comments, and every recipe nobody has forked.
+        A recipe someone else has forked stays, because their copy's history depends on it — but it
+        is detached from you: it is shown as by “deleted”, your handle and name are gone from it,
+        and it stays public or private as it was. You can make a recipe private first if you would
+        rather it not stay visible.
       </p>
       <form onSubmit={(event) => void submit(event)}>
         <label>

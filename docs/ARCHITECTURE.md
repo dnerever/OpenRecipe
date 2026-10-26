@@ -275,6 +275,15 @@ somebody else's ancestry. The service asks the question before the database has
 to, and answers `409 has_descendants`. Going private is the escape hatch, and
 rule 4 already says what it does and does not do.
 
+**Deleting an account does not take forked recipes with it.** Recipes with
+no descendants are deleted as above. The rest, with the versions and proposals
+the account authored and photos it uploaded, are reassigned to a placeholder
+user (`deleted-user`, handle `deleted`, reserved) before better-auth removes the
+real row, because those foreign keys are `restrict` or `cascade`. Visibility is
+unchanged, so a private recipe stays private and, with no one able to sign in as
+the placeholder, unreadable and unwritable. A slug that collides under the
+placeholder gets the recipe id's first eight characters appended.
+
 **The refusal carries no number.** A private fork blocks a delete exactly as
 hard as a public one, and rule 7 says a public count excludes private children —
 so reporting *how many* forks stand in the way would announce the existence of
