@@ -75,12 +75,39 @@ test('sign in with an existing account, then sign out', async ({ page }) => {
     await signInThroughForm(page, account.email, PASSWORD);
     await expect(page).toHaveURL(`/${account.handle}`);
 
+    await page.getByLabel(`Account menu for @${account.handle}`).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible();
 
     // Signed out, the settings page is no longer reachable.
     await page.goto('/settings');
     await expect(page.getByRole('heading', { name: 'Settings' })).toHaveCount(0);
+  } finally {
+    await removeAccount(page, account.email, [PASSWORD]);
+  }
+});
+
+/**
+ * Handles are as long as their owners like, and the signed-in bar once ran off
+ * a phone's right edge, taking Settings and Sign out with it.
+ */
+test('signed in on a phone, the top bar fits and the account menu reaches settings', async ({
+  page,
+}) => {
+  const account = await createAccount(page, 'narrowbar');
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signInThroughForm(page, account.email, PASSWORD);
+    await expect(page).toHaveURL(`/${account.handle}`);
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+
+    await page.getByLabel(`Account menu for @${account.handle}`).click();
+    await page.getByRole('link', { name: 'Settings' }).click();
+    await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
   } finally {
     await removeAccount(page, account.email, [PASSWORD]);
   }
