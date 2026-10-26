@@ -9,12 +9,13 @@ import {
   useParams,
 } from '@tanstack/react-router';
 import { useState } from 'react';
+import { AccountMenu } from './components/AccountMenu.tsx';
 import { SiteFooter } from './components/SiteFooter.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { BrowsePage } from './pages/BrowsePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
-import { useCurrentUser, useSignOut } from './lib/session.ts';
+import { useCurrentUser } from './lib/session.ts';
 import { useRevealOnScrollUp } from './lib/use-reveal-on-scroll-up.ts';
 import { parseCookSearch } from './lib/cook-options.ts';
 import type { SearchSort } from './lib/api.ts';
@@ -27,8 +28,6 @@ import type { SearchSort } from './lib/api.ts';
  */
 function RootLayout() {
   const { user } = useCurrentUser();
-  const signOut = useSignOut();
-  const handle = user?.handle;
   const chrome = useRevealOnScrollUp();
 
   return (
@@ -48,17 +47,10 @@ function RootLayout() {
         </Link>
         <span className="spacer" />
         <ThemeToggle />
-        {handle ? (
+        {user ? (
           <>
-            {user?.isAdmin && <Link to="/admin">Reports</Link>}
             <Link to="/new">Write</Link>
-            <Link to="/$handle" params={{ handle }}>
-              @{handle}
-            </Link>
-            <Link to="/settings">Settings</Link>
-            <button type="button" className="linkish" onClick={() => signOut.mutate()}>
-              Sign out
-            </button>
+            <AccountMenu user={user} />
           </>
         ) : (
           <Link to="/signin">Sign in</Link>
