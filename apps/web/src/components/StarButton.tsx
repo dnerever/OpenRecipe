@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { SignInLink } from './SignInLink.tsx';
 import { setStarred } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 
@@ -35,9 +35,9 @@ export function StarButton({
 
   if (!user) {
     return (
-      <Link className="button secondary" to="/signin">
+      <SignInLink className="button secondary" label={`Sign in to star · ${total} stars`}>
         ☆ {total}
-      </Link>
+      </SignInLink>
     );
   }
 

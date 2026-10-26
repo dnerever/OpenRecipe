@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { useState } from 'react';
 import { AccountMenu } from './components/AccountMenu.tsx';
+import { SignInLink } from './components/SignInLink.tsx';
 import { SiteFooter } from './components/SiteFooter.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { BrowsePage } from './pages/BrowsePage.tsx';
@@ -18,6 +19,7 @@ import { RecipePage } from './pages/RecipePage.tsx';
 import { useCurrentUser } from './lib/session.ts';
 import { useRevealOnScrollUp } from './lib/use-reveal-on-scroll-up.ts';
 import { parseCookSearch } from './lib/cook-options.ts';
+import { safeRedirect } from './lib/redirect.ts';
 import type { SearchSort } from './lib/api.ts';
 
 /**
@@ -53,7 +55,7 @@ function RootLayout() {
             <AccountMenu user={user} />
           </>
         ) : (
-          <Link to="/signin">Sign in</Link>
+          <SignInLink>Sign in</SignInLink>
         )}
       </nav>
       <main>
@@ -138,6 +140,14 @@ const indexRoute = createRoute({
 const signInRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/signin',
+  /**
+   * Where to go once signed in — see `safeRedirect` for why it is checked.
+   * The key is always returned, `undefined` when refused: leaving it out lets
+   * the router keep the raw value from the address bar alongside ours.
+   */
+  validateSearch: (search: Record<string, unknown>): { redirect?: string | undefined } => ({
+    redirect: safeRedirect(search['redirect']),
+  }),
   component: lazyRouteComponent(() => import('./pages/SignInPage.tsx'), 'SignInPage'),
 });
 const newRoute = createRoute({

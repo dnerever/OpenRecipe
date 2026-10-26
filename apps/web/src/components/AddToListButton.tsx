@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import {
   addToList,
@@ -8,6 +7,7 @@ import {
   removeFromList,
   type PickerList,
 } from '../lib/api.ts';
+import { SignInLink } from './SignInLink.tsx';
 import { useCurrentUser } from '../lib/session.ts';
 
 /**
@@ -107,11 +107,7 @@ export function AddToListButton({
   });
 
   if (!user) {
-    return (
-      <Link className="button secondary" to="/signin">
-        Add to list
-      </Link>
-    );
+    return <SignInLink className="button secondary">Add to list</SignInLink>;
   }
 
   const lists = (data?.lists ?? []).filter((list) => list.canEdit);

@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, setPassword, type Health } from '../lib/api.ts';
 import { emailOtp, requestPasswordReset, signIn } from '../lib/auth.ts';
+import { safeRedirect } from '../lib/redirect.ts';
 import { SESSION_KEY } from '../lib/session.ts';
 import { useBotCheck, type BotCheck } from './BotCheck.tsx';
 
@@ -133,7 +134,10 @@ function AuthForms({ health, bot }: { health: Health | null; bot: BotCheck }) {
             </button>
 
             {health?.auth.github && (
-              <button type="button" onClick={() => void signIn.social({ provider: 'github' })}>
+              <button
+                type="button"
+                onClick={() => void signIn.social({ provider: 'github', callbackURL: returnTo() })}
+              >
                 Continue with GitHub
               </button>
             )}
@@ -379,7 +383,10 @@ function SignUpFlow({
           {busy ? 'Sending…' : 'Send code'}
         </button>
         {github && (
-          <button type="button" onClick={() => void signIn.social({ provider: 'github' })}>
+          <button
+            type="button"
+            onClick={() => void signIn.social({ provider: 'github', callbackURL: returnTo() })}
+          >
             Continue with GitHub
           </button>
         )}
@@ -475,4 +482,14 @@ function ForgotPasswordForm({
       </form>
     </section>
   );
+}
+
+/**
+ * GitHub sends the browser away and back again, so the way back has to travel
+ * with it: `callbackURL` is where better-auth lands afterwards. Read from the
+ * address bar at the moment of the click, and checked, for the same reason
+ * the route checks it.
+ */
+function returnTo(): string {
+  return safeRedirect(new URLSearchParams(window.location.search).get('redirect')) ?? '/';
 }

@@ -13,6 +13,7 @@ import {
   type Mergeability,
   type Proposal,
 } from '../lib/api.ts';
+import { SignInLink } from '../components/SignInLink.tsx';
 import { useCurrentUser } from '../lib/session.ts';
 
 /**
@@ -184,7 +185,7 @@ export function ProposalPage() {
         <CommentForm pending={comment.isPending} onSubmit={(body) => comment.mutate(body)} />
       ) : (
         <p className="muted">
-          <Link to="/signin">Sign in</Link> to join the discussion.
+          <SignInLink>Sign in</SignInLink> to join the discussion.
         </p>
       )}
     </article>
