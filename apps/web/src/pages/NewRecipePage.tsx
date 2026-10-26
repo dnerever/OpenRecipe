@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { RecipeEditor, STARTER_RECIPE } from '../components/RecipeEditor.tsx';
+import { RecipeEditor } from '../components/RecipeEditor.tsx';
 import {
   ApiError,
   createRecipe,
@@ -9,6 +9,7 @@ import {
   type RecipeIssueWire,
   type Visibility,
 } from '../lib/api.ts';
+import { BLANK_SOURCE } from '../lib/recipe-draft.ts';
 import { useCurrentUser } from '../lib/session.ts';
 
 export function NewRecipePage() {
@@ -31,7 +32,7 @@ export function NewRecipePage() {
       <h1>New recipe</h1>
       <p className="lede">
         {mode === 'write'
-          ? 'Write it as you would in a notebook. The structure comes from the frontmatter.'
+          ? 'Write it down the way you’d tell a friend: what goes in, then what to do.'
           : "Paste a link to a recipe someone else published, and we'll read it off the page."}
       </p>
 
@@ -59,7 +60,7 @@ export function NewRecipePage() {
 
 function WriteForm() {
   const navigate = useNavigate();
-  const [content, setContent] = useState(STARTER_RECIPE);
+  const [content, setContent] = useState(BLANK_SOURCE);
   const [slug, setSlug] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [serverIssues, setServerIssues] = useState<RecipeIssueWire[] | undefined>();
@@ -84,7 +85,7 @@ function WriteForm() {
 
   return (
     <>
-      <RecipeEditor value={content} onChange={setContent} serverIssues={serverIssues} />
+      <RecipeEditor value={content} onChange={setContent} serverIssues={serverIssues} fresh />
 
       <div className="publish">
         <label>

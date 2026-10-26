@@ -41,21 +41,70 @@ async function signUp(browser: Browser, name: string): Promise<Cook> {
   return { handle, page };
 }
 
-/** Publishes the editor's starter recipe — "My First Loaf" — as-is. */
+/** Writes "My First Loaf" into the form editor on /new and publishes it. */
 async function publishStarter({ page, handle }: Cook): Promise<string> {
   await page.goto('/new');
+  await page.getByLabel('Title', { exact: true }).fill('My First Loaf');
+  await page.getByLabel('Amount', { exact: true }).fill('500');
+  await page.getByLabel('Unit', { exact: true }).fill('g');
+  await page.getByLabel('Ingredient', { exact: true }).fill('bread flour');
+  await page
+    .getByLabel('Step 1', { exact: true })
+    .fill('Mix, prove and bake at 230°C for 40 minutes.');
   await page.getByRole('button', { name: 'Publish recipe' }).click();
   await expect(page).toHaveURL(new RegExp(`^.*/${handle}/[a-z0-9-]+$`));
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('My First Loaf');
   return new URL(page.url()).pathname;
 }
 
-/** Appends a line to the end of the open recipe editor. */
+/** Appends a line to the end of the open recipe editor, in its source view. */
 async function appendToEditor(page: Page, text: string): Promise<void> {
+  await page.getByRole('button', { name: 'Source', exact: true }).click();
   await page.locator('.cm-content').click();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.type(`\n\n${text}`);
 }
+
+test('the form editor writes a recipe without any YAML', async ({ browser }) => {
+  const { page, handle } = await signUp(browser, 'formcook');
+  await page.goto('/new');
+
+  // Nothing typed yet, nothing flagged yet.
+  await expect(page.locator('.field-error')).toHaveCount(0);
+
+  await page.getByLabel('Title', { exact: true }).fill('Pancakes');
+  await page.getByLabel('How many it makes', { exact: true }).fill('8');
+  await page.getByLabel('Of what', { exact: true }).fill('pancakes');
+  await page.getByLabel('Prep', { exact: true }).fill('10');
+
+  await page.getByLabel('Amount', { exact: true }).fill('a cup');
+  await page.getByLabel('Unit', { exact: true }).focus();
+  await expect(page.getByText('Write the amount as a number')).toBeVisible();
+  await page.getByLabel('Amount', { exact: true }).fill('1 1/2');
+  await expect(page.getByText('Write the amount as a number')).toHaveCount(0);
+  await page.getByLabel('Unit', { exact: true }).fill('cup');
+  await page.getByLabel('Ingredient', { exact: true }).fill('flour');
+  // Enter starts the next ingredient, focused.
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('2');
+  await expect(page.getByLabel('Amount', { exact: true }).nth(1)).toHaveValue('2');
+  await page.getByLabel('Ingredient', { exact: true }).nth(1).fill('eggs');
+
+  await page.getByLabel('Step 1', { exact: true }).fill('Whisk everything together.');
+  await page.getByRole('button', { name: 'Add step' }).click();
+  await page.getByLabel('Step 2', { exact: true }).fill('Cook 2 minutes a side.');
+
+  // The source view is the same recipe as text.
+  await page.getByRole('button', { name: 'Source', exact: true }).click();
+  await expect(page.locator('.cm-content')).toContainText('title: Pancakes');
+  await page.getByRole('button', { name: 'Form', exact: true }).click();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Pancakes');
+
+  await page.getByRole('button', { name: 'Publish recipe' }).click();
+  await expect(page).toHaveURL(new RegExp(`/${handle}/pancakes$`));
+  await expect(page.getByRole('checkbox', { name: '1½ cups flour' })).toBeVisible();
+  await expect(page.getByText('Cook 2 minutes a side.')).toBeVisible();
+});
 
 test('sign up, publish a recipe, and read it back', async ({ browser }) => {
   const cook = await signUp(browser, 'author');
@@ -103,7 +152,7 @@ test('propose a change, and the owner merges it', async ({ browser }) => {
   await page.getByLabel('What changed?').fill('Add a doneness test');
   await page.getByRole('button', { name: 'Save and continue' }).click();
 
-  await expect(page.getByLabel('Title')).toHaveValue('Add a doneness test');
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Add a doneness test');
   await page.getByRole('button', { name: 'Open proposal' }).click();
   await expect(page).toHaveURL(new RegExp(`${source}/proposals/\\d+$`));
   const proposal = new URL(page.url()).pathname;
