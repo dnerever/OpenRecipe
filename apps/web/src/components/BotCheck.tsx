@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
@@ -7,9 +7,13 @@ type TurnstileApi = {
     el: HTMLElement,
     opts: {
       sitekey: string;
+      size: 'flexible';
+      appearance: 'interaction-only';
       callback: (token: string) => void;
       'expired-callback': () => void;
       'error-callback': () => void;
+      'before-interactive-callback': () => void;
+      'after-interactive-callback': () => void;
     },
   ) => string;
   reset: (id: string) => void;
@@ -40,8 +44,11 @@ function loadScript(): Promise<void> {
 }
 
 export type BotCheck = {
-  /** Render once, somewhere stable; null when Turnstile is not configured. */
-  widget: ReactNode;
+  /**
+   * Ref for the element the widget mounts in: put it inside the form, just
+   * above the submit button. Does nothing when Turnstile is not configured.
+   */
+  slot: (el: HTMLDivElement | null) => void;
   /** Whether a submit has to wait for (or has lost) its token. */
   blocked: boolean;
   /** Per-call fetch options carrying the token, for the better-auth client. */
@@ -53,27 +60,36 @@ export type BotCheck = {
 /**
  * Cloudflare Turnstile for the credential forms. With no site key (the API
  * has Turnstile unconfigured) every part of this is inert, so a clone without
- * keys behaves exactly as before. The widget runs in its default managed
- * mode, which is invisible unless Cloudflare wants a click.
+ * keys behaves exactly as before.
+ *
+ * `interaction-only` keeps the widget invisible, success badge included, unless
+ * Cloudflare needs a click; the challenge then appears where the person is
+ * already looking, between the last field and the submit button. `flexible`
+ * lets it fill the form's width on a phone instead of a fixed 300px box.
  */
 export function useBotCheck(siteKey: string | null): BotCheck {
-  const container = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const widgetId = useRef<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!siteKey) return;
+    if (!siteKey || !container) return;
     let cancelled = false;
 
     loadScript()
       .then(() => {
         const api = window.turnstile;
-        if (cancelled || !api || !container.current) return;
-        widgetId.current = api.render(container.current, {
+        if (cancelled || !api) return;
+        widgetId.current = api.render(container, {
           sitekey: siteKey,
+          size: 'flexible',
+          appearance: 'interaction-only',
           callback: setToken,
           'expired-callback': () => setToken(null),
           'error-callback': () => setToken(null),
+          // Collapsed by default (see `.bot-check`); open only for a real click.
+          'before-interactive-callback': () => container.classList.add('needs-click'),
+          'after-interactive-callback': () => container.classList.remove('needs-click'),
         });
       })
       .catch(() => setToken(null));
@@ -84,7 +100,7 @@ export function useBotCheck(siteKey: string | null): BotCheck {
       widgetId.current = null;
       setToken(null);
     };
-  }, [siteKey]);
+  }, [siteKey, container]);
 
   const reset = useCallback(() => {
     setToken(null);
@@ -92,7 +108,7 @@ export function useBotCheck(siteKey: string | null): BotCheck {
   }, []);
 
   return {
-    widget: siteKey ? <div ref={container} className="bot-check" /> : null,
+    slot: setContainer,
     blocked: siteKey !== null && token === null,
     options: () => (token ? { headers: { 'x-turnstile-token': token } } : undefined),
     reset,

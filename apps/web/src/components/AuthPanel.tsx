@@ -16,12 +16,7 @@ type Mode = 'sign-in' | 'sign-up' | 'forgot';
  */
 export function AuthPanel({ health }: { health: Health | null }) {
   const bot = useBotCheck(health?.auth.turnstileSiteKey ?? null);
-  return (
-    <>
-      <AuthForms health={health} bot={bot} />
-      {bot.widget}
-    </>
-  );
+  return <AuthForms health={health} bot={bot} />;
 }
 
 const BOT_PENDING = 'Still checking that you are not a bot. Try again in a moment.';
@@ -129,6 +124,7 @@ function AuthForms({ health, bot }: { health: Health | null; bot: BotCheck }) {
             Forgot password?
           </button>
 
+          <div ref={bot.slot} className="bot-check" />
           {error && <p className="bad">{error}</p>}
 
           <div className="row">
@@ -308,6 +304,7 @@ function SignUpFlow({
             required
           />
         </label>
+        <div ref={bot.slot} className="bot-check" />
         {error && <p className="bad">{error}</p>}
         <div className="row">
           <button type="submit" disabled={busy}>
@@ -374,6 +371,8 @@ function SignUpFlow({
         By creating an account, you agree to the <Link to="/terms">Terms</Link> and{' '}
         <Link to="/privacy">Privacy Policy</Link>.
       </p>
+
+      <div ref={bot.slot} className="bot-check" />
 
       <div className="row">
         <button type="submit" disabled={busy}>
@@ -462,6 +461,7 @@ function ForgotPasswordForm({
           />
         </label>
 
+        <div ref={bot.slot} className="bot-check" />
         {error && <p className="bad">{error}</p>}
 
         <div className="row">
