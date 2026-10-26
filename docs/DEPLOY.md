@@ -1,4 +1,4 @@
-# Deploying OpenRecipe
+# Deploying OpenSkillet
 
 One Docker service on Render, Postgres on Neon, and nothing in the application
 that knows which host it is on.
@@ -103,6 +103,44 @@ You cannot know that URL before the service exists, so the app falls back to
 
 On any other host, just set `APP_URL` — the fallback is absent there and nothing
 depends on it.
+
+## Custom domain
+
+Done in this order, so nothing is ever pointed at a host that is not ready for it.
+
+1. **Render → the service → Settings → Custom Domains → Add.** Add
+   `openskillet.com` and `www.openskillet.com`. Render shows the exact DNS
+   records it wants; use those if they differ from the ones below.
+2. **Namecheap → Domain List → Manage → Advanced DNS.** Delete the parking
+   records Namecheap created (the `CNAME www → parkingpage.namecheap.com` and
+   the `URL Redirect` row), then add:
+
+   | Type | Host | Value |
+   |---|---|---|
+   | `A Record` | `@` | `216.24.57.1` |
+   | `CNAME Record` | `www` | `openrecipe.onrender.com` |
+
+   Leave the nameservers on _Namecheap BasicDNS_. Any other `A`, `AAAA` or
+   `CNAME` row on `@` or `www` conflicts and stops Render verifying the domain.
+3. **Back in Render, click Verify** on both rows. DNS usually settles in minutes
+   but can take an hour; Render issues the TLS certificate once it verifies.
+   Render redirects one of the two names to the other, so pick the canonical
+   one in step 4 and expect the other to bounce to it.
+4. **Set `APP_URL=https://openskillet.com`** on the service and redeploy. This
+   is the step that matters: session cookies, OAuth callbacks, the sitemap, and
+   the `og:` tags all derive from it. Until it is set, login on the new domain
+   will not work, because the app still believes it lives on `onrender.com`.
+5. **Email.** Add `openskillet.com` as the Resend domain (see
+   [Email](#email-sign-up-codes-and-password-reset)), paste its SPF/DKIM
+   records into the same Namecheap Advanced DNS page, and set
+   `MAIL_FROM=OpenSkillet <noreply@openskillet.com>`. Resend's records live on a
+   subdomain, so they do not collide with the `A` record above.
+6. **GitHub sign-in, if enabled:** change the OAuth app's callback URL to
+   `https://openskillet.com/api/auth/callback/github`.
+
+Verify with `curl -I https://openskillet.com/health`, then sign in on the new
+domain. Sessions created on `onrender.com` do not carry over; the cookie is
+host-scoped, so everyone signs in once more.
 
 ## 3. Verify
 
@@ -298,38 +336,79 @@ request still in flight.
 It is worth running after any manual surgery on the database. Nothing schedules
 it, and nothing needs to — an orphan is a storage cost, not a correctness one.
 
-## Password reset email
+## Email (sign-up codes and password reset)
 
-Forgotten passwords need a mail transport. Resend's free tier (100
-emails/day, no credit card) covers this app's entire mail sending — a password
-reset link is the only email it sends.
+Two things send mail: the six-digit code that verifies an address at sign-up,
+and the password reset link. Resend's free tier (100 emails/day, no credit
+card) covers both.
 
 1. **Create a Resend account and an API key.** Settings → API Keys → Create API
    Key. Sending access is enough; it does not need domain access.
-2. **Set the variable on the Render service:**
+2. **Verify a sending domain.** Domains → Add Domain, then add the DNS records
+   Resend lists (SPF and DKIM) and wait for it to show _Verified_.
+3. **Set the variables on the Render service:**
 
    ```
    RESEND_API_KEY=re_…
+   MAIL_FROM=OpenSkillet <noreply@your-domain>
    ```
 
-   `MAIL_FROM` is optional and defaults to Resend's own sandbox sender,
-   `OpenRecipe <onboarding@resend.dev>`, which sends without any domain setup
-   but looks like what it is. Verify a domain in Resend and set `MAIL_FROM` to
-   an address on it (e.g. `OpenRecipe <noreply@your-domain>`) when you want the
-   reset email to come from your own domain instead.
+   `MAIL_FROM` is optional and defaults to Resend's sandbox sender,
+   `OpenSkillet <onboarding@resend.dev>`. **The sandbox sender can only deliver
+   to the email address on the Resend account itself** — any other recipient is
+   rejected, so a stranger signing up would never get their code. It is fine for
+   a first smoke test with your own address and nothing else.
 
-**With `RESEND_API_KEY` unset, the app still boots and reset still "works"** —
-`mailer.ts` logs the reset link to the Render log instead of emailing it. That
-is fine for a solo operator who can read the log, and it is why nothing here is
-required. It stops being fine the moment a stranger who is not you forgets
-their password, since they have no way to read that log — set the variable
-before pointing anyone else at the site.
+**With `RESEND_API_KEY` unset, the app still boots** — `mailer.ts` logs the
+code or link to the Render log instead of emailing it. That is fine locally,
+and it is why nothing here is required to start. It stops being fine the moment
+a stranger signs up or forgets their password, since they cannot read that
+log — set the variables before pointing anyone else at the site.
 
-**Verify by requesting a reset, not by checking `/api/health`.** `/api/health`
+**A failed send is not silent.** Every send error is written to the log
+(`[mailer] send failed`) and reported to Sentry when `SENTRY_DSN` is set. The
+person asking still sees the same "check your email" answer, because the
+endpoints must not reveal whether an address has an account. Look in the
+Resend dashboard's _Emails_ log for the reason (unverified domain, rejected
+recipient).
+
+**Verify by sending a real one, not by checking `/api/health`.** `/api/health`
 reports `auth.passwordResetEmail` (true once `RESEND_API_KEY` is set), which
 only confirms the variable parsed — not that Resend will accept a real send.
-Use "Forgot password?" on the sign-in page with an address you can read, and
-confirm the email arrives.
+From a signed-out browser, with an address that is _not_ the Resend account's:
+
+1. _Create account_ → enter a name and the address → _Send code_. The code
+   should arrive in the inbox (check spam once, and that SPF/DKIM pass in the
+   message headers).
+2. Enter the code, then choose a password. You should land signed in.
+3. Sign out, then _Forgot password?_ with the same address, and confirm the
+   reset link arrives too.
+
+### How sign-up verification behaves
+
+- Codes are six digits, expire after 10 minutes, are single use, and allow five
+  wrong guesses before they are void. Only a hash is stored.
+- Requesting a code is limited to 3 per minute per address and IP; checking
+  one to 10 per minute. better-auth only enforces rate limits in production,
+  and keys them on `X-Forwarded-For`, which Render sets.
+- Entering the code creates the account with the address already verified,
+  signs the person in, and then asks for a password. Closing the tab at that
+  point leaves a verified account with no password; the same code step (or
+  password reset) gets back in.
+- Existing accounts are never locked out: `requireEmailVerification` stays off,
+  and they sign in with their password as before. Note that if the owner of an
+  _unverified_ legacy account later completes the sign-up code step with the
+  same address, better-auth revokes that account's password (it was never
+  proven to belong to them); they then set a new one in the same flow.
+- In production the direct `/api/auth/sign-up/email` endpoint is closed (403),
+  so the code step cannot be skipped. Outside production it stays open because
+  the test suites and e2e cannot read an inbox.
+- GitHub sign-in is unaffected, and so are accounts with no email.
+
+### Not done yet
+
+- A health check that distinguishes "configured" from "can actually send".
+  Today the only proof is a real send (above).
 
 ## Moderation
 

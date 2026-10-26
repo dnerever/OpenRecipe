@@ -26,15 +26,15 @@ function absoluteUrl(pathOrUrl: string): string {
 function buildRecipeMetaTags(recipe: RecipeWithOwner, doc: RecipeDoc): string {
   const title = doc.frontmatter.title;
   const description =
-    doc.frontmatter.description?.trim() || `A recipe by @${recipe.owner.handle} on OpenRecipe.`;
+    doc.frontmatter.description?.trim() || `A recipe by @${recipe.owner.handle} on OpenSkillet.`;
   const url = `${env.APP_URL}/${recipe.owner.handle}/${recipe.slug}`;
   const image = doc.frontmatter.image ? absoluteUrl(doc.frontmatter.image) : null;
 
   const tags = [
-    `<title>${escapeHtml(title)} · OpenRecipe</title>`,
+    `<title>${escapeHtml(title)} · OpenSkillet</title>`,
     `<meta name="description" content="${escapeHtml(description)}" />`,
     `<meta property="og:type" content="website" />`,
-    `<meta property="og:site_name" content="OpenRecipe" />`,
+    `<meta property="og:site_name" content="OpenSkillet" />`,
     `<meta property="og:title" content="${escapeHtml(title)}" />`,
     `<meta property="og:description" content="${escapeHtml(description)}" />`,
     `<meta property="og:url" content="${escapeHtml(url)}" />`,

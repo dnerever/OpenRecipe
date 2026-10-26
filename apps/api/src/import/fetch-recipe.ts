@@ -26,7 +26,7 @@ export class ImportUrlError extends Error {
 
 /** An honest user agent rather than a borrowed browser one — see the CLI's own note. */
 export const IMPORT_USER_AGENT =
-  'Mozilla/5.0 (compatible; OpenRecipe-import/1.0; personal bookmark import)';
+  'Mozilla/5.0 (compatible; OpenSkillet-import/1.0; personal bookmark import)';
 
 /**
  * Refuses the address ranges that let a URL field reach somewhere it has no

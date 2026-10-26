@@ -20,13 +20,20 @@ async function signUp(browser: Browser, name: string): Promise<Cook> {
   const handle = `e2e-${name}-${run}-${Math.random().toString(36).slice(2, 6)}`;
   const page = await (await browser.newContext()).newPage();
 
+  // The form's own sign-up is emailed-code verified, and a test can't read
+  // that inbox — so the account is made through the API, and the form is used
+  // to sign in, which is what the rest of each flow needs.
+  const email = `${handle}@example.test`;
+  const created = await page.request.post('/api/auth/sign-up/email', {
+    data: { email, password: PASSWORD, name, handle },
+  });
+  expect(created.ok()).toBe(true);
+  await page.context().clearCookies();
+
   await page.goto('/signin');
-  // Exact, or by prefix: each label carries a hint after its name, and the
-  // handle's hint mentions email.
-  await page.getByLabel('Name', { exact: true }).fill(name);
-  await page.getByLabel(/^Handle/).fill(handle);
-  await page.getByLabel('Email', { exact: true }).fill(`${handle}@example.test`);
-  await page.getByLabel(/^Password/).fill(PASSWORD);
+  await page.getByRole('tab', { name: 'Sign in' }).click();
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.locator('form button[type="submit"]').click();
 
   // A signed-in visit to /signin moves on to your own profile.

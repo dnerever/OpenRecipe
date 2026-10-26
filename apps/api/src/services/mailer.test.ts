@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mailConfigured, sendPasswordResetEmail } from './mailer.ts';
+import { mailConfigured, sendPasswordResetEmail, sendVerificationCodeEmail } from './mailer.ts';
 
 describe('mailer', () => {
   it('logs the link instead of sending when RESEND_API_KEY is unset', async () => {
@@ -41,5 +41,17 @@ describe('mailer', () => {
       }),
       `expected the reset link to be logged, got: ${JSON.stringify(logs)}`,
     );
+  });
+
+  it('logs the verification code instead of sending when RESEND_API_KEY is unset', async () => {
+    const logs: string[] = [];
+    const original = console.log;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '));
+    try {
+      await sendVerificationCodeEmail('someone@example.test', '123456');
+    } finally {
+      console.log = original;
+    }
+    assert.ok(logs.some((l) => l.includes('someone@example.test') && l.includes('123456')));
   });
 });

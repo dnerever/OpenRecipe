@@ -8,7 +8,7 @@ import { attributionFor } from './attribution.ts';
 import { parseNotionPage, toRecipe, type NotionPage } from './notion.ts';
 
 /**
- * Loads a Notion recipe-database export into OpenRecipe.
+ * Loads a Notion recipe-database export into OpenSkillet.
  *
  * Two kinds of row come out of that export and they want opposite treatment:
  *

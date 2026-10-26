@@ -15,10 +15,10 @@ const SHELL = `<!doctype html>
 <html>
   <head>
     <!-- default-meta:start -->
-    <title>OpenRecipe</title>
-    <meta name="description" content="Generic OpenRecipe description." />
-    <meta property="og:title" content="OpenRecipe" />
-    <meta property="og:description" content="Generic OpenRecipe description." />
+    <title>OpenSkillet</title>
+    <meta name="description" content="Generic OpenSkillet description." />
+    <meta property="og:title" content="OpenSkillet" />
+    <meta property="og:description" content="Generic OpenSkillet description." />
     <!-- default-meta:end -->
   </head>
   <body></body>
@@ -82,7 +82,7 @@ Bake it.
     const html = await renderShellWithRecipeMeta(SHELL, db, owner.handle, recipe.slug, null);
 
     assert.ok(
-      html.includes('<title>&lt;b&gt;Sourdough&lt;/b&gt; &amp; Rye · OpenRecipe</title>'),
+      html.includes('<title>&lt;b&gt;Sourdough&lt;/b&gt; &amp; Rye · OpenSkillet</title>'),
       html,
     );
     assert.ok(
@@ -117,7 +117,7 @@ Bake it.
 
     const html = await renderShellWithRecipeMeta(SHELL, db, owner.handle, recipe.slug, null);
 
-    assert.ok(html.includes(`A recipe by @${owner.handle} on OpenRecipe.`));
+    assert.ok(html.includes(`A recipe by @${owner.handle} on OpenSkillet.`));
     assert.ok(!html.includes('og:image'));
     assert.ok(html.includes('name="twitter:card" content="summary"'));
   });

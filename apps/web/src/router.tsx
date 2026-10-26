@@ -35,7 +35,7 @@ function RootLayout() {
     <>
       <nav className={chrome.hidden ? 'topbar is-hidden' : 'topbar'} ref={chrome.bar}>
         <Link to="/" className="brand">
-          OpenRecipe
+          OpenSkillet
         </Link>
         <TopSearch />
         <Link

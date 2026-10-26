@@ -1,10 +1,12 @@
 import { APIError, betterAuth } from 'better-auth';
+import { createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { emailOTP } from 'better-auth/plugins/email-otp';
 import { db, schema } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { AccountHasForkedRecipesError, deleteAccount } from './services/account-deletion.ts';
 import { claimUniqueHandle } from './services/handles.ts';
-import { sendPasswordResetEmail } from './services/mailer.ts';
+import { sendPasswordResetEmail, sendVerificationCodeEmail } from './services/mailer.ts';
 
 /**
  * Mounted at `/auth` rather than better-auth's default `/api/auth`: the API is
@@ -38,14 +40,53 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
-    // Still off: turning this on needs its own verification-email flow, and
-    // locking a signup out of the only account they have is worse than the
-    // bot signups it would deter. Password reset is the mail transport's
-    // first use; verification is the natural fast-follow.
+    // Still off, on purpose: accounts that predate verification have
+    // `emailVerified = false` and must keep signing in. New email accounts are
+    // verified by the code flow below (`emailOTP`), which marks the address
+    // verified before the account can set a password.
     requireEmailVerification: false,
     minPasswordLength: 10,
     sendResetPassword: async ({ user, url }) => {
       await sendPasswordResetEmail(user.email, url);
+    },
+  },
+
+  hooks: {
+    // Sign-up has to go through the emailed code, or verifying would only deter
+    // people who choose to. Read at request time, not from `env`, so a test can
+    // exercise production's behaviour; outside production the direct endpoint
+    // stays open because the suites and e2e cannot read an inbox.
+    before: createAuthMiddleware((ctx) => {
+      if (ctx.path === '/sign-up/email' && process.env['NODE_ENV'] === 'production') {
+        throw APIError.from('FORBIDDEN', {
+          code: 'email_verification_required',
+          message: 'Create your account with the emailed verification code.',
+        });
+      }
+      return Promise.resolve();
+    }),
+  },
+
+  plugins: [
+    emailOTP({
+      otpLength: 6,
+      expiresIn: 10 * 60,
+      allowedAttempts: 5,
+      storeOTP: 'hashed',
+      // Sign-up is the only use: password reset keeps its link, and existing
+      // accounts are never forced through a code.
+      sendVerificationOTP: async ({ email, otp }) => {
+        await sendVerificationCodeEmail(email, otp);
+      },
+    }),
+  ],
+
+  // Off outside production by default; the code endpoints are the ones worth
+  // limiting hardest, since a 6-digit code is only as strong as its guess cap.
+  rateLimit: {
+    customRules: {
+      '/email-otp/send-verification-otp': { window: 60, max: 3 },
+      '/sign-in/email-otp': { window: 60, max: 10 },
     },
   },
 

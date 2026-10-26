@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useState, type FormEvent } from 'react';
-import type { Health } from '../lib/api.ts';
-import { requestPasswordReset, signIn, signUp } from '../lib/auth.ts';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ApiError, setPassword, type Health } from '../lib/api.ts';
+import { emailOtp, requestPasswordReset, signIn } from '../lib/auth.ts';
 import { SESSION_KEY } from '../lib/session.ts';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot';
@@ -17,9 +17,7 @@ export function AuthPanel({ health }: { health: Health | null }) {
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>('sign-up');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [handle, setHandle] = useState('');
+  const [password, setPasswordValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -28,22 +26,20 @@ export function AuthPanel({ health }: { health: Health | null }) {
     setError(null);
   }
 
+  const signedIn = () => queryClient.invalidateQueries({ queryKey: SESSION_KEY });
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      const result =
-        mode === 'sign-up'
-          ? await signUp.email({ email, password, name, ...(handle ? { handle } : {}) })
-          : await signIn.email({ email, password });
-
+      const result = await signIn.email({ email, password });
       if (result.error) {
         setError(result.error.message ?? 'That did not work. Try again.');
         return;
       }
-      setPassword('');
-      await queryClient.invalidateQueries({ queryKey: SESSION_KEY });
+      setPasswordValue('');
+      await signedIn();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -72,81 +68,291 @@ export function AuthPanel({ health }: { health: Health | null }) {
         ))}
       </div>
 
-      <form onSubmit={(event) => void submit(event)}>
-        {mode === 'sign-up' && (
-          <>
-            <label>
-              Name
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-                required
-              />
-            </label>
-            <label>
-              Handle <span className="hint">optional — we’ll pick one from your email</span>
-              <input
-                value={handle}
-                onChange={(e) => setHandle(e.target.value)}
-                placeholder="chad-robertson"
-                autoComplete="username"
-              />
-            </label>
-          </>
-        )}
+      {mode === 'sign-up' ? (
+        <SignUpFlow
+          email={email}
+          onEmail={setEmail}
+          github={health?.auth.github === true}
+          onDone={signedIn}
+        />
+      ) : (
+        <form onSubmit={(event) => void submit(event)}>
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
+          </label>
 
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-        </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPasswordValue(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
 
+          <button type="button" className="linkish" onClick={() => switchMode('forgot')}>
+            Forgot password?
+          </button>
+
+          {error && <p className="bad">{error}</p>}
+
+          <div className="row">
+            <button type="submit" disabled={busy}>
+              {busy ? 'Working…' : 'Sign in'}
+            </button>
+
+            {health?.auth.github && (
+              <button type="button" onClick={() => void signIn.social({ provider: 'github' })}>
+                Continue with GitHub
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+const RESEND_COOLDOWN_SECONDS = 60;
+
+/**
+ * Email, then the emailed code, then a password. The code step is what signs
+ * the person in (with a verified address and no password yet), so the session
+ * is deliberately not invalidated until the password is set: doing it earlier
+ * would redirect away mid-flow. Whether the address already has an account is
+ * never shown — "code sent" reads the same either way.
+ */
+function SignUpFlow({
+  email,
+  onEmail,
+  github,
+  onDone,
+}: {
+  email: string;
+  onEmail: (email: string) => void;
+  github: boolean;
+  onDone: () => Promise<unknown>;
+}) {
+  const [step, setStep] = useState<'email' | 'code' | 'password'>('email');
+  const [name, setName] = useState('');
+  const [handle, setHandle] = useState('');
+  const [code, setCode] = useState('');
+  const [password, setPasswordValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((n) => n - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  async function run(action: () => Promise<void>) {
+    setError(null);
+    setBusy(true);
+    try {
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendCode() {
+    const result = await emailOtp.sendVerificationOtp({ email, type: 'sign-in' });
+    if (result.error) {
+      setError(
+        result.error.status === 429
+          ? 'Too many codes requested. Wait a minute and try again.'
+          : (result.error.message ?? 'That did not work. Try again.'),
+      );
+      return false;
+    }
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+    return true;
+  }
+
+  const submitEmail = (event: FormEvent) => {
+    event.preventDefault();
+    void run(async () => {
+      if (await sendCode()) setStep('code');
+    });
+  };
+
+  const submitCode = (event: FormEvent) => {
+    event.preventDefault();
+    void run(async () => {
+      const result = await signIn.emailOtp({
+        email,
+        otp: code.trim(),
+        name,
+        ...(handle ? { handle } : {}),
+      });
+      if (result.error) {
+        setError(
+          result.error.status === 429
+            ? 'Too many attempts. Wait a minute and try again.'
+            : result.error.code === 'TOO_MANY_ATTEMPTS'
+              ? 'Too many wrong codes. Request a new one.'
+              : result.error.code === 'OTP_EXPIRED'
+                ? 'That code has expired. Request a new one.'
+                : 'That code is not right. Check it and try again.',
+        );
+        return;
+      }
+      setStep('password');
+    });
+  };
+
+  const submitPassword = (event: FormEvent) => {
+    event.preventDefault();
+    void run(async () => {
+      try {
+        await setPassword(password);
+      } catch (err) {
+        // The account exists from here on: if this address already had a
+        // password, the code just signed them in to it.
+        if (err instanceof ApiError && err.status === 400) {
+          await onDone();
+          return;
+        }
+        throw err;
+      }
+      setPasswordValue('');
+      await onDone();
+    });
+  };
+
+  if (step === 'password') {
+    return (
+      <form onSubmit={submitPassword}>
+        <p>{email} is verified. Choose a password to finish.</p>
         <label>
           Password <span className="hint">at least 10 characters</span>
           <input
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
+            onChange={(e) => setPasswordValue(e.target.value)}
+            autoComplete="new-password"
             minLength={10}
             required
           />
         </label>
-
-        {mode === 'sign-in' && (
-          <button type="button" className="linkish" onClick={() => switchMode('forgot')}>
-            Forgot password?
-          </button>
-        )}
-
         {error && <p className="bad">{error}</p>}
-
-        {mode === 'sign-up' && (
-          <p className="hint">
-            By creating an account, you agree to the <Link to="/terms">Terms</Link> and{' '}
-            <Link to="/privacy">Privacy Policy</Link>.
-          </p>
-        )}
-
         <div className="row">
           <button type="submit" disabled={busy}>
-            {busy ? 'Working…' : mode === 'sign-up' ? 'Create account' : 'Sign in'}
+            {busy ? 'Working…' : 'Create account'}
           </button>
-
-          {health?.auth.github && (
-            <button type="button" onClick={() => void signIn.social({ provider: 'github' })}>
-              Continue with GitHub
-            </button>
-          )}
         </div>
       </form>
-    </section>
+    );
+  }
+
+  if (step === 'code') {
+    return (
+      <form onSubmit={submitCode}>
+        <p>If {email} can receive mail, we’ve sent it a 6-digit code. It expires in 10 minutes.</p>
+        <label>
+          Code
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            required
+          />
+        </label>
+        {error && <p className="bad">{error}</p>}
+        <div className="row">
+          <button type="submit" disabled={busy}>
+            {busy ? 'Checking…' : 'Verify'}
+          </button>
+          <button
+            type="button"
+            className="linkish"
+            disabled={busy || cooldown > 0}
+            onClick={() => void run(async () => void (await sendCode()))}
+          >
+            {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+          </button>
+          <button
+            type="button"
+            className="linkish"
+            onClick={() => {
+              setStep('email');
+              setCode('');
+              setError(null);
+            }}
+          >
+            Use a different email
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <form onSubmit={submitEmail}>
+      <label>
+        Name
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+          required
+        />
+      </label>
+      <label>
+        Handle <span className="hint">optional — we’ll pick one from your email</span>
+        <input
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          placeholder="chad-robertson"
+          autoComplete="username"
+        />
+      </label>
+      <label>
+        Email
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => onEmail(e.target.value)}
+          autoComplete="email"
+          required
+        />
+      </label>
+
+      {error && <p className="bad">{error}</p>}
+
+      <p className="hint">
+        By creating an account, you agree to the <Link to="/terms">Terms</Link> and{' '}
+        <Link to="/privacy">Privacy Policy</Link>.
+      </p>
+
+      <div className="row">
+        <button type="submit" disabled={busy}>
+          {busy ? 'Sending…' : 'Send code'}
+        </button>
+        {github && (
+          <button type="button" onClick={() => void signIn.social({ provider: 'github' })}>
+            Continue with GitHub
+          </button>
+        )}
+      </div>
+    </form>
   );
 }
 
