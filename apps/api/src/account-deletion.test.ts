@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
+import { eq } from 'drizzle-orm';
 import { after, describe, it } from 'node:test';
 import { createApp } from './app.ts';
+import { db } from './db/index.ts';
+import { users } from './db/schema.ts';
+import { DELETED_USER_HANDLE } from './services/account-deletion.ts';
 import { cleanupRun } from './test-support.ts';
 
 /**
@@ -80,7 +84,7 @@ async function signIn(email: string, password: string) {
 }
 
 describe('deleting an account', () => {
-  after(() => cleanupRun(`ad-${run}-`));
+  after(() => cleanupRun(`ad-${run}-`, `%-${run}%`));
 
   it('deletes a simple account and its one recipe', async () => {
     const alice = await newUser(`alice-${Math.random().toString(36).slice(2, 6)}`);
@@ -102,25 +106,140 @@ describe('deleting an account', () => {
     assert.equal((await signIn(bob.email, PASSWORD)).status, 200);
   });
 
-  it('refuses once one of its recipes has been forked, and deletes nothing', async () => {
+  const fork = (source: Session, slug: string, by: Session) =>
+    app.request(`/api/recipes/${source.handle}/${slug}/fork`, {
+      method: 'POST',
+      headers: json(by),
+    });
+
+  const get = (path: string, as: Session | null = null) => app.request(path, { headers: auth(as) });
+
+  it('deletes an account whose recipe was forked, keeping the recipe without the person', async () => {
     const owner = await newUser(`owner-${Math.random().toString(36).slice(2, 6)}`);
     const forker = await newUser(`forker-${Math.random().toString(36).slice(2, 6)}`);
-    const slug = `forked-${run}`;
-    await createRecipe(owner, LOAF, slug);
-
-    const forked = await app.request(`/api/recipes/${owner.handle}/${slug}/fork`, {
-      method: 'POST',
-      headers: json(forker),
-    });
-    assert.equal(forked.status, 201, await forked.clone().text());
+    const keptSlug = `forked-${run}`;
+    const goneSlug = `unforked-${run}`;
+    await createRecipe(owner, LOAF, keptSlug);
+    await createRecipe(owner, LOAF, goneSlug);
+    const forked = (await (await fork(owner, keptSlug, forker)).json()) as any;
 
     const { res, body } = await deleteAccount(owner);
-    assert.ok(res.status >= 400, JSON.stringify(body));
+    assert.equal(res.status, 200, JSON.stringify(body));
 
-    // Still there — a refused deletion changes nothing, same as a refused
-    // single-recipe delete.
-    assert.equal((await app.request(`/api/recipes/${owner.handle}/${slug}`)).status, 200);
-    assert.equal((await signIn(owner.email, PASSWORD)).status, 200);
+    // The person is gone entirely.
+    assert.ok((await signIn(owner.email, PASSWORD)).status >= 400);
+    assert.equal((await get(`/api/users/${owner.handle}/recipes`)).status, 404);
+    const [row] = await db.select().from(users).where(eq(users.id, owner.id));
+    assert.equal(row, undefined);
+
+    // The recipe nobody built on went; the one somebody did stays, as the
+    // placeholder's, with its history readable.
+    assert.equal((await get(`/api/recipes/${owner.handle}/${goneSlug}`)).status, 404);
+    const kept = await get(`/api/recipes/${DELETED_USER_HANDLE}/${keptSlug}`);
+    assert.equal(kept.status, 200);
+    const keptBody = (await kept.json()) as any;
+    assert.equal(keptBody.recipe.owner.handle, DELETED_USER_HANDLE);
+    assert.equal(keptBody.recipe.canEdit, false);
+    assert.equal(
+      (await get(`/api/recipes/${DELETED_USER_HANDLE}/${keptSlug}/versions`)).status,
+      200,
+    );
+
+    // The fork is untouched and still points at its source.
+    const fk = (await (
+      await get(`/api/recipes/${forker.handle}/${forked.recipe.slug}`, forker)
+    ).json()) as any;
+    assert.equal(fk.recipe.forkedFrom.visible, true);
+    assert.equal(fk.recipe.forkedFrom.owner.handle, DELETED_USER_HANDLE);
+    assert.equal(fk.recipe.forkedFrom.slug, keptSlug);
+
+    // Nobody can write to it, including the forker.
+    const edit = await app.request(`/api/recipes/${DELETED_USER_HANDLE}/${keptSlug}`, {
+      method: 'PUT',
+      headers: json(forker),
+      body: JSON.stringify({ content: LOAF.replace('Departing', 'Hijacked') }),
+    });
+    assert.ok(edit.status === 403 || edit.status === 404, `got ${edit.status}`);
+    const del = await app.request(`/api/recipes/${DELETED_USER_HANDLE}/${keptSlug}`, {
+      method: 'DELETE',
+      headers: json(forker),
+    });
+    assert.ok(del.status >= 400);
+  });
+
+  it('keeps a forked recipe private if it was private', async () => {
+    const owner = await newUser(`po-${Math.random().toString(36).slice(2, 6)}`);
+    const forker = await newUser(`pf-${Math.random().toString(36).slice(2, 6)}`);
+    const slug = `priv-${run}`;
+    await createRecipe(owner, LOAF, slug);
+    await fork(owner, slug, forker);
+    const hide = await app.request(`/api/recipes/${owner.handle}/${slug}/visibility`, {
+      method: 'POST',
+      headers: json(owner),
+      body: JSON.stringify({ visibility: 'private' }),
+    });
+    assert.equal(hide.status, 200, await hide.clone().text());
+
+    const { res, body } = await deleteAccount(owner);
+    assert.equal(res.status, 200, JSON.stringify(body));
+
+    for (const viewer of [null, forker]) {
+      assert.equal((await get(`/api/recipes/${DELETED_USER_HANDLE}/${slug}`, viewer)).status, 404);
+    }
+  });
+
+  it('keeps two deleted accounts’ recipes that share a slug', async () => {
+    const a = await newUser(`ca-${Math.random().toString(36).slice(2, 6)}`);
+    const b = await newUser(`cb-${Math.random().toString(36).slice(2, 6)}`);
+    const forker = await newUser(`cf-${Math.random().toString(36).slice(2, 6)}`);
+    const slug = `clash-${run}`;
+    await createRecipe(a, LOAF, slug);
+    await createRecipe(b, LOAF, slug);
+    await fork(a, slug, forker);
+    await fork(b, slug, forker);
+
+    assert.equal((await deleteAccount(a)).res.status, 200);
+    assert.equal((await deleteAccount(b)).res.status, 200);
+
+    const mine = (await (await get(`/api/users/${DELETED_USER_HANDLE}/recipes`)).json()) as any;
+    const clashing = mine.recipes.filter((r: any) => r.slug.startsWith(slug));
+    assert.equal(clashing.length, 2);
+  });
+
+  it('keeps a proposal the account opened on someone else’s recipe', async () => {
+    const target = await newUser(`tg-${Math.random().toString(36).slice(2, 6)}`);
+    const proposer = await newUser(`pp-${Math.random().toString(36).slice(2, 6)}`);
+    const slug = `pt-${run}`;
+    await createRecipe(target, LOAF, slug);
+    const forked = (await (await fork(target, slug, proposer)).json()) as any;
+    await app.request(`/api/recipes/${proposer.handle}/${forked.recipe.slug}`, {
+      method: 'PUT',
+      headers: json(proposer),
+      body: JSON.stringify({ content: LOAF.replace('Departing Loaf', 'Departing Loaf, Salted') }),
+    });
+    const proposal = (await (
+      await app.request(`/api/recipes/${target.handle}/${slug}/proposals`, {
+        method: 'POST',
+        headers: json(proposer),
+        body: JSON.stringify({ sourceRecipeId: forked.recipe.id, title: 'Salt it' }),
+      })
+    ).json()) as any;
+    assert.ok(proposal.number, JSON.stringify(proposal));
+
+    // The proposer's fork goes with the account unless somebody built on it;
+    // here a third person did, so the proposal's source survives.
+    const third = await newUser(`th-${Math.random().toString(36).slice(2, 6)}`);
+    assert.equal((await fork(proposer, forked.recipe.slug, third)).status, 201);
+
+    const { res, body } = await deleteAccount(proposer);
+    assert.equal(res.status, 200, JSON.stringify(body));
+
+    const read = await get(
+      `/api/recipes/${target.handle}/${slug}/proposals/${proposal.number}`,
+      target,
+    );
+    assert.equal(read.status, 200);
+    assert.equal((await signIn(target.email, PASSWORD)).status, 200);
   });
 
   it('takes a stray comment on someone else’s proposal with it', async () => {

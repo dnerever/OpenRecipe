@@ -26,6 +26,7 @@ export const RESERVED_HANDLES = new Set([
   'cdn',
   'contact',
   'dashboard',
+  'deleted',
   'docs',
   'explore',
   'export',

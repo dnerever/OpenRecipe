@@ -67,13 +67,12 @@ export function TermsPage() {
 
       <h2>Account deletion</h2>
       <p>
-        You can delete your account from <Link to="/settings">Settings</Link> at any time, which
-        deletes every recipe you solely own. It's refused, in full, if any recipe you own has been
-        forked — deleting it would break the version history someone else's fork depends on, the
-        same rule that blocks deleting that one recipe on its own. This isn't fixed by making the
-        recipe private first: visibility and fork history are independent, so a private recipe with
-        a fork still blocks deletion. If this applies to you, the account isn't deletable until
-        that's no longer true.
+        You can delete your account from <Link to="/settings">Settings</Link> at any time. It
+        deletes every recipe nobody has forked. A recipe someone has forked stays, because their
+        copy's version history depends on it, but it is detached from you and shown as by “deleted”:
+        it keeps its current visibility, and what you published to it remains under the
+        recipe-content license above. Make a recipe private before deleting if you don't want it to
+        stay visible.
       </p>
 
       <h2>The code itself</h2>

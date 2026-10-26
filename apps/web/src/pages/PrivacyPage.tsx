@@ -55,11 +55,12 @@ export function PrivacyPage() {
       <h2>How long we keep it</h2>
       <p>
         Your data is kept as long as your account exists. Deleting your account (
-        <Link to="/settings">Settings</Link>) removes your recipes and their images — but only if
-        none of them have been forked by someone else. A forked recipe's version history is depended
-        on by that fork, so its account can't be deleted while the fork exists, the same rule that
-        blocks deleting that one recipe on its own; making it private doesn't change this, since
-        visibility and fork history are unrelated facts about a recipe.
+        <Link to="/settings">Settings</Link>) removes your profile, email, lists, stars and
+        comments, and every recipe nobody has forked, with their images. A recipe someone else has
+        forked stays, because that fork's version history depends on it. It is reassigned to a
+        placeholder account named “deleted”, so your handle, name and email are no longer attached
+        to it, and it keeps whatever visibility it had. The same goes for versions you wrote on
+        other people's recipes.
       </p>
 
       <h2>Your choices</h2>
