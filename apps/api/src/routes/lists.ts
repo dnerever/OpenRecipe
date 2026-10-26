@@ -20,6 +20,7 @@ import {
   updateList,
 } from '../services/lists.ts';
 import { validateSlug } from '../services/slugs.ts';
+import { limits } from '../services/rate-limit.ts';
 
 const TITLE = z.string().trim().min(1, 'A list needs a name.').max(80);
 const DESCRIPTION = z.string().trim().max(500);
@@ -67,7 +68,7 @@ export const listRoutes = new Hono<AppEnv>()
     return c.json(await listsForViewer(db, currentUser(c), ref));
   })
 
-  .post('/lists', requireUser, async (c) => {
+  .post('/lists', requireUser, limits.listCreate, async (c) => {
     const body = await readBody(c, CreateBody);
 
     if (body.slug !== undefined) {

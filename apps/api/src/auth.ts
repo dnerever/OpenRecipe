@@ -6,7 +6,17 @@ import { db, schema } from './db/index.ts';
 import { env, githubOAuth } from './env.ts';
 import { AccountHasForkedRecipesError, deleteAccount } from './services/account-deletion.ts';
 import { claimUniqueHandle } from './services/handles.ts';
+import { clientIp, clientIpHeader } from './services/client-ip.ts';
 import { sendPasswordResetEmail, sendVerificationCodeEmail } from './services/mailer.ts';
+import { TURNSTILE_HEADER, verifyTurnstile } from './services/turnstile.ts';
+
+/** Auth endpoints that need a Turnstile token when it is configured. */
+const TURNSTILE_PATHS = new Set([
+  '/sign-up/email',
+  '/sign-in/email',
+  '/request-password-reset',
+  '/email-otp/send-verification-otp',
+]);
 
 /**
  * Mounted at `/auth` rather than better-auth's default `/api/auth`: the API is
@@ -56,14 +66,27 @@ export const auth = betterAuth({
     // people who choose to. Read at request time, not from `env`, so a test can
     // exercise production's behaviour; outside production the direct endpoint
     // stays open because the suites and e2e cannot read an inbox.
-    before: createAuthMiddleware((ctx) => {
+    before: createAuthMiddleware(async (ctx) => {
       if (ctx.path === '/sign-up/email' && process.env['NODE_ENV'] === 'production') {
         throw APIError.from('FORBIDDEN', {
           code: 'email_verification_required',
           message: 'Create your account with the emailed verification code.',
         });
       }
-      return Promise.resolve();
+
+      // Bot check on the entry points a script would hammer. Not the code
+      // step (`/sign-in/email-otp`): a token is single use, the form already
+      // spent one requesting the code, and wrong guesses are attempt-capped.
+      if (TURNSTILE_PATHS.has(ctx.path)) {
+        const token = ctx.headers?.get(TURNSTILE_HEADER);
+        const ip = ctx.headers ? clientIp(ctx.headers) : 'unknown';
+        if (!(await verifyTurnstile(token, ip))) {
+          throw APIError.from('FORBIDDEN', {
+            code: 'captcha_failed',
+            message: 'Bot check failed. Reload the page and try again.',
+          });
+        }
+      }
     }),
   },
 
@@ -81,13 +104,28 @@ export const auth = betterAuth({
     }),
   ],
 
-  // Off outside production by default; the code endpoints are the ones worth
-  // limiting hardest, since a 6-digit code is only as strong as its guess cap.
+  // Per client address, in memory (one instance). Stated rather than left to
+  // the defaults, which are off outside production and a generous 100/min for
+  // any path not listed. The code endpoints are the ones worth limiting
+  // hardest, since a 6-digit code is only as strong as its guess cap.
   rateLimit: {
+    enabled: env.NODE_ENV === 'production',
+    storage: 'memory',
+    window: 60,
+    max: 60,
     customRules: {
+      '/sign-in/email': { window: 60, max: 10 },
+      '/sign-up/email': { window: 3600, max: 10 },
+      '/request-password-reset': { window: 3600, max: 5 },
+      '/reset-password': { window: 3600, max: 10 },
       '/email-otp/send-verification-otp': { window: 60, max: 3 },
       '/sign-in/email-otp': { window: 60, max: 10 },
     },
+  },
+
+  advanced: {
+    // Same header the API's own limiter reads, so both agree who the client is.
+    ipAddress: { ipAddressHeaders: [clientIpHeader] },
   },
 
   ...(githubOAuth ? { socialProviders: { github: githubOAuth } } : {}),

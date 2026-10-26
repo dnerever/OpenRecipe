@@ -2208,3 +2208,8 @@ textarea:focus-visible {
   color: var(--bad);
   background: color-mix(in oklab, var(--bad) 12%, transparent);
 }
+
+/* Turnstile mounts here; empty (zero height) unless Cloudflare wants a click. */
+.bot-check {
+  margin-top: 0.75rem;
+}

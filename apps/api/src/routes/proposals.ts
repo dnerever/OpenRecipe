@@ -21,6 +21,7 @@ import {
 } from '../services/proposals.ts';
 import { NotFoundError } from '../services/authorization.ts';
 import { loadRecipe } from '../services/recipes.ts';
+import { limits } from '../services/rate-limit.ts';
 
 const OpenBody = z.object({
   sourceRecipeId: z.uuid(),
@@ -45,7 +46,7 @@ const ListQuery = z.object({ state: z.enum(['open', 'merged', 'closed']).optiona
  * Both resolve to the same selector before anything else happens.
  */
 export const proposalRoutes = new Hono<AppEnv>()
-  .post('/recipes/:handle/:slug/proposals', requireUser, async (c) => {
+  .post('/recipes/:handle/:slug/proposals', requireUser, limits.proposal, async (c) => {
     const body = await readBody(c, OpenBody);
     const proposal = await openProposal(db, ...addressed(c), currentUser(c), body);
     return c.json(proposal, 201);
