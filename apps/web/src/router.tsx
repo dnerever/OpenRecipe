@@ -46,7 +46,21 @@ function RootLayout() {
           className="mobile-search-link"
           aria-label="Search recipes"
         >
-          🔍
+          {/* Drawn, not the emoji: the emoji's size and colour are the
+              platform's, and it was an 18px target. */}
+          <svg
+            viewBox="0 0 20 20"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="8.5" cy="8.5" r="5.5" />
+            <path d="m13 13 4.5 4.5" />
+          </svg>
         </Link>
         <span className="spacer" />
         {user ? (
