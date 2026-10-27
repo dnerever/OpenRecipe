@@ -6,6 +6,7 @@ import { RecipeCard } from '../components/RecipeCard.tsx';
 import { fetchStarredBy, fetchUserLists, fetchUserRecipes } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 import { useTitle } from '../lib/use-title.ts';
+import { counted } from '../lib/words.ts';
 
 type Tab = 'recipes' | 'starred' | 'lists';
 
@@ -63,12 +64,22 @@ export function ProfilePage({
 
   const { owner, recipes } = data;
   const stars = recipes.reduce((sum, recipe) => sum + recipe.starCount, 0);
+  const showName = !!owner.name && owner.name.trim().toLowerCase() !== owner.handle.toLowerCase();
+  const displayName = showName ? owner.name : owner.handle;
 
   return (
     <section>
+      {/*
+        The name is the heading when there is one worth showing; a name that
+        only repeats the handle ("openrecipe-dev", under "@openrecipe-dev")
+        says nothing twice.
+      */}
       <header className="profile-head">
-        <h1>@{owner.handle}</h1>
-        {owner.name && <p className="lede">{owner.name}</p>}
+        <Avatar name={displayName} image={owner.image} />
+        <div className="profile-names">
+          <h1>{showName ? owner.name : `@${owner.handle}`}</h1>
+          {showName && <p className="profile-handle muted">@{owner.handle}</p>}
+        </div>
         {isSelf && (
           <Link className="button" to="/new">
             New recipe
@@ -80,7 +91,7 @@ export function ProfilePage({
 
       <p className="profile-meta muted">
         {recipes.length} {recipes.length === 1 ? 'recipe' : 'recipes'}
-        {stars > 0 && ` · ★ ${stars} received`} · joined{' '}
+        {stars > 0 && ` · ${counted(stars, 'star')} received`} · joined{' '}
         {new Date(owner.createdAt).toLocaleDateString(undefined, {
           month: 'long',
           year: 'numeric',
@@ -182,5 +193,15 @@ export function ProfilePage({
           </p>
         ))}
     </section>
+  );
+}
+
+/** The cook's picture, or the first letter of their name in its place. */
+function Avatar({ name, image }: { name: string; image: string | null }) {
+  if (image) return <img className="avatar" src={image} alt="" />;
+  return (
+    <span className="avatar" aria-hidden="true">
+      {name.trim().charAt(0).toUpperCase()}
+    </span>
   );
 }

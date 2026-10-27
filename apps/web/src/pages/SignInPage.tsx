@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { AuthPanel } from '../components/AuthPanel.tsx';
 import { fetchHealth } from '../lib/api.ts';
 import { safeRedirect } from '../lib/redirect.ts';
+import { SIGN_IN_REASONS } from '../lib/sign-in-reasons.ts';
 import { useCurrentUser } from '../lib/session.ts';
 import { useTitle } from '../lib/use-title.ts';
 
@@ -12,11 +13,12 @@ import { useTitle } from '../lib/use-title.ts';
  * gets its own address — the front door should not ask you for credentials.
  */
 export function SignInPage() {
-  useTitle('Sign in');
   const { user } = useCurrentUser();
   const navigate = useNavigate();
   const router = useRouter();
   const search = useSearch({ from: '/signin' });
+  const signingUp = search.tab === 'signup';
+  useTitle(signingUp ? 'Create an account' : 'Sign in');
   // Checked again at the point of use: this is the line that navigates.
   const redirect = safeRedirect(search.redirect);
   const { data: health } = useQuery({ queryKey: ['health'], queryFn: fetchHealth, retry: false });
@@ -36,11 +38,23 @@ export function SignInPage() {
 
   return (
     <section className="narrow">
-      <h1>Sign in</h1>
+      <h1>{signingUp ? 'Create an account' : 'Sign in'}</h1>
       <p className="lede">
-        You only need an account to publish. <Link to="/">Browsing is open to everyone.</Link>
+        {search.reason ? (
+          SIGN_IN_REASONS[search.reason]
+        ) : (
+          <>
+            You only need an account to publish. <Link to="/">Browsing is open to everyone.</Link>
+          </>
+        )}
       </p>
-      <AuthPanel health={health ?? null} />
+      {/* Keyed so following a "Create an account" link from this very page
+          switches the form, rather than keeping whichever tab was open. */}
+      <AuthPanel
+        key={search.tab ?? 'signin'}
+        health={health ?? null}
+        initialMode={signingUp ? 'sign-up' : 'sign-in'}
+      />
     </section>
   );
 }

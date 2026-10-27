@@ -101,7 +101,8 @@ const PLURALIZABLE = new Set(['cup', 'pint', 'quart', 'clove', 'slice', 'pinch',
 
 export function formatUnit(unit: string | undefined, qty: number | null): string {
   if (!unit) return '';
-  if (qty === null || qty === 1 || !PLURALIZABLE.has(unit)) return unit;
+  // One or less reads singular: "½ cup", not "½ cups".
+  if (qty === null || qty <= 1 || !PLURALIZABLE.has(unit)) return unit;
   return /(?:ch|sh|s|x)$/.test(unit) ? `${unit}es` : `${unit}s`;
 }
 

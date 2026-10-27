@@ -1,8 +1,10 @@
 import {
   deriveSteps,
+  describeChange,
   diffHunks,
   diffRecipes,
   hashContent,
+  isHeadline,
   parseRecipe,
   serializeRecipe,
   summarizeDiff,
@@ -61,6 +63,8 @@ export type LoadedRecipe = {
   forkedFrom?: ForkAttribution | null;
   /** Resolved on reads. Always false for an anonymous viewer. */
   viewerHasStarred?: boolean;
+  /** Resolved on reads: how much history and open discussion the recipe page can point at. */
+  activity?: { versionCount: number; openProposalCount: number };
 };
 
 /**
@@ -214,9 +218,10 @@ export async function loadRecipe(
     .limit(1);
   if (!version) throw new NotFoundError();
 
-  const [forkedFrom, viewerHasStarred] = await Promise.all([
+  const [forkedFrom, viewerHasStarred, activity] = await Promise.all([
     loadForkParent(db, recipe, viewer),
     hasStarred(db, recipe.id, viewer),
+    loadActivity(db, recipe.id),
   ]);
 
   return {
@@ -226,6 +231,29 @@ export async function loadRecipe(
     doc: parseRecipe(version.content),
     forkedFrom,
     viewerHasStarred,
+    activity,
+  };
+}
+
+/**
+ * The counts behind the recipe page's "3 versions · 1 fork · 1 open proposal"
+ * line. Proposals are counted against this recipe as their target — the ones a
+ * reader of this page could go and read.
+ */
+async function loadActivity(db: Db, recipeId: string) {
+  const [[versionRow], [proposalRow]] = await Promise.all([
+    db
+      .select({ count: raw<number>`count(*)::int` })
+      .from(versions)
+      .where(eq(versions.recipeId, recipeId)),
+    db
+      .select({ count: raw<number>`count(*)::int` })
+      .from(proposals)
+      .where(and(eq(proposals.targetRecipeId, recipeId), eq(proposals.state, 'open'))),
+  ]);
+  return {
+    versionCount: versionRow?.count ?? 0,
+    openProposalCount: proposalRow?.count ?? 0,
   };
 }
 
@@ -335,6 +363,8 @@ export function serializeRecipeResponse(loaded: LoadedRecipe, viewer: Viewer) {
       canEdit: canWrite(recipe, viewer),
       forkedFrom: loaded.forkedFrom ?? null,
       viewerHasStarred: loaded.viewerHasStarred ?? false,
+      versionCount: loaded.activity?.versionCount ?? 1,
+      openProposalCount: loaded.activity?.openProposalCount ?? 0,
     },
     version: {
       id: version.id,
@@ -388,7 +418,23 @@ export function serializeRecipeSummary(recipe: Recipe, parents?: Map<string, For
   };
 }
 
-export type IndexCursor = { updatedAt: Date; id: string };
+export type IndexCursor = { hasPhoto: boolean; updatedAt: Date; id: string };
+
+/** Sorts recipes with a photo ahead of those without; `false < true` in Postgres. */
+const hasPhoto = raw<boolean>`(${recipes.imageCache} is not null)`;
+
+/**
+ * True for a recipe that is a fork of a public original. The front page shows
+ * the original with a fork count instead; a fork of a private recipe is the only
+ * public copy there is, so it stays.
+ */
+const forkOfPublic = raw<boolean>`exists (
+  select 1 from ${recipes} as parent
+  where parent.id = ${recipes.forkParentRecipeId} and parent.visibility = 'public'
+)`;
+
+/** What the front page lists: public originals, and forks whose original no one can see. */
+const indexed = and(eq(recipes.visibility, 'public'), raw`not ${forkOfPublic}`);
 
 /**
  * The public browse index.
@@ -398,9 +444,14 @@ export type IndexCursor = { updatedAt: Date; id: string };
  * away from leaking someone's private drafts onto the front page, and an
  * owner's own private recipes are already reachable through their profile.
  *
- * Keyset pagination on `(updated_at desc, id desc)` rather than OFFSET, so a
- * recipe updated mid-scroll can't shift rows across a page boundary and hide
- * one from the reader.
+ * Recipes with a photo come first — a front page is looked at before it is
+ * read — then most recent activity. Forks of a public original are left out:
+ * their original's card counts them, and a page of near-duplicates says less
+ * than one card that says "2 forks".
+ *
+ * Keyset pagination on `(has photo, updated_at, id)`, all descending, rather
+ * than OFFSET, so a recipe updated mid-scroll can't shift rows across a page
+ * boundary and hide one from the reader.
  */
 export async function listPublicRecipes(
   db: Db,
@@ -416,15 +467,21 @@ export async function listPublicRecipes(
     .where(
       cursor
         ? and(
-            eq(recipes.visibility, 'public'),
+            indexed,
             or(
-              lt(recipes.updatedAt, cursor.updatedAt),
-              and(eq(recipes.updatedAt, cursor.updatedAt), lt(recipes.id, cursor.id)),
+              raw`${hasPhoto} < ${cursor.hasPhoto}`,
+              and(
+                raw`${hasPhoto} = ${cursor.hasPhoto}`,
+                or(
+                  lt(recipes.updatedAt, cursor.updatedAt),
+                  and(eq(recipes.updatedAt, cursor.updatedAt), lt(recipes.id, cursor.id)),
+                ),
+              ),
             ),
           )
-        : eq(recipes.visibility, 'public'),
+        : indexed,
     )
-    .orderBy(desc(recipes.updatedAt), desc(recipes.id))
+    .orderBy(desc(hasPhoto), desc(recipes.updatedAt), desc(recipes.id))
     // One extra row tells us whether another page exists without a second query.
     .limit(limit + 1);
 
@@ -442,17 +499,21 @@ export async function listPublicRecipes(
     })),
     nextCursor:
       rows.length > limit && last
-        ? { updatedAt: last.recipe.updatedAt.toISOString(), id: last.recipe.id }
+        ? {
+            hasPhoto: last.recipe.imageCache !== null,
+            updatedAt: last.recipe.updatedAt.toISOString(),
+            id: last.recipe.id,
+          }
         : null,
   };
 }
 
-/** Total public recipes, for the index header. */
+/** How many recipes the index lists in all, for the front page's header. */
 export async function countPublicRecipes(db: Db): Promise<number> {
   const [row] = await db
     .select({ count: raw<number>`count(*)::int` })
     .from(recipes)
-    .where(eq(recipes.visibility, 'public'));
+    .where(indexed);
   return row?.count ?? 0;
 }
 
@@ -786,6 +847,46 @@ export async function listForks(db: Db, recipeId: string, viewer: Viewer) {
     .innerJoin(users, eq(users.id, recipes.ownerId))
     .where(and(eq(recipes.forkParentRecipeId, recipeId), readableRecipes(viewer)))
     .orderBy(desc(recipes.updatedAt));
+}
+
+/**
+ * How each fork differs from the recipe it came from, today: "Hydration 77.3%
+ * → 80%", "water: 750 g → 780 g". A fork card that only says "Fork of" leaves
+ * the reader to open every one to find out which is worth reading.
+ *
+ * At most `limit` lines each, headlines first, plus the full count so the card
+ * can say "and 3 more". Compared against the original as it is now, not as it
+ * was when forked, because "what would I get if I cooked this one instead" is
+ * the question being asked.
+ */
+export async function describeForks(
+  db: Db,
+  originalContent: string,
+  forks: Pick<Recipe, 'id' | 'headVersionId'>[],
+  limit = 2,
+): Promise<Map<string, { changes: string[]; changeCount: number }>> {
+  const heads = forks.map((f) => f.headVersionId).filter((id) => id !== null);
+  if (heads.length === 0) return new Map();
+  const rows = await db
+    .select({ id: versions.id, content: versions.content })
+    .from(versions)
+    .where(inArray(versions.id, heads));
+  const contentOf = new Map(rows.map((r) => [r.id, r.content]));
+  const original = parseRecipe(originalContent);
+
+  const out = new Map<string, { changes: string[]; changeCount: number }>();
+  for (const fork of forks) {
+    const content = fork.headVersionId ? contentOf.get(fork.headVersionId) : undefined;
+    if (!content) continue;
+    const doc = parseRecipe(content);
+    const semantic = summarizeDiff(diffRecipes(original, doc), original, doc);
+    const ordered = [...semantic.filter(isHeadline), ...semantic.filter((c) => !isHeadline(c))];
+    out.set(fork.id, {
+      changes: ordered.slice(0, limit).map(describeChange),
+      changeCount: ordered.length,
+    });
+  }
+  return out;
 }
 
 /**

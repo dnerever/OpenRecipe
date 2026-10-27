@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { Suspense, lazy, useState } from 'react';
 import { DiffView } from '../components/DiffView.tsx';
+import { RecipeCrumb, useRecipeTitle } from '../components/RecipeCrumb.tsx';
+import { When } from '../components/When.tsx';
 import { LoadFailure, Loading } from '../components/LoadState.tsx';
 import {
   ApiError,
@@ -38,7 +40,12 @@ export function ProposalPage() {
     queryFn: () => fetchProposal(handle, slug, n),
     retry: false,
   });
-  useTitle(proposal.data ? `#${n} ${proposal.data.title} · ${handle}/${slug}` : `Proposal #${n}`);
+  const recipeTitle = useRecipeTitle(handle, slug) ?? slug;
+  useTitle(
+    proposal.data
+      ? `#${n} ${proposal.data.title} · ${recipeTitle}`
+      : `Proposal #${n} · ${recipeTitle}`,
+  );
 
   const diff = useQuery({
     queryKey: ['proposal-diff', handle, slug, n],
@@ -93,33 +100,31 @@ export function ProposalPage() {
   return (
     <article className="proposal">
       <header>
-        <p className="crumb">
-          <Link to="/$handle/$slug" params={{ handle, slug }}>
-            @{handle}/{slug}
-          </Link>
-          <span> / </span>
+        <RecipeCrumb handle={handle} slug={slug}>
           <Link to="/$handle/$slug/proposals" params={{ handle, slug }}>
-            proposals
+            Proposals
           </Link>
-        </p>
+        </RecipeCrumb>
 
         <h1>
           {data.title} <span className="proposal-number muted">#{data.number}</span>
         </h1>
 
         <p className="lede">
-          <span className={`state ${data.state}`}>{data.state}</span> · @{data.author.handle} wants
-          to merge{' '}
+          <span className={`state ${data.state}`}>{data.state}</span>{' '}
+          <Link to="/$handle" params={{ handle: data.author.handle }}>
+            @{data.author.handle}
+          </Link>{' '}
+          suggests a change from{' '}
           <Link
             to="/$handle/$slug"
             params={{ handle: data.source.owner.handle, slug: data.source.slug }}
           >
-            @{data.source.owner.handle}/{data.source.slug}
+            {data.source.owner.handle === data.author.handle
+              ? 'their copy'
+              : `@${data.source.owner.handle}’s copy`}
           </Link>{' '}
-          into{' '}
-          <Link to="/$handle/$slug" params={{ handle, slug }}>
-            @{data.target.owner.handle}/{data.target.slug}
-          </Link>
+          · <When date={data.createdAt} />
         </p>
 
         {data.body && <p className="proposal-body">{data.body}</p>}
@@ -139,16 +144,12 @@ export function ProposalPage() {
 
       {data.state === 'merged' && (
         <p className="notice">
-          Merged
+          Merged into the recipe.{' '}
           {data.mergedVersionId && (
-            <>
-              {' as version '}
-              <Link to="/$handle/$slug/history" params={{ handle, slug }}>
-                {data.mergedVersionId.slice(0, 8)}
-              </Link>
-            </>
+            <Link to="/$handle/$slug/history" params={{ handle, slug }}>
+              See it in the history
+            </Link>
           )}
-          .
         </p>
       )}
       {data.state === 'closed' && <p className="notice">Closed without merging.</p>}
@@ -167,14 +168,8 @@ export function ProposalPage() {
       )}
 
       <h2 className="section-head">The change</h2>
-      {diff.isPending && <p className="muted">Loading the diff…</p>}
-      {diff.data && (
-        <DiffView
-          semantic={diff.data.semantic}
-          hunks={diff.data.hunks}
-          identical={diff.data.identical}
-        />
-      )}
+      {diff.isPending && <p className="muted">Loading the change…</p>}
+      {diff.data && <DiffView semantic={diff.data.semantic} identical={diff.data.identical} />}
 
       <h2 className="section-head">Discussion</h2>
       <ul className="thread">
@@ -184,7 +179,7 @@ export function ProposalPage() {
               <Link to="/$handle" params={{ handle: entry.author.handle }}>
                 @{entry.author.handle}
               </Link>{' '}
-              · {new Date(entry.createdAt).toLocaleString()}
+              · <When date={entry.createdAt} />
             </p>
             <p className="comment-body">{entry.body}</p>
           </li>
@@ -196,7 +191,7 @@ export function ProposalPage() {
         <CommentForm pending={comment.isPending} onSubmit={(body) => comment.mutate(body)} />
       ) : (
         <p className="muted">
-          <SignInLink>Sign in</SignInLink> to join the discussion.
+          <SignInLink reason="comment">Sign in</SignInLink> to join the discussion.
         </p>
       )}
     </article>
@@ -229,7 +224,7 @@ function MergeBox({
           <strong>No conflicts.</strong>{' '}
           {mergeability.kind === 'fast-forward'
             ? 'This recipe has not changed since the fork, so the proposal applies as written.'
-            : 'The two sets of changes touch different lines and combine cleanly.'}
+            : 'The recipe has changed since, but in different places, so both sets of changes fit together.'}
         </p>
         {proposal.canMerge && (
           <button type="button" disabled={pending} onClick={() => onMerge()}>
@@ -248,27 +243,24 @@ function MergeBox({
           {mergeability.conflicts.length} conflict
           {mergeability.conflicts.length === 1 ? '' : 's'}.
         </strong>{' '}
-        Both sides changed the same lines, so somebody has to choose.
+        The recipe and the proposal both changed the same part, so somebody has to choose.
       </p>
 
       <ul className="conflict-list">
         {mergeability.conflicts.map((hunk, i) => (
           <li key={i}>
-            <p className="entry-meta muted">Line {hunk.startLine}</p>
-            <pre className="hunks" tabIndex={0} aria-label="Changes, line by line">
+            <div className="conflict-side ours">
+              <p className="conflict-label">The recipe now says</p>
               {hunk.ours.map((line, j) => (
-                <span className="line del" key={`o${j}`}>
-                  <span className="mark">-</span>
-                  {line}
-                </span>
+                <p key={j}>{line || ' '}</p>
               ))}
+            </div>
+            <div className="conflict-side theirs">
+              <p className="conflict-label">The proposal says</p>
               {hunk.theirs.map((line, j) => (
-                <span className="line add" key={`t${j}`}>
-                  <span className="mark">+</span>
-                  {line}
-                </span>
+                <p key={j}>{line || ' '}</p>
               ))}
-            </pre>
+            </div>
           </li>
         ))}
       </ul>

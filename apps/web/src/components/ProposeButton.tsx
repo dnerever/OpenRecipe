@@ -37,7 +37,11 @@ export function ProposeButton({ handle, slug }: { handle: string; slug: string }
   });
 
   if (!user) {
-    return <SignInLink className="button secondary">Sign in to propose</SignInLink>;
+    return (
+      <SignInLink className="button secondary" reason="propose">
+        Propose a change
+      </SignInLink>
+    );
   }
 
   return (

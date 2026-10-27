@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { fetchProposals, type ProposalState, type ProposalSummary } from '../lib/api.ts';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
+import { RecipeCrumb, useRecipeTitle } from '../components/RecipeCrumb.tsx';
+import { When } from '../components/When.tsx';
 import { useTitle } from '../lib/use-title.ts';
 
 const STATE_LABEL: Record<ProposalState, string> = {
@@ -24,7 +26,7 @@ export function ProposalsPage() {
     queryFn: () => fetchProposals(handle, slug),
     retry: false,
   });
-  useTitle(`Proposals · ${handle}/${slug}`);
+  useTitle(`Proposals · ${useRecipeTitle(handle, slug) ?? slug}`);
 
   if (isPending) return <Loading />;
 
@@ -35,16 +37,15 @@ export function ProposalsPage() {
 
   return (
     <section>
-      <p className="crumb">
-        <Link to="/$handle/$slug" params={{ handle, slug }}>
-          @{handle}/{slug}
-        </Link>
-      </p>
+      <RecipeCrumb handle={handle} slug={slug} />
       <h1>Proposals</h1>
+      <p className="lede">
+        Changes other cooks have suggested for this recipe. The owner can take each one, or not.
+      </p>
 
       {data.proposals.length === 0 ? (
         <p className="empty muted">
-          No proposals yet. Fork this recipe, change something, and offer it back.
+          No proposals yet. Fork this recipe, change something, and suggest it back.
         </p>
       ) : (
         <>
@@ -86,14 +87,20 @@ function ProposalList({
             <span className={`state ${proposal.state}`}>{STATE_LABEL[proposal.state]}</span>
           </p>
           <p className="entry-meta muted">
-            #{proposal.number} · @{proposal.author.handle} · from{' '}
+            #{proposal.number} ·{' '}
+            <Link to="/$handle" params={{ handle: proposal.author.handle }}>
+              @{proposal.author.handle}
+            </Link>
+            , from{' '}
             <Link
               to="/$handle/$slug"
               params={{ handle: proposal.source.owner.handle, slug: proposal.source.slug }}
             >
-              @{proposal.source.owner.handle}/{proposal.source.slug}
+              {proposal.source.owner.handle === proposal.author.handle
+                ? 'their copy'
+                : `@${proposal.source.owner.handle}’s copy`}
             </Link>{' '}
-            · {new Date(proposal.createdAt).toLocaleDateString()}
+            · <When date={proposal.createdAt} />
           </p>
         </li>
       ))}

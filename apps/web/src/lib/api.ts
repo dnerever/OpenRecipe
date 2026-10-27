@@ -48,7 +48,7 @@ export type RecipeSummary = {
   forkedFrom: { handle: string; slug: string } | null;
 };
 
-export type IndexCursor = { updatedAt: string; id: string };
+export type IndexCursor = { hasPhoto: boolean; updatedAt: string; id: string };
 
 export type IndexPage = {
   recipes: (RecipeSummary & { owner: RecipeOwner })[];
@@ -82,6 +82,9 @@ export type RecipeResponse = {
     canEdit: boolean;
     forkedFrom: ForkAttribution | null;
     viewerHasStarred: boolean;
+    versionCount: number;
+    /** Proposals still waiting on this recipe's owner. */
+    openProposalCount: number;
   };
   version: { id: string; message: string; createdAt: string };
   content: string;
@@ -143,6 +146,7 @@ export const fetchHealth = () => request<Health>('/api/health');
 export const fetchPublicIndex = (cursor?: IndexCursor | null) => {
   const params = new URLSearchParams({ limit: '24' });
   if (cursor) {
+    params.set('cursorHasPhoto', String(cursor.hasPhoto));
     params.set('cursorUpdatedAt', cursor.updatedAt);
     params.set('cursorId', cursor.id);
   }
@@ -264,10 +268,15 @@ export const forkRecipe = (handle: string, slug: string, into?: string) =>
     body: JSON.stringify(into ? { slug: into } : {}),
   });
 
+/** A fork as the forks page lists it: how it differs from the original, in a line or two. */
+export type ForkSummary = RecipeSummary & {
+  owner: RecipeOwner;
+  changes: string[];
+  changeCount: number;
+};
+
 export const fetchForks = (handle: string, slug: string) =>
-  request<{ forks: (RecipeSummary & { owner: RecipeOwner })[] }>(
-    `/api/recipes/${handle}/${slug}/forks`,
-  );
+  request<{ forks: ForkSummary[] }>(`/api/recipes/${handle}/${slug}/forks`);
 
 /* ------------------------------------------------------ search & stars -- */
 

@@ -19,7 +19,11 @@ export function ReportButton({ handle, slug }: { handle: string; slug: string })
   });
 
   if (!user) {
-    return <SignInLink className="button secondary">Sign in to report</SignInLink>;
+    return (
+      <SignInLink className="button secondary" reason="report">
+        Report
+      </SignInLink>
+    );
   }
 
   if (mutation.isSuccess) {

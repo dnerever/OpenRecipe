@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { LoadFailure, Loading } from '../components/LoadState.tsx';
+import { When } from '../components/When.tsx';
 import {
   ApiError,
   fetchAdminReports,
@@ -89,7 +90,7 @@ export function AdminPage() {
               <p>{report.reason}</p>
               <p className="card-foot">
                 <span>Reported by @{report.reporter.handle}</span>
-                <span>{new Date(report.createdAt).toLocaleString()}</span>
+                <When date={report.createdAt} />
               </p>
 
               {status === 'open' && (

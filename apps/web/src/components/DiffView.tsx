@@ -1,24 +1,28 @@
-import { describeChange, isHeadline, type LineChange, type SemanticChange } from '@openrecipe/core';
+import { describeChange, isHeadline, type SemanticChange } from '@openrecipe/core';
+import { wordDiff } from '../lib/word-diff.ts';
 
 /**
- * Two readings of the same change, in the order a cook wants them.
+ * A change, said the way a cook would say it.
  *
- * The semantic layer comes first because it is the answer: "hydration
- * 77% → 82%" is the decision the baker made, and no arrangement of `-`/`+`
- * lines says it — hydration is a fact about the whole ingredient list, so it
- * lives in no single line. The text diff sits underneath as the audit trail.
+ * The headline numbers come first because they are the answer: "hydration
+ * 77% → 82%" is the decision the baker made, and it lives in no single line of
+ * the recipe. Then each change in turn — "water: 750 g → 780 g" — with a
+ * reworded step shown as the step itself, the words that changed marked up the
+ * way you would mark a printout.
+ *
+ * The file underneath (YAML, line numbers) is deliberately not shown. Anyone
+ * who wants it has "View as text" on the recipe; nobody deciding whether to
+ * take a change should have to read it.
  */
 export function DiffView({
   semantic,
-  hunks,
   identical,
 }: {
   semantic: SemanticChange[];
-  hunks: LineChange[];
   identical: boolean;
 }) {
   if (identical) {
-    return <p className="notice">These two versions have identical content.</p>;
+    return <p className="notice">These two versions are the same.</p>;
   }
 
   const headlines = semantic.filter(isHeadline);
@@ -41,48 +45,53 @@ export function DiffView({
             {rest.map((change, i) => (
               <li key={i} data-kind={kindOf(change)}>
                 {describeChange(change)}
+                <StepText change={change} />
               </li>
             ))}
           </ul>
         </>
       )}
 
-      <h2>Source</h2>
-      <pre className="hunks" tabIndex={0} aria-label="Changes, line by line">
-        {hunks.map((hunk, i) =>
-          hunk.type === 'context' ? (
-            hunk.lines.map((line, j) => <Line key={`${i}-${j}`} mark=" " text={line} />)
-          ) : (
-            <span key={i}>
-              {hunk.removed.map((line, j) => (
-                <Line key={`r${j}`} mark="-" text={line} />
-              ))}
-              {hunk.added.map((line, j) => (
-                <Line key={`a${j}`} mark="+" text={line} />
-              ))}
-            </span>
-          ),
-        )}
-      </pre>
+      {/* Only layout or wording the summary does not track, such as spacing. */}
+      {semantic.length === 0 && (
+        <p className="notice">Only the formatting changed; the recipe reads the same.</p>
+      )}
     </div>
   );
 }
 
-/** The fold marker `diffHunks` writes in place of a long unchanged run. */
-const FOLD = /^@@ \d+ unchanged lines @@$/;
-
-function Line({ mark, text }: { mark: '+' | '-' | ' '; text: string }) {
-  if (mark === ' ' && FOLD.test(text)) {
-    return <span className="line fold">{text}</span>;
+/** The step itself, under a line that says a step changed. */
+function StepText({ change }: { change: SemanticChange }) {
+  if (change.kind === 'step-reworded') {
+    return (
+      <p className="step-change" aria-label="The step, with removed words struck through">
+        {wordDiff(change.from, change.to).map((part, i) =>
+          part.kind === 'same' ? (
+            <span key={i}>{part.text}</span>
+          ) : part.kind === 'removed' ? (
+            <del key={i}>{part.text}</del>
+          ) : (
+            <ins key={i}>{part.text}</ins>
+          ),
+        )}
+      </p>
+    );
   }
-  return (
-    <span className={`line ${mark === '+' ? 'add' : mark === '-' ? 'del' : ''}`}>
-      <span className="mark" aria-hidden="true">
-        {mark}
-      </span>
-      {text || ' '}
-    </span>
-  );
+  if (change.kind === 'step-added') {
+    return (
+      <p className="step-change">
+        <ins>{change.text}</ins>
+      </p>
+    );
+  }
+  if (change.kind === 'step-removed') {
+    return (
+      <p className="step-change">
+        <del>{change.text}</del>
+      </p>
+    );
+  }
+  return null;
 }
 
 /** Coarse grouping, used only to tint the bullet — added / removed / altered. */

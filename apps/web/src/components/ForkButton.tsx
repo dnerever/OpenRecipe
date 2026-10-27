@@ -40,7 +40,11 @@ export function ForkButton({
   });
 
   if (!user) {
-    return <SignInLink className="button secondary">Sign in to fork</SignInLink>;
+    return (
+      <SignInLink className="button secondary" reason="fork">
+        Fork
+      </SignInLink>
+    );
   }
 
   return (
@@ -58,7 +62,7 @@ export function ForkButton({
             : 'Copies this into your catalog to change as you like'
         }
       >
-        {mutation.isPending ? 'Forking…' : 'Fork to my recipes'}
+        {mutation.isPending ? 'Forking…' : 'Fork'}
       </button>
       {mutation.isError && <span className="bad">{mutation.error.message}</span>}
     </>

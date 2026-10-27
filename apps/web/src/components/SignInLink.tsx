@@ -1,5 +1,6 @@
 import { Link, useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import type { SignInReason } from '../lib/sign-in-reasons.ts';
 
 /**
  * A link to the sign-in page that remembers the way back.
@@ -15,12 +16,18 @@ export function SignInLink({
   className,
   redirect,
   label,
+  tab,
+  reason,
 }: {
   children: ReactNode;
   className?: string;
   redirect?: string;
   /** For a link whose text is a symbol, like the star count. */
   label?: string;
+  /** Which form opens. Sign-in by default: "Sign in" should not open on sign-up. */
+  tab?: 'signup';
+  /** What the reader was trying to do, so the sign-in page can say why it is asking. */
+  reason?: SignInReason;
 }) {
   const here = useLocation({ select: (location) => location.href });
   const target = redirect ?? here;
@@ -31,7 +38,11 @@ export function SignInLink({
       aria-label={label}
       title={label}
       to="/signin"
-      search={target.startsWith('/signin') ? {} : { redirect: target }}
+      search={{
+        ...(target.startsWith('/signin') ? {} : { redirect: target }),
+        ...(tab ? { tab } : {}),
+        ...(reason ? { reason } : {}),
+      }}
     >
       {children}
     </Link>

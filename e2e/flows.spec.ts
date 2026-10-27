@@ -150,7 +150,7 @@ test('sign up, publish a recipe, and read it back', async ({ browser }) => {
   await expect(visitor.getByText(`@${cook.handle}`).first()).toBeVisible();
 
   // A licence on its own, with nothing to separate it from.
-  await expect(visitor.locator('.source')).toHaveText('CC-BY-SA-4.0');
+  await expect(visitor.locator('.source')).toHaveText('CC BY-SA 4.0');
   await expect(visitor.getByText(/^Last changed just now/)).toBeVisible();
 
   // Each page names its tab, including after client-side navigation.
@@ -168,17 +168,17 @@ test('fork someone else’s recipe and edit the copy', async ({ browser }) => {
   await page.goto(source);
 
   // The menu closes the way menus do: Escape, or a press anywhere else.
-  const fork = page.getByRole('button', { name: 'Fork to my recipes' });
+  const print = page.getByRole('button', { name: 'Print' });
   await page.getByText('More', { exact: true }).click();
-  await expect(fork).toBeVisible();
+  await expect(print).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(fork).toBeHidden();
+  await expect(print).toBeHidden();
   await page.getByText('More', { exact: true }).click();
   await page.getByRole('heading', { level: 1 }).click();
-  await expect(fork).toBeHidden();
+  await expect(print).toBeHidden();
 
-  await page.getByText('More', { exact: true }).click();
-  await fork.click();
+  // Fork is on the page, not in the menu: it is what the site is for.
+  await page.getByRole('button', { name: 'Fork', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/${forker.handle}/`));
   await expect(page.getByText(`@${author.handle}`).first()).toBeVisible();
 
@@ -215,7 +215,7 @@ test('propose a change, and the owner merges it', async ({ browser }) => {
 
   await owner.page.goto(proposal);
   await owner.page.getByRole('button', { name: 'Merge proposal' }).click();
-  await expect(owner.page.getByText(/^Merged as version/)).toBeVisible();
+  await expect(owner.page.getByText(/^Merged into the recipe/)).toBeVisible();
 
   await owner.page.goto(source);
   await expect(owner.page.getByText('Bake until it sounds hollow when tapped.')).toBeVisible();

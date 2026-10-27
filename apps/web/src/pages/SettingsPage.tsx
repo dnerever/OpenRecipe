@@ -18,6 +18,7 @@ import { SESSION_KEY, useCurrentUser } from '../lib/session.ts';
 import { clearOfflineCopies } from '../lib/offline.ts';
 import { useTitle } from '../lib/use-title.ts';
 import { useFeedback } from '../components/Feedback.tsx';
+import { When } from '../components/When.tsx';
 
 /** better-auth asks for a recent sign-in before changing credentials. */
 function failure(error: { status?: number; code?: string; message?: string }): string {
@@ -294,7 +295,7 @@ function SessionsSection() {
                 {s.token === sessions.data.currentToken && <strong> — this device</strong>}
                 <span className="hint">
                   {' '}
-                  last active {new Date(s.updatedAt).toLocaleDateString()}
+                  last active <When date={new Date(s.updatedAt).toISOString()} />
                 </span>
               </span>
               {s.token !== sessions.data.currentToken && (

@@ -56,3 +56,31 @@ export function timeAgo(when: Date, now = new Date()): string {
   }
   return 'just now';
 }
+
+/** "1 fork", "3 versions". */
+export function counted(count: number, noun: string): string {
+  return `${count} ${pluralUnit(count, noun)}`;
+}
+
+const DAY = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+const DAY_AND_YEAR = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+const FULL = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeStyle: 'short' });
+
+/**
+ * When something happened, at the precision a reader wants: "2 hours ago" for
+ * this week, "Oct 15" for this year, "Oct 15, 2025" before that. Nobody reading
+ * a comment needs the second it was posted; `exactly` is there for a hover.
+ */
+export function whenShort(when: Date, now = new Date()): string {
+  if (now.getTime() - when.getTime() < 7 * 24 * 3600 * 1000) return timeAgo(when, now);
+  return (when.getFullYear() === now.getFullYear() ? DAY : DAY_AND_YEAR).format(when);
+}
+
+/** "October 15, 2026 at 12:10 AM" — the hover text behind `whenShort`. */
+export function exactly(when: Date): string {
+  return FULL.format(when);
+}
