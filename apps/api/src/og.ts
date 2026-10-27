@@ -292,7 +292,8 @@ function buildMetaTags(meta: PageMeta): string {
     `<meta property="og:title" content="${escapeHtml(ogTitle)}" />`,
     `<meta property="og:description" content="${escapeHtml(description)}" />`,
     `<meta property="og:image" content="${escapeHtml(image)}" />`,
-    `<meta name="twitter:card" content="${meta.image ? 'summary_large_image' : 'summary'}" />`,
+    // The default card is the wide social preview too, so every page gets the large layout.
+    '<meta name="twitter:card" content="summary_large_image" />',
     `<meta name="twitter:image" content="${escapeHtml(image)}" />`,
   ];
   if (meta.canonical) {

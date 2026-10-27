@@ -25,6 +25,7 @@ import {
   setVisibility,
   updateRecipe,
 } from '../services/recipes.ts';
+import { kitchenStats, recentActivity } from '../services/activity.ts';
 import { listTags, searchRecipes } from '../services/search.ts';
 import { profileUser, publicUser } from '../services/users.ts';
 import { listStarredBy, star, unstar } from '../services/stars.ts';
@@ -135,6 +136,16 @@ export const recipeRoutes = new Hono<AppEnv>()
   .get('/tags', async (c) => {
     const { limit } = readQuery(c, TagsQuery);
     return c.json({ tags: await listTags(db, limit) });
+  })
+
+  /**
+   * The front page's picture of the whole kitchen: the totals, and the newest
+   * public activity. One request, because the page shows them side by side.
+   * Public only, and no viewer — the same rule as the index beside it.
+   */
+  .get('/kitchen', async (c) => {
+    const [stats, activity] = await Promise.all([kitchenStats(db), recentActivity(db, 6)]);
+    return c.json({ stats, activity });
   })
 
   .post('/recipes', requireUser, limits.recipeCreate, async (c) => {

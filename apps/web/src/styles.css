@@ -16,38 +16,50 @@
  */
 :root {
   color-scheme: light;
-  --paper: #f6f7f3;
-  --ink: #191d18;
-  --ink-2: #565e54;
-  --rule: #dee2d7;
-  --surface: #fcfdfa;
-  --accent: #7a2e58;
-  --good: #3d6b37;
+  --paper: #fffbf5;
+  --ink: #1a1714;
+  --ink-2: #5c554d;
+  --rule: #eadfce;
+  --surface: #ffffff;
+  --accent: #1a1714;
+  --good: #2f6b3a;
   --bad: #a33a2e;
+  /* The brand's yolk, and what sits on it. Text on yolk is always the dark
+     ink, in both themes: yolk is light either way. */
+  --yolk: #ffc94d;
+  --on-yolk: #1a1714;
+  --display:
+    'Bricolage Grotesque Variable', 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --radius-card: 22px;
+  /* The dark panel: near-black on paper, a lifted brown in the dark theme. */
+  --inverse: #1a1714;
+  --on-inverse: #fffbf5;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --paper: #141713;
-    --ink: #e9ece4;
-    --ink-2: #a2ab9c;
-    --rule: #2c312a;
-    --surface: #1b1f1a;
-    --accent: #e389b6;
+    --paper: #15120f;
+    --ink: #f3ede4;
+    --ink-2: #b3a999;
+    --rule: #332c25;
+    --surface: #1f1b17;
+    --accent: #f3ede4;
     --good: #8fc983;
     --bad: #e58a7b;
+    --inverse: #2b251f;
   }
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --paper: #141713;
-  --ink: #e9ece4;
-  --ink-2: #a2ab9c;
-  --rule: #2c312a;
-  --surface: #1b1f1a;
-  --accent: #e389b6;
+  --paper: #15120f;
+  --ink: #f3ede4;
+  --ink-2: #b3a999;
+  --rule: #332c25;
+  --surface: #1f1b17;
+  --accent: #f3ede4;
   --good: #8fc983;
   --bad: #e58a7b;
+  --inverse: #2b251f;
 }
 * {
   box-sizing: border-box;
@@ -57,7 +69,9 @@ body {
   background: var(--paper);
   color: var(--ink);
   font:
-    16px/1.6 ui-sans-serif,
+    16px/1.6 'DM Sans Variable',
+    'DM Sans',
+    ui-sans-serif,
     system-ui,
     -apple-system,
     sans-serif;
@@ -100,8 +114,11 @@ main {
 }
 h1 {
   margin: 0;
-  font-size: 2.5rem;
-  letter-spacing: -0.03em;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 2.75rem;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
 }
 .lede {
   margin: 0.5rem 0 2.5rem;
@@ -118,7 +135,7 @@ h2 {
 .panel {
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   padding: 1.5rem;
 }
 dl {
@@ -170,7 +187,7 @@ input {
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: 10px;
 }
 input:focus-visible {
   outline: 2px solid var(--accent);
@@ -196,11 +213,11 @@ input:focus-visible {
 button {
   font: inherit;
   font-weight: 600;
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1.15rem;
   color: var(--paper);
   background: var(--accent);
   border: 1px solid var(--accent);
-  border-radius: 5px;
+  border-radius: 999px;
   cursor: pointer;
 }
 button:disabled {
@@ -244,7 +261,7 @@ button:focus-visible {
   font-weight: 600;
   color: var(--paper);
   background: var(--accent);
-  border-radius: 5px;
+  border-radius: 999px;
   text-decoration: none;
   transform: translateY(-200%);
 }
@@ -260,7 +277,7 @@ button:focus-visible {
   padding: 0.9rem max(1.5rem, env(safe-area-inset-right)) 0.9rem
     max(1.5rem, env(safe-area-inset-left));
   border-bottom: 1px solid var(--rule);
-  background: var(--surface);
+  background: var(--paper);
 }
 @media (max-width: 42rem) {
   .topbar {
@@ -292,6 +309,74 @@ button:focus-visible {
 }
 .topbar a:hover {
   color: var(--accent);
+}
+/* The mark and the wordmark, which is lower case like the URL people type. */
+.topbar .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink);
+}
+.topbar .brand:hover {
+  color: var(--ink);
+}
+.wordmark {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.45rem;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+@media (max-width: 24rem) {
+  .wordmark {
+    display: none;
+  }
+}
+.logo {
+  flex: none;
+  display: block;
+}
+/* Categories as coloured pills. Dark text on every tint, in both themes. */
+.category-nav ul {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.topbar .category-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.1rem;
+  padding: 0.25rem 0.85rem;
+  border-radius: 999px;
+  color: #1a1714;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.topbar .category-nav a:hover {
+  color: #1a1714;
+  box-shadow: inset 0 0 0 2px rgb(26 23 20 / 0.35);
+}
+/* The bar needs the room on anything narrower than a laptop; the home page
+   carries the same tags as a row of their own. */
+@media (max-width: 64rem) {
+  .category-nav {
+    display: none;
+  }
+}
+.topbar .topbar-cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1.05rem;
+  border-radius: 999px;
+  color: var(--paper);
+  background: var(--accent);
+  font-weight: 700;
+}
+.topbar .topbar-cta:hover {
+  color: var(--paper);
 }
 /* A phone has room for the brand, search, theme, Write and the account menu
    only if the gaps give a little; the bar must never be wider than the screen. */
@@ -404,8 +489,8 @@ a.button {
   font: inherit;
   font-size: 0.9rem;
   font-weight: 600;
-  padding: 0.45rem 0.9rem;
-  border-radius: 5px;
+  padding: 0.55rem 1.15rem;
+  border-radius: 999px;
   text-decoration: none;
   color: var(--paper);
   background: var(--accent);
@@ -649,11 +734,12 @@ a.button.secondary {
      * worth something — a bigger photo, and ingredient lines that say
      * "soy milk — unsweetened, unflavoured" on one line instead of two.
      */
-    grid-template-columns: minmax(22rem, 36rem) minmax(0, 72ch);
+    grid-template-columns: minmax(20rem, 30rem) minmax(0, 50rem);
     grid-template-areas:
       'photo  method'
       'meta   method'
       'ing    method'
+      'hist   method'
       'tags   tags'
       'source source';
     /*
@@ -663,8 +749,8 @@ a.button.secondary {
      * length would be shared out between the photo, the meta strip and the
      * ingredients, prising apart three things that belong against each other.
      */
-    grid-template-rows: auto auto 1fr auto auto;
-    column-gap: 3.5rem;
+    grid-template-rows: auto auto auto 1fr auto auto;
+    column-gap: 2.5rem;
     /* Nothing: every child already carries the margin it wants below it. */
     row-gap: 0;
     align-items: start;
@@ -683,6 +769,9 @@ a.button.secondary {
   }
   .recipe #method {
     grid-area: method;
+  }
+  .recipe .after-ingredients {
+    grid-area: hist;
   }
   .recipe > .tags {
     grid-area: tags;
@@ -1207,7 +1296,7 @@ button.small {
 }
 .vis {
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: 999px;
   padding: 0.8rem 1rem;
   margin: 0;
 }
@@ -1251,71 +1340,6 @@ button.small {
  * lede at 46ch because that is what reads well, which used to mean the right
  * half of the row was doing nothing at all.
  */
-.intro {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.25rem;
-  padding: 0 0 1.75rem;
-  border-bottom: 1px solid var(--rule);
-  margin-bottom: 2rem;
-}
-/* Under the pitch, where the eye already is when it finishes reading. */
-.intro-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1rem;
-}
-.intro-count {
-  margin: 0;
-  font-size: 0.92rem;
-}
-.intro-text {
-  /* Clear of the dismiss control in the corner. */
-  padding-right: 2rem;
-}
-.intro h1 {
-  font-size: clamp(1.9rem, 5vw, 2.75rem);
-  line-height: 1.08;
-  letter-spacing: -0.03em;
-  max-width: 16ch;
-  margin-top: 0;
-}
-.intro .lede {
-  max-width: 46ch;
-  margin-bottom: 0;
-}
-.intro-dismiss {
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 0.25rem 0.4rem;
-  font-size: 0.85rem;
-  line-height: 1;
-  color: var(--ink-2);
-  background: none;
-  border: 1px solid transparent;
-}
-.intro-dismiss:hover {
-  color: var(--ink);
-  border-color: var(--rule);
-}
-
-/* What is left once the pitch is dismissed: one line, and a way back to it. */
-.intro-collapsed {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--rule);
-  margin-bottom: 1.5rem;
-}
-.intro-collapsed p {
-  margin: 0;
-}
 .narrow {
   max-width: 30rem;
 }
@@ -1371,22 +1395,16 @@ button.small {
   padding: 0;
   margin: 0;
 }
-/* A grid that mixes photo cards with text ones (search, a profile) keeps each
-   card its own height: stretched, a text card beside a photo is mostly hole. */
-.cards:has(> .has-photo):has(> .card:not(.has-photo)) {
-  align-items: start;
-}
-.cards + .cards {
-  margin-top: 1rem;
-}
+
 .card {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 1rem 1.1rem;
+  padding: 0 1.1rem 1.1rem;
+  overflow: hidden;
   border: 1px solid var(--rule);
-  border-radius: 7px;
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 /**
@@ -1426,8 +1444,10 @@ button.small {
 /* An h2 for the outline, a title to look at: none of the section-label style. */
 .card h2 {
   margin: 0;
-  font-size: 1.02rem;
-  line-height: 1.3;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1.2;
   letter-spacing: normal;
   text-transform: none;
   color: var(--ink);
@@ -1597,7 +1617,7 @@ h2.sentence-head {
   padding: 1rem 1.25rem;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
 }
 .old-version .section-head {
   margin: 0;
@@ -1702,10 +1722,11 @@ h2.sentence-head {
   margin: 0;
 }
 .topsearch input {
-  width: 12rem;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.88rem;
-  background: var(--paper);
+  width: 13rem;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.9rem;
+  background: var(--surface);
+  border-radius: 999px;
 }
 .mobile-search-link {
   display: none;
@@ -1793,12 +1814,12 @@ button.star.on {
   padding: 0.6rem 0.7rem;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 14px;
 }
 .segmented {
   display: flex;
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: 999px;
   overflow: hidden;
 }
 .segmented button {
@@ -1896,7 +1917,7 @@ button.star.on {
   padding: 0.25rem;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 14px;
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
 }
 .more-menu button,
@@ -2124,7 +2145,7 @@ button.star.on {
   padding: 0.75rem 1rem;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 16px;
 }
 .cook-uses-label {
   margin: 0 0 0.35rem;
@@ -2158,8 +2179,8 @@ button.star.on {
 .cook-ingredients li.in-step {
   margin-left: -0.6rem;
   padding-left: 0.45rem;
-  border-left: 3px solid var(--accent);
-  background: color-mix(in oklab, var(--accent) 8%, transparent);
+  border-left: 3px solid var(--yolk);
+  background: color-mix(in oklab, var(--yolk) 24%, transparent);
 }
 .cook-where {
   margin: 0 0 1rem;
@@ -2427,7 +2448,7 @@ textarea {
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: 12px;
   resize: vertical;
 }
 textarea:focus-visible {
@@ -2595,25 +2616,51 @@ textarea:focus-visible {
   width: 100%;
   max-height: 26rem;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   margin: 0 0 1.5rem;
   background: var(--surface);
 }
-.card.has-photo {
-  padding-top: 0;
-  overflow: hidden;
-}
 .card-photo {
   display: block;
-  margin: 0 -1.1rem 0.35rem;
+  margin: 0 -1.1rem 0.5rem;
 }
-.card-photo img {
+/* Fixed ratio so a grid of cards does not reflow as photos arrive, and so a
+   photo and a colour block take the same space. */
+.card-photo img,
+.card-type {
   display: block;
   width: 100%;
-  /* Fixed ratio so a grid of cards does not reflow as photos arrive. */
   aspect-ratio: 3 / 2;
   object-fit: cover;
   background: var(--surface);
+}
+.card-type {
+  display: flex;
+  align-items: flex-end;
+  padding: 1.1rem 1.2rem;
+  overflow: hidden;
+}
+.card-type span {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  color: #1a1714;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-versions .bars {
+  display: inline-flex;
+  gap: 2px;
+}
+.card-versions .bars span {
+  width: 9px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ink-2);
 }
 .image-upload {
   display: flex;
@@ -2876,7 +2923,7 @@ dialog.confirm {
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: 10px;
+  border-radius: 18px;
   box-shadow: 0 18px 50px rgb(0 0 0 / 0.3);
 }
 dialog.confirm::backdrop {
@@ -2926,7 +2973,7 @@ dialog.confirm h2 {
   font-size: 0.92rem;
   color: var(--paper);
   background: var(--ink);
-  border-radius: 8px;
+  border-radius: 999px;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
   animation: toast-in 0.18s ease-out;
 }
@@ -2989,12 +3036,6 @@ dialog.confirm h2 {
     justify-content: center;
     min-width: 44px;
     margin: 0 -0.6rem;
-  }
-  .intro-dismiss {
-    min-width: 44px;
-    min-height: 44px;
-    top: -0.5rem;
-    right: -0.75rem;
   }
   .linkish {
     min-height: 44px;
@@ -3090,4 +3131,592 @@ dialog.confirm h2 {
 }
 .browse-tags h2 {
   margin-top: 0;
+}
+
+/* --- home --- */
+main:has(.home) {
+  max-width: 78rem;
+  padding-top: 1.75rem;
+}
+.featured {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--yolk);
+  color: #1a1714;
+}
+.featured img {
+  flex: 1 1 28rem;
+  min-width: 0;
+  height: 27rem;
+  object-fit: cover;
+}
+.featured-text {
+  flex: 1 1 22rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 2.25rem 2.5rem;
+}
+.featured-label {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: #1a1714;
+  color: #fffbf5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.featured h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2.2rem, 4.4vw, 3.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  text-transform: none;
+  color: #1a1714;
+}
+.featured a {
+  color: #1a1714;
+}
+.featured h2 a {
+  text-decoration: none;
+}
+.featured-desc {
+  margin: 0.9rem 0 0;
+  font-size: 1.1rem;
+}
+.featured-meta {
+  margin: 0.7rem 0 0;
+  font-size: 0.95rem;
+}
+.featured-actions,
+.pitch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.featured .button {
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  color: #fffbf5;
+  background: #1a1714;
+  border-color: #1a1714;
+}
+.button.ghost,
+a.button.ghost {
+  color: inherit;
+  background: transparent;
+  border: 2px solid currentColor;
+}
+.featured .button.ghost {
+  color: #1a1714;
+  background: transparent;
+}
+.button.yolk,
+a.button.yolk {
+  color: #1a1714;
+  background: var(--yolk);
+  border-color: var(--yolk);
+}
+@media (max-width: 42rem) {
+  .featured img {
+    height: 15rem;
+  }
+  .featured-text {
+    padding: 1.5rem;
+  }
+}
+
+.kitchen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+.kitchen-stats {
+  flex: 1 1 20rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+.kitchen-stats div {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 8.5rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: var(--radius-card);
+  color: #1a1714;
+}
+.kitchen-stats dt {
+  color: #1a1714;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.kitchen-stats dd {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 3.2rem;
+  line-height: 1;
+}
+.kitchen-feed {
+  flex: 2 1 30rem;
+  min-width: 0;
+  padding: 1.2rem 1.4rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+}
+/* A section heading that is a heading, not the small label style h2 has
+   elsewhere. */
+.shelf-head {
+  margin: 0 0 1rem;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.9rem;
+  letter-spacing: -0.025em;
+  text-transform: none;
+  color: var(--ink);
+}
+.kitchen-feed .shelf-head {
+  margin-bottom: 0.4rem;
+  font-size: 1.35rem;
+}
+.activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.activity li {
+  display: grid;
+  grid-template-columns: 2.1rem 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--rule);
+}
+.activity li:first-child {
+  border-top: none;
+}
+.activity p {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.95rem;
+}
+.activity a {
+  color: var(--ink);
+}
+.activity-who {
+  font-weight: 700;
+  text-decoration: none;
+}
+.activity-icon {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+}
+.activity-detail {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  background: color-mix(in oklab, var(--yolk) 30%, var(--surface));
+}
+.activity-when {
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+@media (max-width: 34rem) {
+  .activity li {
+    grid-template-columns: 2.1rem 1fr;
+  }
+  .activity-when {
+    grid-column: 2;
+  }
+}
+.shelf {
+  margin-bottom: 2.75rem;
+}
+.shelf-cards {
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+}
+/* The header carries the categories on a wide screen. */
+@media (min-width: 64rem) {
+  .home-tags {
+    display: none;
+  }
+}
+.tags.tinted a {
+  color: #1a1714;
+  border-color: transparent;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.pitch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem 2rem;
+  margin-top: 3rem;
+  padding: 2.5rem;
+  border-radius: 28px;
+  color: var(--on-inverse);
+  background: var(--inverse);
+}
+.pitch-text {
+  flex: 1 1 24rem;
+}
+.pitch h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  text-transform: none;
+  color: var(--on-inverse);
+}
+.pitch p {
+  margin: 0.6rem 0 0;
+  font-size: 1.05rem;
+  color: #e8e0d4;
+}
+.pitch .button.ghost {
+  color: var(--on-inverse);
+}
+
+/* --- recipe page (C+) --- */
+main:has(.recipe-page) {
+  max-width: 78rem;
+}
+.recipe-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.recipe-photo {
+  flex: 3 1 28rem;
+  min-width: 0;
+}
+.recipe-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 18rem;
+  max-height: 34rem;
+  object-fit: cover;
+  border-radius: 28px;
+}
+/*
+ * A light island in either theme: the panel's tint is pale, so everything on
+ * it — text, buttons, the menus that open from them — takes the light
+ * palette, redefined here rather than overridden piece by piece.
+ */
+.recipe-panel {
+  --ink: #1a1714;
+  --ink-2: #3f3832;
+  --accent: #1a1714;
+  --paper: #fffbf5;
+  --surface: #fffbf5;
+  --rule: rgb(26 23 20 / 0.22);
+  --rule-strong: #1a1714;
+  color-scheme: light;
+  flex: 2 1 22rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 2rem 2.1rem;
+  border-radius: 28px;
+  color: var(--ink);
+}
+.recipe-panel > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.recipe-panel h1 {
+  font-size: clamp(2.1rem, 3.8vw, 3.3rem);
+}
+.recipe-panel .lede {
+  color: var(--ink);
+  font-size: 1.08rem;
+}
+.recipe-panel a,
+.recipe-panel .crumb a,
+.recipe-panel .recipe-activity a {
+  color: var(--ink);
+}
+.recipe-panel .recipe-activity a {
+  text-decoration-color: rgb(26 23 20 / 0.45);
+}
+/* A filled button keeps its own text colour; the rule above is for links. */
+.recipe-panel a.button:not(.secondary) {
+  color: var(--paper);
+}
+.recipe-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recipe-facts li {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.72);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.recipe-panel .recipe-actions {
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+.recipe-panel .secondary,
+.recipe-panel a.button.secondary {
+  border-width: 2px;
+}
+.recipe-panel .cook-button {
+  padding: 0.75rem 1.6rem;
+  font-size: 1.02rem;
+}
+
+/* Sections and steps as cards. */
+.cols h2 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.55rem;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  color: var(--ink);
+}
+.recipe .equip-head {
+  font-size: 1.1rem;
+}
+.cols h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.recipe #ingredients,
+.recipe-history {
+  padding: 1.4rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+}
+.after-ingredients {
+  margin-top: 1rem;
+}
+.steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  padding: 1.2rem 1.3rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  white-space: normal;
+  scroll-margin-top: 5rem;
+}
+.step-number {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  background: var(--yolk);
+  color: #1a1714;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+.step-body p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.step-body .step-uses {
+  margin-top: 0.45rem;
+  font-size: 0.86rem;
+  color: var(--ink-2);
+  white-space: normal;
+}
+@media (max-width: 42rem) {
+  .steps li {
+    grid-template-columns: 2.1rem 1fr;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  .step-number {
+    width: 2.1rem;
+    height: 2.1rem;
+    font-size: 1rem;
+  }
+  /* History after the method on a phone, where it would otherwise sit between
+     the ingredients and the steps they are for. */
+  .after-ingredients {
+    order: 3;
+  }
+  .recipe-panel {
+    padding: 1.5rem;
+  }
+  .recipe-photo img {
+    min-height: 0;
+    height: 15rem;
+  }
+}
+
+/* History, beside the ingredients. */
+.recipe-history h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--ink);
+}
+.recipe-history .panel-head a {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.recipe-history ol {
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.recipe-history li {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  gap: 0.6rem;
+  padding-bottom: 0.7rem;
+}
+.history-dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-top: 0.35rem;
+  border: 2.5px solid var(--ink);
+  border-radius: 50%;
+  background: var(--surface);
+}
+.recipe-history li.is-head .history-dot {
+  background: var(--yolk);
+}
+.history-message {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.history-meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+}
+.history-prompt {
+  margin: 0.3rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 14px;
+  font-size: 0.88rem;
+  background: color-mix(in oklab, var(--yolk) 22%, var(--surface));
+}
+
+/* The shape of the cook, under the panel. */
+.timeline-strip {
+  margin: 0 0 1.75rem;
+  padding: 1.1rem 1.3rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+}
+.timeline-strip-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1.25rem;
+}
+.timeline-strip h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--ink);
+}
+.timeline-strip-head p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+.timeline-strip ol {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.timeline-strip li {
+  flex-basis: 0;
+  min-width: 3.25rem;
+}
+.timeline-strip button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  height: 100%;
+  padding: 0.55rem 0.7rem;
+  border: none;
+  border-radius: 14px;
+  color: #1a1714;
+  text-align: left;
+  overflow: hidden;
+}
+.timeline-title,
+.timeline-time {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.timeline-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.timeline-time {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+/* A phone has no width to lay a day end to end: the blocks wrap instead. */
+@media (max-width: 42rem) {
+  .timeline-strip ol {
+    flex-wrap: wrap;
+  }
+  .timeline-strip li {
+    flex: 1 1 8rem !important;
+  }
 }

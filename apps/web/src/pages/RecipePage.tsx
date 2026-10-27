@@ -1,4 +1,4 @@
-import { detectSystem } from '@openrecipe/core';
+import { detectSystem, humanizeDuration } from '@openrecipe/core';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -10,14 +10,18 @@ import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.ts
 import { ProposeButton } from '../components/ProposeButton.tsx';
 import { ProposeForm } from '../components/ProposeForm.tsx';
 import { RecipeActivity } from '../components/RecipeActivity.tsx';
+import { RecipeHistory } from '../components/RecipeHistory.tsx';
+import { RecipeTimeline } from '../components/RecipeTimeline.tsx';
 import { RecipeView } from '../components/RecipeView.tsx';
 import { ReportButton } from '../components/ReportButton.tsx';
 import { ScaleControl } from '../components/ScaleControl.tsx';
 import { ShoppingList } from '../components/ShoppingList.tsx';
 import { StarButton } from '../components/StarButton.tsx';
 import { VisibilityToggle } from '../components/VisibilityToggle.tsx';
-import { When } from '../components/When.tsx';
-import { fetchRecipe, rawUrl } from '../lib/api.ts';
+import { fetchRecipe, rawUrl, thumbUrlFor } from '../lib/api.ts';
+import { tintForRecipe } from '../lib/categories.ts';
+import { timelineOf } from '../lib/timeline.ts';
+import { pluralUnit } from '../lib/words.ts';
 import { useDismiss } from '../lib/use-dismiss.ts';
 import { tickKey } from '../lib/use-ticked.ts';
 import {
@@ -58,6 +62,19 @@ export function RecipePage() {
   const { recipe, version, doc } = data;
   const options = optionsFromSearch(search, native);
   const shown = applyCookOptions(doc.frontmatter, options, native);
+  const timeline = timelineOf(doc.phases);
+  /** "Makes 2 loaves", "Prep 45 min": the numbers, as pills in the panel. */
+  const facts = [
+    ...(shown.yield
+      ? [`Makes ${shown.yield.count} ${pluralUnit(shown.yield.count, shown.yield.unit)}`]
+      : []),
+    ...Object.entries(shown.time ?? {})
+      .filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+      .map(
+        ([label, minutes]) =>
+          `${label[0]?.toUpperCase()}${label.slice(1)} ${humanizeDuration(minutes)}`,
+      ),
+  ];
 
   /**
    * `replace`, because scaling is a way of looking at one page rather than a
@@ -83,162 +100,190 @@ export function RecipePage() {
        measure that suits prose, and the wide layout lifts that cap for this
        route alone. */
     <article className="recipe-page">
-      <header className="recipe-head">
-        <p className="crumb">
-          <Link to="/$handle" params={{ handle: recipe.owner.handle }}>
-            @{recipe.owner.handle}
-          </Link>
-          {recipe.visibility === 'private' && <span className="badge">Private</span>}
-        </p>
-
-        <h1>{recipe.title}</h1>
-        {recipe.forkedFrom && <ForkedFrom from={recipe.forkedFrom} />}
-        {recipe.description && <p className="lede">{recipe.description}</p>}
-        <RecipeActivity
-          handle={handle}
-          slug={slug}
-          versionCount={recipe.versionCount}
-          forkCount={recipe.forkCount}
-          openProposalCount={recipe.openProposalCount}
-        />
-        {options.scale !== 1 && (
-          <p className="print-only">
-            Printed at {formatFactor(options.scale)} the original quantities.
-          </p>
+      {/*
+        The photo beside a panel in the recipe's colour, which carries
+        everything a reader decides on before cooking: what it is, how long,
+        how much, and the buttons. Without a photo the panel takes the row.
+      */}
+      <header className={`recipe-head recipe-hero${doc.frontmatter.image ? ' has-photo' : ''}`}>
+        {doc.frontmatter.image && (
+          /*
+           * Eagerly, at high priority: this is almost always the largest
+           * thing painted. A phone gets the thumbnail — a `media` source, not
+           * `srcset`, because the document stores a URL and not a size.
+           */
+          <picture className="recipe-photo">
+            <source media="(max-width: 42rem)" srcSet={thumbUrlFor(doc.frontmatter.image)} />
+            <img src={doc.frontmatter.image} alt="" fetchPriority="high" />
+          </picture>
         )}
-
-        {/*
-         * The things a reader does here, and a drawer. Everything else a recipe
-         * can do is real but occasional — printing, raw text, visibility — and
-         * a reader who came here to cook should not have to read past eight
-         * buttons to find the ingredients. Fork is out here because it is what
-         * the site is for.
-         *
-         * Saving to a list earns its place beside starring for the same reason
-         * starring did: it is a thought you have while reading, and burying it
-         * in the drawer is what would make people not bother.
-         */}
-        <div className="row recipe-actions">
-          <Link
-            className="button cook-button"
-            to="/$handle/$slug/cook"
-            params={{ handle, slug }}
-            search={search}
-          >
-            Cook
-          </Link>
-          {recipe.canEdit && (
-            <Link className="button secondary" to="/$handle/$slug/edit" params={{ handle, slug }}>
-              Edit
+        <div
+          className="recipe-panel"
+          style={{ background: tintForRecipe(doc.frontmatter.tags ?? []) }}
+        >
+          <p className="crumb">
+            <Link to="/$handle" params={{ handle: recipe.owner.handle }}>
+              @{recipe.owner.handle}
             </Link>
-          )}
-          <StarButton
+            {recipe.visibility === 'private' && <span className="badge">Private</span>}
+          </p>
+
+          <h1>{recipe.title}</h1>
+          {recipe.forkedFrom && <ForkedFrom from={recipe.forkedFrom} />}
+          {recipe.description && <p className="lede">{recipe.description}</p>}
+          <RecipeActivity
             handle={handle}
             slug={slug}
-            starred={recipe.viewerHasStarred}
-            count={recipe.starCount}
+            versionCount={recipe.versionCount}
+            forkCount={recipe.forkCount}
+            openProposalCount={recipe.openProposalCount}
           />
-          <AddToListButton handle={handle} slug={slug} recipeId={recipe.id} />
+          {facts.length > 0 && (
+            <ul className="recipe-facts">
+              {facts.map((fact) => (
+                <li key={fact}>{fact}</li>
+              ))}
+            </ul>
+          )}
+          {options.scale !== 1 && (
+            <p className="print-only">
+              Printed at {formatFactor(options.scale)} the original quantities.
+            </p>
+          )}
+
           {/*
+           * The things a reader does here, and a drawer. Everything else a recipe
+           * can do is real but occasional — printing, raw text, visibility — and
+           * a reader who came here to cook should not have to read past eight
+           * buttons to find the ingredients. Fork is out here because it is what
+           * the site is for.
+           *
+           * Saving to a list earns its place beside starring for the same reason
+           * starring did: it is a thought you have while reading, and burying it
+           * in the drawer is what would make people not bother.
+           */}
+          <div className="row recipe-actions">
+            <Link
+              className="button cook-button"
+              to="/$handle/$slug/cook"
+              params={{ handle, slug }}
+              search={search}
+            >
+              Cook
+            </Link>
+            {recipe.canEdit && (
+              <Link className="button secondary" to="/$handle/$slug/edit" params={{ handle, slug }}>
+                Edit
+              </Link>
+            )}
+            <StarButton
+              handle={handle}
+              slug={slug}
+              starred={recipe.viewerHasStarred}
+              count={recipe.starCount}
+            />
+            <AddToListButton handle={handle} slug={slug} recipeId={recipe.id} />
+            {/*
             Two ways in, because they are two different situations. On a fork
             you own, the change is already written and the only question left is
             the covering note. On somebody else's recipe there is nothing to
             offer yet, so the button has to make you a copy first.
           */}
-          {recipe.canEdit && recipe.forkedFrom?.visible && (
-            <button
-              type="button"
-              className="secondary"
-              aria-expanded={proposing}
-              onClick={() => setProposing((was) => !was)}
-            >
-              Propose changes
-            </button>
-          )}
-          {!recipe.canEdit && (
-            <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
-          )}
-          {!recipe.canEdit && <ProposeButton handle={handle} slug={slug} />}
+            {recipe.canEdit && recipe.forkedFrom?.visible && (
+              <button
+                type="button"
+                className="secondary"
+                aria-expanded={proposing}
+                onClick={() => setProposing((was) => !was)}
+              >
+                Propose changes
+              </button>
+            )}
+            {!recipe.canEdit && (
+              <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
+            )}
+            {!recipe.canEdit && <ProposeButton handle={handle} slug={slug} />}
 
-          {/*
+            {/*
             Grouped by what the reader is after: using the recipe, and
             changing it. History, forks and proposals have the line under the
             title. Links that go elsewhere close the menu; actions that happen
             here leave it open, so their result or refusal is still in view.
           */}
-          <details
-            ref={menuRef}
-            className="more"
-            open={menuOpen}
-            onToggle={(e) => setMenuOpen(e.currentTarget.open)}
-          >
-            <summary className="button secondary">More</summary>
-            <div className="more-menu">
-              <p className="more-label">Use it</p>
-              <button
-                type="button"
-                className="secondary"
-                aria-expanded={showShopping}
-                onClick={() => {
-                  setShowShopping((open) => !open);
-                  closeMenu();
-                }}
-              >
-                {showShopping ? 'Hide shopping list' : 'Shopping list'}
-              </button>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  closeMenu();
-                  window.print();
-                }}
-              >
-                Print
-              </button>
-              <a
-                className="button secondary"
-                href={rawUrl(handle, slug)}
-                target="_blank"
-                rel="noreferrer"
-                onClick={closeMenu}
-              >
-                View as text
-              </a>
+            <details
+              ref={menuRef}
+              className="more"
+              open={menuOpen}
+              onToggle={(e) => setMenuOpen(e.currentTarget.open)}
+            >
+              <summary className="button secondary">More</summary>
+              <div className="more-menu">
+                <p className="more-label">Use it</p>
+                <button
+                  type="button"
+                  className="secondary"
+                  aria-expanded={showShopping}
+                  onClick={() => {
+                    setShowShopping((open) => !open);
+                    closeMenu();
+                  }}
+                >
+                  {showShopping ? 'Hide shopping list' : 'Shopping list'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    closeMenu();
+                    window.print();
+                  }}
+                >
+                  Print
+                </button>
+                <a
+                  className="button secondary"
+                  href={rawUrl(handle, slug)}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={closeMenu}
+                >
+                  View as text
+                </a>
 
-              <hr className="more-rule" />
-              {/* Your own recipe, forked: a second version to try alongside it. */}
-              {recipe.canEdit && (
-                <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
-              )}
-              {!recipe.canEdit && <ReportButton handle={handle} slug={slug} />}
-              {recipe.canEdit && (
-                <VisibilityToggle
-                  handle={handle}
-                  slug={slug}
-                  visibility={recipe.visibility}
-                  forkCount={recipe.forkCount}
-                />
-              )}
-              {/*
+                <hr className="more-rule" />
+                {/* Your own recipe, forked: a second version to try alongside it. */}
+                {recipe.canEdit && (
+                  <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
+                )}
+                {!recipe.canEdit && <ReportButton handle={handle} slug={slug} />}
+                {recipe.canEdit && (
+                  <VisibilityToggle
+                    handle={handle}
+                    slug={slug}
+                    visibility={recipe.visibility}
+                    forkCount={recipe.forkCount}
+                  />
+                )}
+                {/*
                 Last in the drawer, and the only destructive thing in the app.
                 A refused delete points at the visibility toggle directly above
                 it, which is the thing the owner actually wanted.
               */}
-              {recipe.canEdit && (
-                <DeleteRecipeButton
-                  handle={handle}
-                  slug={slug}
-                  onBlocked={() => setMenuOpen(true)}
-                />
-              )}
-            </div>
-          </details>
-        </div>
+                {recipe.canEdit && (
+                  <DeleteRecipeButton
+                    handle={handle}
+                    slug={slug}
+                    onBlocked={() => setMenuOpen(true)}
+                  />
+                )}
+              </div>
+            </details>
+          </div>
 
-        {recipe.visibility === 'private' && recipe.canEdit && (
-          <p className="notice">Only you can see this recipe.</p>
-        )}
+          {recipe.visibility === 'private' && recipe.canEdit && (
+            <p className="notice">Only you can see this recipe.</p>
+          )}
+        </div>
       </header>
 
       {proposing && recipe.forkedFrom && (
@@ -250,9 +295,16 @@ export function RecipePage() {
         />
       )}
 
+      {timeline && (
+        <RecipeTimeline segments={timeline} totalMinutes={doc.frontmatter.time?.total} />
+      )}
+
       <RecipeView
         frontmatter={shown}
         phases={doc.phases}
+        photo={false}
+        meta={false}
+        afterIngredients={<RecipeHistory handle={handle} slug={slug} canEdit={recipe.canEdit} />}
         storageKey={tickKey(handle, slug)}
         visibility={recipe.visibility}
         scaleControl={
@@ -283,15 +335,6 @@ export function RecipePage() {
           ) : null
         }
       />
-
-      {/* When and why it last changed, in words; the version id is for the
-          history page, where versions are compared, not for a reader. */}
-      <footer className="version-line muted">
-        Last changed <When date={version.createdAt} /> — “{version.message}” ·{' '}
-        <Link to="/$handle/$slug/history" params={{ handle, slug }}>
-          See all changes
-        </Link>
-      </footer>
     </article>
   );
 }

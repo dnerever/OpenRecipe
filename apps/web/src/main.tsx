@@ -6,6 +6,9 @@ import { createRoot } from 'react-dom/client';
 import { initAnalytics, initSentry } from './lib/monitoring.ts';
 import { registerOfflineSupport } from './lib/offline.ts';
 import { router } from './router.tsx';
+// Self-hosted, so pages need no third-party request and the CSP stays 'self'.
+import '@fontsource-variable/bricolage-grotesque/opsz.css';
+import '@fontsource-variable/dm-sans/index.css';
 import './styles.css';
 
 initSentry();

@@ -11,6 +11,8 @@ import {
 } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { AccountMenu } from './components/AccountMenu.tsx';
+import { CategoryNav } from './components/CategoryNav.tsx';
+import { Logo } from './components/Logo.tsx';
 import { SignInLink } from './components/SignInLink.tsx';
 import { SiteFooter } from './components/SiteFooter.tsx';
 import { BrowsePage } from './pages/BrowsePage.tsx';
@@ -61,9 +63,14 @@ function RootLayout() {
         ref={chrome.bar}
         aria-label="Site"
       >
-        <Link to="/" className="brand">
-          OpenSkillet
+        <Link to="/" className="brand" aria-label="OpenSkillet, home">
+          <Logo size={34} />
+          <span className="wordmark" aria-hidden="true">
+            openskillet
+          </span>
         </Link>
+        <CategoryNav />
+        <span className="spacer" />
         {!onSearch && <TopSearch />}
         {!onSearch && (
           <Link
@@ -89,14 +96,15 @@ function RootLayout() {
             </svg>
           </Link>
         )}
-        <span className="spacer" />
         {user ? (
           <>
-            <Link to="/new">Write</Link>
+            <Link to="/new" className="topbar-cta">
+              Write
+            </Link>
             <AccountMenu user={user} />
           </>
         ) : (
-          <SignInLink>Sign in</SignInLink>
+          <SignInLink className="topbar-cta">Sign in</SignInLink>
         )}
       </nav>
       <OfflineNotice />
