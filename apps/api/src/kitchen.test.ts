@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { createApp } from './app.ts';
+import { db } from './db/index.ts';
+import { recentActivity } from './services/activity.ts';
 import { cleanupRun } from './test-support.ts';
 
 const app = createApp();
@@ -66,9 +68,11 @@ describe('the kitchen', () => {
   });
   after(() => cleanupRun(`k-${run}-`));
 
+  // Other test files run at the same time against the same database, creating
+  // and deleting their own recipes. So nothing here compares totals before and
+  // after, or expects this test's event among the newest six: either can be
+  // moved by someone else's cleanup or someone else's writes in between.
   it('counts recipes, forks and open proposals, and lists what happened', async () => {
-    const before = (await call('GET', '/api/kitchen', null)).body as Kitchen;
-
     const slug = `loaf-${run}`;
     await call('POST', '/api/recipes', alice, { content: LOAF('Loaf'), slug });
     const forked = await call('POST', `/api/recipes/${alice.handle}/${slug}/fork`, bob, {});
@@ -86,17 +90,19 @@ describe('the kitchen', () => {
     const { res, body } = await call('GET', '/api/kitchen', null);
     assert.equal(res.status, 200);
     const now = body as Kitchen;
-    assert.equal(now.stats.recipes - before.stats.recipes >= 1, true);
-    assert.equal(now.stats.forks - before.stats.forks >= 1, true);
-    assert.equal(now.stats.openProposals - before.stats.openProposals >= 1, true);
+    assert.ok(now.stats.recipes >= 1);
+    assert.ok(now.stats.forks >= 1);
+    assert.ok(now.stats.openProposals >= 1);
+    assert.ok(now.activity.length <= 6, 'the endpoint serves the newest six');
 
-    const mine = now.activity.filter((e) => e.recipe.slug === slug);
+    // Long enough that other tests' events cannot push this one out.
+    const mine = (await recentActivity(db, 500)).filter((e) => e.recipe.slug === slug);
     assert.ok(
       mine.some(
         (e) =>
           e.kind === 'proposed' && e.actor.handle === bob.handle && e.detail === 'Wetter dough',
       ),
-      JSON.stringify(now.activity),
+      JSON.stringify(mine),
     );
   });
 
@@ -109,5 +115,6 @@ describe('the kitchen', () => {
     });
     const { body } = await call('GET', '/api/kitchen', null);
     assert.ok(!(body as Kitchen).activity.some((e) => e.recipe.slug === slug));
+    assert.ok(!(await recentActivity(db, 500)).some((e) => e.recipe.slug === slug));
   });
 });
