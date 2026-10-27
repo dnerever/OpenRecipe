@@ -45,7 +45,7 @@ export function RecipePage() {
   /** The kitchen the author wrote in, which is the units this reader starts in. */
   const native = useMemo(() => (frontmatter ? detectSystem(frontmatter) : 'metric'), [frontmatter]);
 
-  if (isPending) return <Loading />;
+  if (isPending) return <Loading shape="recipe" />;
 
   // A private recipe is indistinguishable from one that never existed, by design.
   if (error) return <LoadFailure error={error} missing={NO_SUCH_RECIPE} />;

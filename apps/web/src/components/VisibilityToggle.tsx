@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { setVisibility, type Visibility } from '../lib/api.ts';
+import { useFeedback } from './Feedback.tsx';
 
 /**
  * The copy matters here. Going private does not retract forks that already
@@ -18,10 +19,14 @@ export function VisibilityToggle({
   forkCount: number;
 }) {
   const queryClient = useQueryClient();
+  const { confirm, announce } = useFeedback();
 
   const mutation = useMutation({
     mutationFn: (next: Visibility) => setVisibility(handle, slug, next),
-    onSuccess: () => {
+    onSuccess: (_, next) => {
+      announce(
+        next === 'private' ? 'Only you can see this recipe now.' : 'This recipe is public now.',
+      );
       void queryClient.invalidateQueries({ queryKey: ['recipe', handle, slug] });
       void queryClient.invalidateQueries({ queryKey: ['user-recipes', handle] });
     },
@@ -35,16 +40,28 @@ export function VisibilityToggle({
         type="button"
         className="secondary"
         disabled={mutation.isPending}
-        onClick={() => {
-          if (next === 'private' && forkCount > 0) {
-            const ok = window.confirm(
-              `Making this private hides it from everyone but you.\n\n` +
-                `${forkCount} existing fork${forkCount === 1 ? '' : 's'} will stay where ${forkCount === 1 ? 'it is' : 'they are'} — going private does not retract copies people already made.`,
-            );
-            if (!ok) return;
-          }
-          mutation.mutate(next);
-        }}
+        onClick={() =>
+          void (async () => {
+            if (next === 'private' && forkCount > 0) {
+              const ok = await confirm({
+                title: 'Make this recipe private?',
+                body: (
+                  <>
+                    <p>It will be hidden from everyone but you.</p>
+                    <p>
+                      {forkCount} existing fork{forkCount === 1 ? '' : 's'} will stay where{' '}
+                      {forkCount === 1 ? 'it is' : 'they are'} — going private does not retract
+                      copies people already made.
+                    </p>
+                  </>
+                ),
+                confirm: 'Make private',
+              });
+              if (!ok) return;
+            }
+            mutation.mutate(next);
+          })()
+        }
       >
         {mutation.isPending ? 'Saving…' : next === 'private' ? 'Make private' : 'Make public'}
       </button>

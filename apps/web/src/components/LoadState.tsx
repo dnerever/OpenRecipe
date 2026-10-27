@@ -6,8 +6,68 @@ import { ApiError } from '../lib/api.ts';
  * identical to the character, which is how the list page came to say something
  * subtly different for the same failure.
  */
-export function Loading({ what = 'Loading…' }: { what?: string }) {
-  return <p className="muted">{what}</p>;
+export function Loading({
+  what = 'Loading…',
+  shape = 'page',
+}: {
+  what?: string;
+  /**
+   * The outline of what is coming, so the page does not jump when it lands:
+   * a grid of cards, a recipe's head and two columns, or a few lines of a
+   * page. The words are still there for a screen reader, which has no use
+   * for grey boxes.
+   */
+  shape?: 'page' | 'cards' | 'recipe' | 'text';
+}) {
+  if (shape === 'text') return <p className="muted">{what}</p>;
+  return (
+    <div className={`skeleton skeleton-${shape}`} aria-busy="true">
+      <span className="visually-hidden" role="status">
+        {what}
+      </span>
+      {shape === 'cards' ? (
+        <ul className="cards" aria-hidden="true">
+          {Array.from({ length: 6 }, (_, i) => (
+            <li key={i} className="card">
+              <span className="bone bone-title" />
+              <span className="bone" />
+              <span className="bone bone-short" />
+            </li>
+          ))}
+        </ul>
+      ) : shape === 'recipe' ? (
+        <div aria-hidden="true">
+          <span className="bone bone-crumb" />
+          <span className="bone bone-heading" />
+          <span className="bone bone-short" />
+          <span className="bone-row">
+            <span className="bone bone-button" />
+            <span className="bone bone-button" />
+            <span className="bone bone-button" />
+          </span>
+          <span className="bone-columns">
+            <span>
+              {Array.from({ length: 6 }, (_, i) => (
+                <span key={i} className="bone" />
+              ))}
+            </span>
+            <span>
+              {Array.from({ length: 4 }, (_, i) => (
+                <span key={i} className="bone bone-para" />
+              ))}
+            </span>
+          </span>
+        </div>
+      ) : (
+        <div aria-hidden="true">
+          <span className="bone bone-heading" />
+          <span className="bone" />
+          <span className="bone" />
+          <span className="bone bone-short" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**

@@ -20,6 +20,8 @@ import { useRevealOnScrollUp } from './lib/use-reveal-on-scroll-up.ts';
 import { parseCookSearch } from './lib/cook-options.ts';
 import { safeRedirect } from './lib/redirect.ts';
 import type { SearchSort } from './lib/api.ts';
+import { FeedbackProvider } from './components/Feedback.tsx';
+import { Loading } from './components/LoadState.tsx';
 
 /**
  * Handles live at the top level (`/chad-robertson/country-loaf`), which is
@@ -32,7 +34,7 @@ function RootLayout() {
   const chrome = useRevealOnScrollUp();
 
   return (
-    <>
+    <FeedbackProvider>
       <nav className={chrome.hidden ? 'topbar is-hidden' : 'topbar'} ref={chrome.bar}>
         <Link to="/" className="brand">
           OpenSkillet
@@ -60,7 +62,7 @@ function RootLayout() {
         <Outlet />
       </main>
       <SiteFooter />
-    </>
+    </FeedbackProvider>
   );
 }
 
@@ -321,7 +323,7 @@ export const router = createRouter({
    */
   defaultPreload: 'intent',
   defaultPreloadDelay: 50,
-  defaultPendingComponent: () => <p className="muted">Loading…</p>,
+  defaultPendingComponent: () => <Loading />,
 });
 
 declare module '@tanstack/react-router' {

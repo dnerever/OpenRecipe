@@ -112,15 +112,20 @@ test('an unpublished recipe asks before leaving, and comes back if you do', asyn
   await page.getByLabel('Title', { exact: true }).fill('Half-written soup');
   await page.getByLabel('Ingredient', { exact: true }).fill('leeks');
 
-  // Cancel the prompt: still here, nothing lost.
-  page.once('dialog', (dialog) => void dialog.dismiss());
+  // Keep editing: still here, nothing lost. Escape answers the same way.
   await page.getByRole('link', { name: 'OpenSkillet' }).click();
+  const leave = page.getByRole('dialog', { name: 'Leave this page?' });
+  await leave.getByRole('button', { name: 'Keep editing' }).click();
+  await expect(page).toHaveURL(/\/new$/);
+  await page.getByRole('link', { name: 'OpenSkillet' }).click();
+  await page.keyboard.press('Escape');
+  await expect(leave).toBeHidden();
   await expect(page).toHaveURL(/\/new$/);
   await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Half-written soup');
 
   // Accept it: gone — and back again on return, from this browser.
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('link', { name: 'OpenSkillet' }).click();
+  await leave.getByRole('button', { name: 'Leave' }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.goto('/new');
   await expect(page.getByText('Picked up where you left off')).toBeVisible();

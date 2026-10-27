@@ -16,6 +16,7 @@ import {
 } from '../lib/auth.ts';
 import { SESSION_KEY, useCurrentUser } from '../lib/session.ts';
 import { useTitle } from '../lib/use-title.ts';
+import { useFeedback } from '../components/Feedback.tsx';
 
 /** better-auth asks for a recent sign-in before changing credentials. */
 function failure(error: { status?: number; code?: string; message?: string }): string {
@@ -386,6 +387,7 @@ function SignInMethodsSection() {
 function DeleteSection({ handle }: { handle: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { confirm, announce } = useFeedback();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -393,12 +395,22 @@ function DeleteSection({ handle }: { handle: string }) {
   async function submit(event: FormEvent) {
     event.preventDefault();
 
-    const confirmed = window.confirm(
-      `Delete your account, @${handle}?\n\n` +
-        'Recipes nobody has forked go with it, along with your lists, stars ' +
-        'and comments. Recipes others have forked stay, no longer linked to you. ' +
-        'This cannot be undone.',
-    );
+    const confirmed = await confirm({
+      title: `Delete your account, @${handle}?`,
+      body: (
+        <>
+          <p>
+            Recipes nobody has forked go with it, along with your lists, stars and comments. Recipes
+            others have forked stay, no longer linked to you.
+          </p>
+          <p>
+            <strong>This cannot be undone.</strong>
+          </p>
+        </>
+      ),
+      confirm: 'Delete my account',
+      danger: true,
+    });
     if (!confirmed) return;
 
     setError(null);
@@ -411,6 +423,7 @@ function DeleteSection({ handle }: { handle: string }) {
       }
       queryClient.setQueryData(SESSION_KEY, { user: null });
       void queryClient.invalidateQueries();
+      announce('Your account has been deleted.');
       void navigate({ to: '/' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');

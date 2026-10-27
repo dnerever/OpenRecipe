@@ -131,7 +131,7 @@ export function ProfilePage({
 
       {tab === 'lists' &&
         (lists.isPending ? (
-          <Loading />
+          <Loading shape="cards" />
         ) : lists.data && lists.data.lists.length > 0 ? (
           <ul className="cards">
             {lists.data.lists.map((list) => (
@@ -165,7 +165,7 @@ export function ProfilePage({
 
       {tab === 'starred' &&
         (starred.isPending ? (
-          <Loading />
+          <Loading shape="cards" />
         ) : starred.data && starred.data.recipes.length > 0 ? (
           <ul className="cards">
             {starred.data.recipes.map((recipe) => (

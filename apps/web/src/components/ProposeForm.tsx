@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { openProposal, type ForkAttribution } from '../lib/api.ts';
+import { useFeedback } from './Feedback.tsx';
 
 /**
  * The other half of forking. A fork with no way back is a copy; this is what
@@ -24,6 +25,7 @@ export function ProposeForm({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { announce } = useFeedback();
   const target = forkedFrom.visible ? forkedFrom : null;
 
   const mutation = useMutation({
@@ -37,6 +39,7 @@ export function ProposeForm({
     },
     onSuccess: (proposal) => {
       if (!target) return;
+      announce(`Proposal #${proposal.number} opened.`);
       void queryClient.invalidateQueries({
         queryKey: ['proposals', target.owner.handle, target.slug],
       });

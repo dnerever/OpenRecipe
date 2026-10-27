@@ -3,14 +3,9 @@ import { Link, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { DiffView } from '../components/DiffView.tsx';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
-import {
-  fetchDiff,
-  fetchRecipe,
-  fetchVersions,
-  revertRecipe,
-  type VersionSummary,
-} from '../lib/api.ts';
+import { fetchDiff, fetchRecipe, fetchVersions, revertRecipe } from '../lib/api.ts';
 import { useTitle } from '../lib/use-title.ts';
+import { useFeedback } from '../components/Feedback.tsx';
 
 /**
  * The history is append-only, so this page never offers to change the past.
@@ -20,6 +15,7 @@ import { useTitle } from '../lib/use-title.ts';
 export function HistoryPage() {
   const { handle, slug } = useParams({ from: '/$handle/$slug/history' });
   const queryClient = useQueryClient();
+  const { confirm, announce } = useFeedback();
 
   const recipeQuery = useQuery({
     queryKey: ['recipe', handle, slug],
@@ -43,6 +39,7 @@ export function HistoryPage() {
       void queryClient.invalidateQueries({ queryKey: ['versions', handle, slug] });
       setBase(null);
       setCompare(null);
+      announce('Restored as a new version at the top of the history.');
     },
   });
 
@@ -119,7 +116,24 @@ export function HistoryPage() {
                 type="button"
                 className="secondary"
                 disabled={revert.isPending}
-                onClick={() => confirmRevert(version, revert.mutate)}
+                onClick={() =>
+                  void (async () => {
+                    const ok = await confirm({
+                      title: `Restore version ${version.id.slice(0, 8)}?`,
+                      body: (
+                        <>
+                          <p>“{version.message}”</p>
+                          <p>
+                            This writes a new version at the top of the history. Nothing is deleted
+                            or rewritten.
+                          </p>
+                        </>
+                      ),
+                      confirm: 'Restore this version',
+                    });
+                    if (ok) revert.mutate(version.id);
+                  })()
+                }
               >
                 Revert to this
               </button>
@@ -145,14 +159,6 @@ export function HistoryPage() {
   );
 }
 
-function confirmRevert(version: VersionSummary, run: (id: string) => void) {
-  const ok = window.confirm(
-    `Restore the content of ${version.id.slice(0, 8)} (“${version.message}”)?\n\n` +
-      `This writes a new version at the top of the history. Nothing is deleted or rewritten.`,
-  );
-  if (ok) run(version.id);
-}
-
 function Comparison({
   handle,
   slug,
@@ -171,7 +177,7 @@ function Comparison({
   });
 
   if (from === to) return <p className="notice">Pick two different versions to compare.</p>;
-  if (isPending) return <Loading what="Comparing…" />;
+  if (isPending) return <Loading what="Comparing…" shape="text" />;
   if (error) return <p className="bad">{error.message}</p>;
 
   return (

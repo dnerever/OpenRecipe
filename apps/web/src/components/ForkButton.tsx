@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { SignInLink } from './SignInLink.tsx';
 import { forkRecipe, type Visibility } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
+import { useFeedback } from './Feedback.tsx';
 
 /**
  * Forking is one click and no dialog. The slug collision resolves itself on the
@@ -22,10 +23,12 @@ export function ForkButton({
   const { user } = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { announce } = useFeedback();
 
   const mutation = useMutation({
     mutationFn: () => forkRecipe(handle, slug),
     onSuccess: (data) => {
+      announce('Forked — this copy is yours to change.');
       void queryClient.invalidateQueries({ queryKey: ['recipe', handle, slug] });
       void queryClient.invalidateQueries({ queryKey: ['forks', handle, slug] });
       void queryClient.invalidateQueries({ queryKey: ['user-recipes', data.recipe.owner.handle] });

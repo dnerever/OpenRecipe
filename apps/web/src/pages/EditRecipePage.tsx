@@ -7,8 +7,9 @@ import { RecipeEditor } from '../components/RecipeEditor.tsx';
 import { RestoredDraft } from '../components/RestoredDraft.tsx';
 import { ApiError, fetchRecipe, updateRecipe, type RecipeIssueWire } from '../lib/api.ts';
 import { loadSavedDraft, useDraftAutosave, type SavedDraft } from '../lib/saved-draft.ts';
-import { useLeaveGuard } from '../lib/use-leave-guard.ts';
+import { useLeaveGuard } from '../lib/use-leave-guard.tsx';
 import { useTitle } from '../lib/use-title.ts';
+import { useFeedback } from '../components/Feedback.tsx';
 
 /**
  * Editing is writing a new version, never overwriting one, so saving early
@@ -22,6 +23,7 @@ export function EditRecipePage() {
   const { proposeTo } = useSearch({ from: '/$handle/$slug/edit' });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { announce } = useFeedback();
 
   // Set when "Propose a change" forked this recipe and sent us straight here.
   // Saving then continues to the proposal form instead of stopping at the fork.
@@ -86,6 +88,7 @@ export function EditRecipePage() {
       await queryClient.invalidateQueries({ queryKey: ['recipe', handle, slug] });
       autosave.finish();
       allowLeave();
+      announce(proposing ? 'Saved to your copy.' : 'Saved as a new version.');
       void navigate({
         to: '/$handle/$slug',
         params: { handle, slug },

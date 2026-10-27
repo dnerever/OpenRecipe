@@ -5,6 +5,7 @@ import {
   type Frontmatter,
 } from '@openrecipe/core';
 import { useMemo, useState } from 'react';
+import { useFeedback } from './Feedback.tsx';
 
 /**
  * The ingredient list with the recipe taken out of it. It is built from what
@@ -23,6 +24,7 @@ export function ShoppingList({
   const items = useMemo(() => buildShoppingList(frontmatter), [frontmatter]);
   const [got, setGot] = useState<ReadonlySet<string>>(new Set());
   const [copied, setCopied] = useState(false);
+  const { announce } = useFeedback();
 
   const text = formatShoppingList(items, title);
 
@@ -44,8 +46,14 @@ export function ShoppingList({
             className="secondary"
             onClick={() => {
               void navigator.clipboard?.writeText(text).then(
-                () => setCopied(true),
-                () => setCopied(false),
+                () => {
+                  setCopied(true);
+                  announce('Shopping list copied.');
+                },
+                () => {
+                  setCopied(false);
+                  announce('Couldn’t copy — try Download instead.');
+                },
               );
             }}
           >

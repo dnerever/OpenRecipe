@@ -16,6 +16,7 @@ import {
 import { SignInLink } from '../components/SignInLink.tsx';
 import { useCurrentUser } from '../lib/session.ts';
 import { useTitle } from '../lib/use-title.ts';
+import { useFeedback } from '../components/Feedback.tsx';
 
 /**
  * The editor is only needed by whoever is resolving a conflict, which is a
@@ -53,14 +54,22 @@ export function ProposalPage() {
     void queryClient.invalidateQueries({ queryKey: ['versions', handle, slug] });
   };
 
+  const { announce } = useFeedback();
+
   const merge = useMutation({
     mutationFn: (input: { resolvedContent?: string }) => mergeProposal(handle, slug, n, input),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      announce('Merged — the recipe has a new version.');
+    },
   });
 
   const close = useMutation({
     mutationFn: () => closeProposal(handle, slug, n),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      announce('Proposal closed.');
+    },
   });
 
   const comment = useMutation({

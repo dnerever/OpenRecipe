@@ -220,8 +220,15 @@ test('delete an account from settings', async ({ page }) => {
     // The deletion form's field — "Password" alone also matches the
     // change-password fields once they have loaded.
     await page.getByLabel(/^Password leave blank/).fill(PASSWORD);
-    page.once('dialog', (dialog) => void dialog.accept());
     await page.getByRole('button', { name: 'Delete my account' }).click();
+    // Destructive: the dialog opens on Cancel, and says it cannot be undone.
+    const dialog = page.getByRole('dialog', { name: /Delete your account/ });
+    await expect(dialog.getByText('This cannot be undone.')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await dialog.getByRole('button', { name: 'Delete my account' }).click();
+    await expect(
+      page.getByRole('status').getByText('Your account has been deleted.'),
+    ).toBeVisible();
     await expect(page).toHaveURL('/');
 
     // Gone: the credentials no longer work.
