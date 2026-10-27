@@ -22,6 +22,8 @@ export type TimelineSegment = {
  * left out, since they are not time spent waiting. The width of a block is
  * only an impression of its length.
  *
+ * Without sections, only the steps that give a time are blocks.
+ *
  * `null` when the recipe gives fewer than two sections a time — a timeline of
  * one block says nothing a total time does not.
  */
@@ -47,5 +49,10 @@ export function timelineOf(phases: readonly Phase[]): TimelineSegment[] | null {
       return { title: g.title, firstStep: g.steps[0]?.number ?? 1, times, seconds };
     });
 
-  return segments.filter((s) => s.times.length > 0).length >= 2 ? segments : null;
+  const timed = segments.filter((s) => s.times.length > 0);
+  if (timed.length < 2) return null;
+  // A named section with no time still belongs in the line — "Shape" between
+  // "Bulk" and "Bake" is part of the shape of the day. A bare "Step 2 —" is
+  // not: it names nothing, and a row of them was most of the Shakshuka's.
+  return titled ? segments : timed;
 }

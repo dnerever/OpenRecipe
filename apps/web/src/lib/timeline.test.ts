@@ -36,6 +36,23 @@ describe('timelineOf', () => {
     );
   });
 
+  it('leaves out untimed steps when there are no sections to name them', () => {
+    const line = timelineOf([
+      {
+        title: '',
+        steps: [
+          step(1, 'Fry 15 minutes.'),
+          step(2, 'Add the garlic.'),
+          step(3, 'Simmer 15 minutes.'),
+        ],
+      },
+    ]);
+    assert.deepEqual(
+      line?.map((s) => s.title),
+      ['Step 1', 'Step 3'],
+    );
+  });
+
   it('says nothing when fewer than two sections have a time', () => {
     assert.equal(timelineOf([{ title: 'Cook', steps: [step(1, 'Simmer 15 minutes.')] }]), null);
   });

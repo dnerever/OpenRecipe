@@ -2,14 +2,17 @@ import {
   formatQuantity,
   formatUnit,
   humanizeDuration,
+  restateQuantity,
   type Frontmatter,
+  type MeasurementSystem,
   type Phase,
 } from '@openrecipe/core';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { thumbUrlFor } from '../lib/api.ts';
 import { DEFAULT_CONTENT_LICENSE, licenseNameFor, licenseUrlFor } from '../lib/license.ts';
-import { ingredientsInStep } from '../lib/step-ingredients.ts';
+import { ingredientsInStep, statedAmount } from '../lib/step-ingredients.ts';
 import { useTicked } from '../lib/use-ticked.ts';
+import { StepText } from './StepText.tsx';
 import { TagList } from './TagList.tsx';
 import { pluralUnit } from '../lib/words.ts';
 
@@ -166,6 +169,7 @@ export function RecipeView({
   visibility,
   photo = true,
   meta = true,
+  restate = { scale: 1, units: null },
 }: {
   frontmatter: Frontmatter;
   phases: Phase[];
@@ -180,6 +184,11 @@ export function RecipeView({
   /** Off where the page shows the photo and the times itself, as the recipe page does. */
   photo?: boolean;
   meta?: boolean;
+  /**
+   * The lens `frontmatter` is already under, so the amounts written into the
+   * steps can be put under it too. `units: null` is the recipe's own kitchen.
+   */
+  restate?: { scale: number; units: MeasurementSystem | null };
 }) {
   const groups = groupIngredients(frontmatter);
   const bar = useRef<HTMLElement | null>(null);
@@ -314,18 +323,26 @@ export function RecipeView({
                         {step.number}
                       </span>
                       <div className="step-body">
-                        <p>{step.text}</p>
+                        <p>
+                          <StepText text={step.text} scale={restate.scale} units={restate.units} />
+                        </p>
                         {/* A guess from the words, so it reads as a note, not a list
                             the reader should trust over the ingredients. */}
                         {uses.length > 0 && (
                           <p className="step-uses">
                             Uses{' '}
                             {uses
-                              .map((ing) =>
-                                ing.qty === null
+                              .map((ing) => {
+                                // "700g of the water" is this step's water; the
+                                // list's 750 g is the whole recipe's.
+                                const stated = statedAmount(step.text, ing.item);
+                                if (stated) {
+                                  return `${restateQuantity(stated, restate.scale, restate.units)} ${ing.item}`;
+                                }
+                                return ing.qty === null
                                   ? ing.item
-                                  : `${formatAmount(ing.qty, ing.unit)} ${ing.item}`,
-                              )
+                                  : `${formatAmount(ing.qty, ing.unit)} ${ing.item}`;
+                              })
                               .join(' · ')}
                           </p>
                         )}

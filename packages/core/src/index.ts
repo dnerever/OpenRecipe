@@ -58,6 +58,7 @@ export {
   roundQuantity,
 } from './convert.ts';
 export { findTimers, splitOnTimers, type StepTimer, type StepSegment } from './timers.ts';
+export { findQuantities, restateQuantity, type StepQuantity } from './quantities.ts';
 export {
   buildShoppingList,
   formatShoppingList,

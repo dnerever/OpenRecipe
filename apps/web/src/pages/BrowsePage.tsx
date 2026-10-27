@@ -12,7 +12,6 @@ import {
   fetchProposal,
   fetchPublicIndex,
   fetchTags,
-  thumbUrlFor,
   type IndexCursor,
   type IndexPage,
 } from '../lib/api.ts';
@@ -39,7 +38,12 @@ type Listed = IndexPage['recipes'][number];
  *
  * It leads with food: the newest recipe that has a photo (the index puts those
  * first), then what is happening in the kitchen, then shelves by how long a
- * recipe takes, then everything.
+ * recipe takes, then everything not already shown.
+ *
+ * A first-time visitor gets one line above all of it saying what the site is
+ * for. The food says "recipes"; nothing on it says "and you can change them
+ * and send the change back" until the very bottom, and that is the part that
+ * is not like every other recipe site.
  */
 export function BrowsePage() {
   const { user } = useCurrentUser();
@@ -75,29 +79,42 @@ export function BrowsePage() {
   const projects = recipes
     .filter((r) => r.totalTimeMinutes !== null && r.totalTimeMinutes >= PROJECT_MINUTES)
     .slice(0, 4);
+  /** Each recipe once: on a phone, a second copy of a shelf is another screenful. */
+  const shown = new Set([featured, ...quick, ...projects]);
+  const rest = recipes.filter((r) => !shown.has(r));
+  const shelved = quick.length > 0 || projects.length > 0;
+  const demoParams = {
+    handle: DEMO_PROPOSAL.handle,
+    slug: DEMO_PROPOSAL.slug,
+    number: String(DEMO_PROPOSAL.number),
+  };
 
   return (
     <div className="home">
-      <h1 className="sr">OpenSkillet: every recipe, with its history</h1>
+      {signedIn ? (
+        <h1 className="sr">OpenSkillet: every recipe, with its history</h1>
+      ) : (
+        <header className="home-intro">
+          <h1>Every recipe, with its history.</h1>
+          <p>
+            Cook from anything here. Made it your own way? Fork it, write down what you changed, and
+            propose it back — the owner sees exactly what changed.
+            {demo.data && (
+              <>
+                {' '}
+                <Link to="/$handle/$slug/proposals/$number" params={demoParams}>
+                  See a proposed change
+                </Link>
+              </>
+            )}
+          </p>
+        </header>
+      )}
 
       {featured && <Featured recipe={featured} />}
 
       {kitchen.data && (
         <section className="kitchen" aria-labelledby="kitchen-head">
-          <dl className="kitchen-stats">
-            <div style={{ background: '#ffd98a' }}>
-              <dt>Recipes</dt>
-              <dd>{kitchen.data.stats.recipes}</dd>
-            </div>
-            <div style={{ background: '#bfe3b9' }}>
-              <dt>Forks</dt>
-              <dd>{kitchen.data.stats.forks}</dd>
-            </div>
-            <div style={{ background: '#f8b7a9' }}>
-              <dt>Open proposals</dt>
-              <dd>{kitchen.data.stats.openProposals}</dd>
-            </div>
-          </dl>
           <div className="kitchen-feed">
             <h2 id="kitchen-head" className="shelf-head">
               Latest in the kitchen
@@ -141,13 +158,13 @@ export function BrowsePage() {
       )}
       {projects.length > 0 && <Shelf id="projects" title="Weekend projects" recipes={projects} />}
 
-      {recipes.length > 0 && (
+      {(rest.length > 0 || hasNextPage) && (
         <section aria-labelledby="all-head">
           <h2 id="all-head" className="shelf-head">
-            Every recipe
+            {shelved ? 'More recipes' : 'Every recipe'}
           </h2>
           <ul className="cards">
-            {recipes.map((recipe) => (
+            {rest.map((recipe) => (
               <RecipeCard
                 key={`${recipe.owner.handle}/${recipe.slug}`}
                 recipe={recipe}
@@ -189,11 +206,7 @@ export function BrowsePage() {
               <Link
                 className="button ghost"
                 to="/$handle/$slug/proposals/$number"
-                params={{
-                  handle: DEMO_PROPOSAL.handle,
-                  slug: DEMO_PROPOSAL.slug,
-                  number: String(DEMO_PROPOSAL.number),
-                }}
+                params={demoParams}
               >
                 See a proposal
               </Link>
@@ -210,7 +223,10 @@ function Featured({ recipe }: { recipe: Listed }) {
   const params = { handle: recipe.owner.handle, slug: recipe.slug };
   return (
     <section className="featured" aria-labelledby="featured-head">
-      <img src={thumbUrlFor(recipe.imageUrl ?? '')} alt="" />
+      {/* The full image, not the thumbnail: this is the largest picture on the
+          front page, shown wider than the thumbnail is, and a soft photo at
+          the top of the page makes the whole site look unfinished. */}
+      <img src={recipe.imageUrl ?? ''} alt="" fetchPriority="high" />
       <div className="featured-text">
         <p className="featured-label">Fresh from the kitchen</p>
         <div>

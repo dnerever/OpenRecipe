@@ -64,3 +64,29 @@ export function tintForRecipe(tags: readonly string[]): Tint {
   const first = tags[0];
   return first ? tintForTag(first) : TINTS.yolk;
 }
+
+/**
+ * What the header offers as a way in, in this order: kinds of dish and times
+ * of day, which is how people browse food. The header used to take the six
+ * most-used tags, and on a small site that put "Burrito" and
+ * "Freezer-Friendly" in the main navigation because two recipes said so.
+ */
+const HEADER_CATEGORIES = [
+  'breakfast',
+  'bread',
+  'weeknight',
+  'soup',
+  'curry',
+  'pasta',
+  'salad',
+  'dessert',
+  'baking',
+  'sauce',
+  'dip',
+];
+
+/** The header's categories that have at least one recipe, in the header's order. */
+export function headerCategories(tags: readonly string[], max = 6): string[] {
+  const present = new Set(tags.map((t) => t.toLowerCase()));
+  return HEADER_CATEGORIES.filter((c) => present.has(c)).slice(0, max);
+}

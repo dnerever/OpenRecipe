@@ -169,3 +169,17 @@ describe('detectSystem', () => {
     assert.equal(of('  - { qty: null, item: salt }\n'), 'metric');
   });
 });
+
+describe('convertIngredient — water', () => {
+  it('measures water in cups in a US kitchen, since a gram of it is a millilitre', () => {
+    const water = convertIngredient({ item: 'water', qty: 780, unit: 'g' }, 'us');
+    assert.deepEqual([water.qty, water.unit], [3.333, 'cup']);
+    const warm = convertIngredient({ item: 'warm water', qty: 240, unit: 'g' }, 'us');
+    assert.equal(warm.unit, 'cup');
+  });
+
+  it('weighs everything else, watercress included', () => {
+    assert.equal(convertIngredient({ item: 'bread flour', qty: 900, unit: 'g' }, 'us').unit, 'lb');
+    assert.equal(convertIngredient({ item: 'watercress', qty: 100, unit: 'g' }, 'us').unit, 'oz');
+  });
+});

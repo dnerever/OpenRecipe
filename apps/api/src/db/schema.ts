@@ -535,6 +535,29 @@ export const reports = pgTable(
   ],
 );
 
+/**
+ * What a visitor has to say about the site itself — not about one recipe,
+ * which is what a report is for. Open to anyone, signed in or not: the people
+ * with the most to tell you are the ones who gave up before making an account.
+ * Rate-limited by address instead (`limits.feedback`).
+ */
+export const feedback = pgTable(
+  'feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Kept when the account goes: the note is about the site, not about them. */
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    message: text('message').notNull(),
+    /** How to answer, when they want an answer and are not signed in. */
+    contact: text('contact'),
+    /** The path they were on when they wrote it. */
+    page: text('page'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (t) => [index('feedback_resolved_created_idx').on(t.resolvedAt, t.createdAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Recipe = typeof recipes.$inferSelect;
@@ -551,4 +574,5 @@ export type ListRole = (typeof listRole.enumValues)[number];
 export type ListVisibility = (typeof listVisibility.enumValues)[number];
 export type Visibility = (typeof recipeVisibility.enumValues)[number];
 export type Report = typeof reports.$inferSelect;
+export type Feedback = typeof feedback.$inferSelect;
 export type ReportStatus = (typeof reportStatus.enumValues)[number];

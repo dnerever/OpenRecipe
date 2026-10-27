@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { SendFeedback } from './SendFeedback.tsx';
 import { ThemeToggle } from './ThemeToggle.tsx';
 
 /**
@@ -19,7 +20,7 @@ export function SiteFooter() {
           CC BY-SA 4.0
         </a>{' '}
         unless a recipe says otherwise. <Link to="/terms">Terms</Link> ·{' '}
-        <Link to="/privacy">Privacy</Link>
+        <Link to="/privacy">Privacy</Link> · <SendFeedback />
       </p>
       <ThemeToggle />
     </footer>

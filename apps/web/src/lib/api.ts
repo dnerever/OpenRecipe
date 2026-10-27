@@ -638,3 +638,24 @@ export const resolveReport = (id: string, action: ResolveAction) =>
     `/api/admin/reports/${id}/resolve`,
     { method: 'POST', body: JSON.stringify({ action }) },
   );
+
+/* ------------------------------------------------------------- feedback -- */
+
+export const sendFeedback = (body: { message: string; contact?: string; page?: string }) =>
+  request<{ id: string }>('/api/feedback', { method: 'POST', body: JSON.stringify(body) });
+
+export type AdminFeedback = {
+  id: string;
+  message: string;
+  contact: string | null;
+  page: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  from: { handle: string } | null;
+};
+
+export const fetchAdminFeedback = (status: ReportStatus = 'open') =>
+  request<{ feedback: AdminFeedback[] }>(`/api/admin/feedback?status=${status}`);
+
+export const resolveFeedback = (id: string) =>
+  request<{ id: string }>(`/api/admin/feedback/${id}/resolve`, { method: 'POST' });

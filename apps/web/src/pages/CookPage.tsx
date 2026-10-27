@@ -1,4 +1,4 @@
-import { detectSystem, formatQuantity, formatUnit } from '@openrecipe/core';
+import { detectSystem, formatQuantity, formatUnit, restateQuantity } from '@openrecipe/core';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -12,7 +12,7 @@ import {
   optionsFromSearch,
   searchFromOptions,
 } from '../lib/cook-options.ts';
-import { ingredientsInStep } from '../lib/step-ingredients.ts';
+import { ingredientsInStep, statedAmount } from '../lib/step-ingredients.ts';
 import { useTimers } from '../lib/use-timers.ts';
 import { useWakeLock } from '../lib/use-wake-lock.ts';
 import { useWide } from '../lib/use-wide.ts';
@@ -144,6 +144,13 @@ export function CookPage() {
       )
     : new Set<number>();
   const groups = groupByIndex(shown.ingredients);
+  /** The recipe's own kitchen is no conversion at all, as on the recipe page. */
+  const units = options.units === native ? null : options.units;
+  /** What this step uses of it: the step's own amount when it gives one. */
+  const forStep = (ing: Ingredient): string => {
+    const stated = step ? statedAmount(step.text, ing.item) : undefined;
+    return stated ? restateQuantity(stated, options.scale, units) : amountOf(ing);
+  };
   /** Leaving drops the step; the scale and units go back with you. */
   const exit = {
     to: '/$handle/$slug',
@@ -227,6 +234,8 @@ export function CookPage() {
                     how you find your way back to what it was for. */}
                 <StepText
                   text={step.text}
+                  scale={options.scale}
+                  units={units}
                   onStartTimer={(seconds, label, phrase) =>
                     start(seconds, label, `Step ${index + 1} · ${phrase}`)
                   }
@@ -243,7 +252,7 @@ export function CookPage() {
                       const ing = shown.ingredients[i];
                       return ing ? (
                         <li key={i}>
-                          {amountOf(ing) && <strong>{amountOf(ing)}</strong>} {ing.item}
+                          {forStep(ing) && <strong>{forStep(ing)}</strong>} {ing.item}
                         </li>
                       ) : null;
                     })}
