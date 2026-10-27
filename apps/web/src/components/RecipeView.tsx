@@ -8,6 +8,7 @@ import {
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { thumbUrlFor } from '../lib/api.ts';
 import { DEFAULT_CONTENT_LICENSE, licenseNameFor, licenseUrlFor } from '../lib/license.ts';
+import { ingredientsInStep } from '../lib/step-ingredients.ts';
 import { useTicked } from '../lib/use-ticked.ts';
 import { TagList } from './TagList.tsx';
 import { pluralUnit } from '../lib/words.ts';
@@ -160,27 +161,36 @@ export function RecipeView({
   scaleControl,
   shoppingList,
   cookLink,
+  afterIngredients,
   storageKey,
   visibility,
+  photo = true,
+  meta = true,
 }: {
   frontmatter: Frontmatter;
   phases: Phase[];
   scaleControl?: ReactNode;
   shoppingList?: ReactNode;
   cookLink?: ReactNode;
+  /** Under the ingredients, in the same column: the recipe page's history. */
+  afterIngredients?: ReactNode;
   storageKey: string;
   /** Governs only the license fallback below — a private recipe isn't published, so it gets no default. */
   visibility?: 'public' | 'private';
+  /** Off where the page shows the photo and the times itself, as the recipe page does. */
+  photo?: boolean;
+  meta?: boolean;
 }) {
   const groups = groupIngredients(frontmatter);
   const bar = useRef<HTMLElement | null>(null);
   const { active, goTo } = useSectionNav(bar);
   const { ticked, toggle, clear } = useTicked(storageKey, frontmatter.ingredients.length);
   const times = Object.entries(frontmatter.time ?? {}).filter(([, v]) => typeof v === 'number');
+  const titles = phases.map((p) => p.title);
 
   return (
     <div className="recipe">
-      {frontmatter.image && (
+      {photo && frontmatter.image && (
         /*
          * Eagerly, and at high priority: this is the largest thing on the page
          * and almost always the largest thing painted, so `loading="lazy"` on
@@ -198,7 +208,7 @@ export function RecipeView({
         </picture>
       )}
 
-      {(frontmatter.yield || times.length > 0) && (
+      {meta && (frontmatter.yield || times.length > 0) && (
         <ul className="meta">
           {frontmatter.yield && (
             <li>
@@ -284,17 +294,45 @@ export function RecipeView({
           {shoppingList}
         </section>
 
+        {afterIngredients && <div className="after-ingredients">{afterIngredients}</div>}
+
         <section id="method" aria-label="Method">
           <h2>Method</h2>
           {phases.map((phase, i) => (
             <div key={`${phase.title}-${i}`} className="phase">
               {phase.title && <h3>{phase.title}</h3>}
               <ol className="steps">
-                {phase.steps.map((step) => (
-                  <li key={step.number} value={step.number}>
-                    {step.text}
-                  </li>
-                ))}
+                {phase.steps.map((step) => {
+                  const uses = [
+                    ...ingredientsInStep(step.text, phase.title, frontmatter.ingredients, titles),
+                  ]
+                    .map((i) => frontmatter.ingredients[i])
+                    .filter((ing) => ing !== undefined);
+                  return (
+                    <li key={step.number} value={step.number} id={`step-${step.number}`}>
+                      <span className="step-number" aria-hidden="true">
+                        {step.number}
+                      </span>
+                      <div className="step-body">
+                        <p>{step.text}</p>
+                        {/* A guess from the words, so it reads as a note, not a list
+                            the reader should trust over the ingredients. */}
+                        {uses.length > 0 && (
+                          <p className="step-uses">
+                            Uses{' '}
+                            {uses
+                              .map((ing) =>
+                                ing.qty === null
+                                  ? ing.item
+                                  : `${formatAmount(ing.qty, ing.unit)} ${ing.item}`,
+                              )
+                              .join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             </div>
           ))}

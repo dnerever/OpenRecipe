@@ -434,7 +434,7 @@ const forkOfPublic = raw<boolean>`exists (
 )`;
 
 /** What the front page lists: public originals, and forks whose original no one can see. */
-const indexed = and(eq(recipes.visibility, 'public'), raw`not ${forkOfPublic}`);
+export const indexed = and(eq(recipes.visibility, 'public'), raw`not ${forkOfPublic}`);
 
 /**
  * The public browse index.
@@ -461,7 +461,12 @@ export async function listPublicRecipes(
   const cursor = options.cursor;
 
   const rows = await db
-    .select({ recipe: recipes, owner: userColumns })
+    .select({
+      recipe: recipes,
+      owner: userColumns,
+      // For the cards' version bars. One indexed count per row of a page.
+      versionCount: raw<number>`(select count(*)::int from ${versions} where ${versions.recipeId} = ${recipes.id})`,
+    })
     .from(recipes)
     .innerJoin(users, eq(users.id, recipes.ownerId))
     .where(
@@ -495,6 +500,7 @@ export async function listPublicRecipes(
   return {
     recipes: page.map((row) => ({
       ...serializeRecipeSummary(row.recipe, parents),
+      versionCount: row.versionCount,
       owner: publicUser(row.owner),
     })),
     nextCursor:

@@ -151,7 +151,8 @@ test('sign up, publish a recipe, and read it back', async ({ browser }) => {
 
   // A licence on its own, with nothing to separate it from.
   await expect(visitor.locator('.source')).toHaveText('CC BY-SA 4.0');
-  await expect(visitor.getByText(/^Last changed just now/)).toBeVisible();
+  // The history panel beside the ingredients names the version just written.
+  await expect(visitor.locator('.recipe-history')).toContainText('just now · current');
 
   // Each page names its tab, including after client-side navigation.
   await expect(visitor).toHaveTitle('My First Loaf · OpenSkillet');

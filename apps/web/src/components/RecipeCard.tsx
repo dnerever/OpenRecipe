@@ -2,6 +2,7 @@ import { humanizeDuration } from '@openrecipe/core';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { thumbUrlFor, type RecipeSummary } from '../lib/api.ts';
+import { tintForRecipe } from '../lib/categories.ts';
 import { counted } from '../lib/words.ts';
 import { TagList } from './TagList.tsx';
 
@@ -28,15 +29,26 @@ export function RecipeCard({
   changes?: { lines: string[]; count: number };
 }) {
   return (
-    <li className={`card${recipe.imageUrl ? ' has-photo' : ''}`}>
-      {recipe.imageUrl && (
-        // Not a link of its own: the title's link already covers the whole
-        // card, photo included, and a second unnamed link to the same place
-        // is one more stop for a keyboard and a blank one for a screen reader.
+    <li className="card">
+      {/*
+        Not a link of its own: the title's link already covers the whole
+        card, picture included, and a second unnamed link to the same place
+        is one more stop for a keyboard and a blank one for a screen reader.
+
+        A recipe without a photo gets its category's colour with its name set
+        large, so every card has the same shape and none looks unfinished.
+      */}
+      {recipe.imageUrl ? (
         <div className="card-photo">
           {/* The thumbnail, not the full image: a browse page of full-size
               photos is a browse page nobody waits for. */}
           <img src={thumbUrlFor(recipe.imageUrl)} alt="" loading="lazy" />
+        </div>
+      ) : (
+        <div className="card-photo">
+          <div className="card-type" style={{ background: tintForRecipe(recipe.tags) }}>
+            <span aria-hidden="true">{recipe.title}</span>
+          </div>
         </div>
       )}
 
@@ -110,6 +122,7 @@ export function RecipeCard({
           </span>
         )}
         {recipe.visibility === 'private' && <span className="badge">Private</span>}
+        {recipe.versionCount !== undefined && <VersionBars count={recipe.versionCount} />}
         {action && <span className="card-action">{action}</span>}
       </div>
 
@@ -144,5 +157,22 @@ function ForkIcon() {
         <path d="M4.5 5v1.5c0 1.5 1 2.5 3.5 2.5s3.5-1 3.5-2.5V5M8 9v2" />
       </g>
     </svg>
+  );
+}
+
+/**
+ * One short bar per version, up to six: how much a recipe has been worked on,
+ * at a glance. The count itself is in the label.
+ */
+function VersionBars({ count }: { count: number }) {
+  return (
+    <span className="card-versions" title={counted(count, 'version')}>
+      <span className="bars" aria-hidden="true">
+        {Array.from({ length: Math.min(count, 6) }, (_, i) => (
+          <span key={i} />
+        ))}
+      </span>
+      <span className="sr">{counted(count, 'version')}</span>
+    </span>
   );
 }

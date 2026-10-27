@@ -46,6 +46,8 @@ export type RecipeSummary = {
   isFork: boolean;
   /** Named only when the original is public; a fork of a private recipe just says "fork". */
   forkedFrom: { handle: string; slug: string } | null;
+  /** Sent by the front page's index only, for the cards' version bars. */
+  versionCount?: number;
 };
 
 export type IndexCursor = { hasPhoto: boolean; updatedAt: string; id: string };
@@ -142,6 +144,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const fetchHealth = () => request<Health>('/api/health');
+
+export type ActivityKind = 'created' | 'revised' | 'forked' | 'proposed' | 'merged';
+
+export type ActivityEvent = {
+  kind: ActivityKind;
+  at: string;
+  actor: RecipeOwner;
+  recipe: { handle: string; slug: string; title: string };
+  detail: string | null;
+  proposal: number | null;
+};
+
+export type Kitchen = {
+  stats: { recipes: number; forks: number; openProposals: number };
+  activity: ActivityEvent[];
+};
+
+/** The front page's totals and newest public activity. */
+export const fetchKitchen = () => request<Kitchen>('/api/kitchen');
 
 export const fetchPublicIndex = (cursor?: IndexCursor | null) => {
   const params = new URLSearchParams({ limit: '24' });

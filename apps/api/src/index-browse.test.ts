@@ -64,6 +64,7 @@ type IndexPage = {
     visibility: string;
     imageUrl: string | null;
     forkCount: number;
+    versionCount: number;
     updatedAt: string;
     owner: { handle: string };
   }[];
@@ -230,6 +231,7 @@ describe('public index', () => {
     const all = await walkIndex();
     const original = all.find((r) => r.owner.handle === alice.handle && r.slug === `orig-${run}`);
     assert.equal(original?.forkCount, 1);
+    assert.equal(original?.versionCount, 1);
     assert.ok(
       !all.some((r) => r.owner.handle === bob.handle && r.slug === `orig-${run}`),
       'the fork should not have a card of its own',

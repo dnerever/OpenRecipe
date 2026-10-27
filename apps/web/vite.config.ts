@@ -15,8 +15,13 @@ function precacheManifest(): Plugin {
     name: 'openskillet-precache-manifest',
     apply: 'build',
     generateBundle(_options, bundle) {
+      // Plus the two Latin font files, so a recipe opened offline is still
+      // set in the site's type. The other alphabets' files are only fetched
+      // by browsers that meet those characters, so they stay out.
       const files = Object.keys(bundle)
-        .filter((name) => /\.(js|css)$/.test(name))
+        .filter(
+          (name) => /\.(js|css)$/.test(name) || /-latin-(wght|opsz)-normal-.*\.woff2$/.test(name),
+        )
         .map((name) => `/${name}`);
       this.emitFile({
         type: 'asset',

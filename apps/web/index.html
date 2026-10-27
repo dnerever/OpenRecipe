@@ -20,8 +20,8 @@
     <meta name="apple-mobile-web-app-title" content="OpenSkillet" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#f6f7f3" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#141713" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fffbf5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15120f" media="(prefers-color-scheme: dark)" />
     <!--
       The server (`og.ts`) replaces everything between the default-meta
       markers below with recipe-specific tags for a `/:handle/:slug` request,
@@ -44,7 +44,7 @@
       content="Recipes with real version history — fork, edit and propose changes like a cookbook you can pull-request."
     />
     <meta property="og:image" content="/social-preview.png" />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <!-- default-meta:end -->
     <script>
       // Before the first paint, so a reader who chose dark never gets a white
@@ -56,7 +56,7 @@
           document.documentElement.setAttribute('data-theme', stored);
           // Point both theme-color metas at the chosen colour, or the address
           // bar keeps answering to the OS while the page does not.
-          var paper = stored === 'dark' ? '#141713' : '#f6f7f3';
+          var paper = stored === 'dark' ? '#15120f' : '#fffbf5';
           var metas = document.querySelectorAll('meta[name="theme-color"]');
           for (var i = 0; i < metas.length; i++) metas[i].content = paper;
         }

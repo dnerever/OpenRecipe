@@ -65,7 +65,7 @@ export function applyTheme(preference: ThemePreference, root: ThemeRoot): void {
  * because a meta tag cannot hold a `var()`, and they were already duplicated
  * in `index.html` before this file existed — change one, change all three.
  */
-export const PAPER = { light: '#f6f7f3', dark: '#141713' } as const;
+export const PAPER = { light: '#fffbf5', dark: '#15120f' } as const;
 
 /** Just enough of a `<meta>` to set its colour, so this is testable bare. */
 export type ColorMeta = { content: string };
