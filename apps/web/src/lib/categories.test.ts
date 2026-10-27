@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { tintForRecipe, tintForTag } from './categories.ts';
+import { headerCategories, tintForRecipe, tintForTag } from './categories.ts';
 
 describe('category tints', () => {
   it('gives a tag the same colour every time, whatever its case', () => {
@@ -14,5 +14,18 @@ describe('category tints', () => {
 
   it('falls back to yolk for a recipe with no tags', () => {
     assert.equal(tintForRecipe([]), '#ffd98a');
+  });
+});
+
+describe('headerCategories', () => {
+  it('offers kinds of dish in a fixed order, not whatever is most used', () => {
+    assert.deepEqual(
+      headerCategories(['vegan', 'burrito', 'bread', 'freezer-friendly', 'breakfast', 'soup']),
+      ['breakfast', 'bread', 'soup'],
+    );
+  });
+
+  it('stops at the limit', () => {
+    assert.equal(headerCategories(['breakfast', 'bread', 'weeknight', 'soup'], 2).length, 2);
   });
 });

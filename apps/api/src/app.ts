@@ -171,6 +171,21 @@ export function createApp() {
     ),
   );
 
+  /**
+   * The addresses people type for signing in, out of habit from every other
+   * site. Without these each one is read as a cook's handle and answers "No
+   * such cook — nobody holds @sign-up", which looks like the site is broken.
+   * Permanent, and the query string goes along (a `redirect` survives).
+   */
+  for (const [from, tab] of SIGN_IN_ALIASES) {
+    app.get(from, (c) => {
+      const query = new URL(c.req.url).searchParams;
+      if (tab) query.set('tab', tab);
+      const search = query.toString();
+      return c.redirect(`/signin${search ? `?${search}` : ''}`, 301);
+    });
+  }
+
   if (env.SERVE_STATIC_DIR) mountSpa(app, env.SERVE_STATIC_DIR);
 
   app.notFound((c) =>
@@ -244,6 +259,16 @@ export function createApp() {
 
   return app;
 }
+
+/** Typed-by-habit sign-in addresses, and which tab of `/signin` each means. */
+const SIGN_IN_ALIASES: [string, 'signup' | null][] = [
+  ['/login', null],
+  ['/log-in', null],
+  ['/sign-in', null],
+  ['/signup', 'signup'],
+  ['/sign-up', 'signup'],
+  ['/register', 'signup'],
+];
 
 /**
  * Serves the built SPA from the same origin as the API.
