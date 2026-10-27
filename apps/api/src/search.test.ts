@@ -11,8 +11,13 @@ const PASSWORD = 'correct-horse-battery-staple';
  * A token nothing else in the database contains, so assertions can be exact
  * counts rather than "at least one" — the suite runs against a database that
  * already holds the seeded corpus.
+ *
+ * It ends in a digit so English stemming can never touch it. An all-letter
+ * `run` ending in, say, "es" was stemmed in the query but not in the tag it
+ * was meant to find (tags are stored as exact lexemes), and the suite failed
+ * about one run in thirty.
  */
-const TOKEN = `zk${run}`;
+const TOKEN = `zk${run}9`;
 
 const doc = (opts: { title: string; description?: string; tags?: string[] }) => `---
 schema: 1
