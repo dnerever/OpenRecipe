@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { RecipeCard } from '../components/RecipeCard.tsx';
+import { SignInLink } from '../components/SignInLink.tsx';
 import { fetchPublicIndex, type IndexCursor } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 import { useLocalFlag } from '../lib/use-local-flag.ts';
@@ -64,9 +65,15 @@ export function BrowsePage() {
           </div>
 
           <div className="intro-actions">
-            <Link className="button" to={signedIn ? '/new' : '/signin'}>
-              {signedIn ? 'Write a recipe' : 'Create an account'}
-            </Link>
+            {signedIn ? (
+              <Link className="button" to="/new">
+                Write a recipe
+              </Link>
+            ) : (
+              <SignInLink className="button" redirect="/new">
+                Create an account
+              </SignInLink>
+            )}
           </div>
 
           <button
@@ -91,9 +98,11 @@ export function BrowsePage() {
           <h2>Nothing here yet</h2>
           <p className="muted">
             No public recipes so far.{' '}
-            <Link to={signedIn ? '/new' : '/signin'}>
-              {signedIn ? 'Write the first one.' : 'Sign up and write the first one.'}
-            </Link>
+            {signedIn ? (
+              <Link to="/new">Write the first one.</Link>
+            ) : (
+              <SignInLink redirect="/new">Sign up and write the first one.</SignInLink>
+            )}
           </p>
         </section>
       )}

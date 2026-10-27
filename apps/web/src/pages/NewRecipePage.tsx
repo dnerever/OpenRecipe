@@ -9,6 +9,7 @@ import {
   type RecipeIssueWire,
   type Visibility,
 } from '../lib/api.ts';
+import { SignInLink } from '../components/SignInLink.tsx';
 import { BLANK_SOURCE } from '../lib/recipe-draft.ts';
 import { useCurrentUser } from '../lib/session.ts';
 
@@ -22,7 +23,12 @@ export function NewRecipePage() {
     return (
       <section className="panel">
         <h2>Sign in first</h2>
-        <p className="muted">You need an account to publish a recipe.</p>
+        <p className="muted">You need an account to publish a recipe. It takes a minute.</p>
+        <div className="row">
+          <SignInLink className="button" redirect="/new">
+            Sign in or create an account
+          </SignInLink>
+        </div>
       </section>
     );
   }

@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
+import { SignInLink } from './SignInLink.tsx';
 import { reportRecipe } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 
@@ -19,11 +19,7 @@ export function ReportButton({ handle, slug }: { handle: string; slug: string })
   });
 
   if (!user) {
-    return (
-      <Link className="button secondary" to="/signin">
-        Sign in to report
-      </Link>
-    );
+    return <SignInLink className="button secondary">Sign in to report</SignInLink>;
   }
 
   if (mutation.isSuccess) {

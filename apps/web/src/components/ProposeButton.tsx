@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
+import { SignInLink } from './SignInLink.tsx';
 import { forkRecipe } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 
@@ -36,11 +37,7 @@ export function ProposeButton({ handle, slug }: { handle: string; slug: string }
   });
 
   if (!user) {
-    return (
-      <Link className="button secondary" to="/signin">
-        Sign in to propose
-      </Link>
-    );
+    return <SignInLink className="button secondary">Sign in to propose</SignInLink>;
   }
 
   return (

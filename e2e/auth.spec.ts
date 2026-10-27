@@ -87,6 +87,55 @@ test('sign in with an existing account, then sign out', async ({ page }) => {
   }
 });
 
+test('signing in from a recipe comes back to that recipe', async ({ page }) => {
+  const author = await createAccount(page, 'returnauthor');
+  const reader = await createAccount(page, 'returnreader');
+  try {
+    await page.request.post('/api/auth/sign-in/email', {
+      data: { email: author.email, password: PASSWORD },
+    });
+    const created = await page.request.post('/api/recipes', {
+      data: {
+        content: '---\nschema: 1\ntitle: Toast\ningredients: []\n---\n\nToast the bread.\n',
+        visibility: 'public',
+      },
+    });
+    expect(created.ok()).toBe(true);
+    const { recipe } = (await created.json()) as { recipe: { slug: string } };
+    await page.context().clearCookies();
+
+    const path = `/${author.handle}/${recipe.slug}`;
+    await page.goto(`${path}?scale=2`);
+    await page.getByRole('link', { name: /Sign in to star/ }).click();
+    await expect(page).toHaveURL(/\/signin\?redirect=/);
+
+    await page.getByRole('tab', { name: 'Sign in' }).click();
+    await page.getByLabel('Email', { exact: true }).fill(reader.email);
+    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.locator('form button[type="submit"]').click();
+
+    await expect(page).toHaveURL(`${path}?scale=2`);
+    await expect(page.getByRole('button', { name: /☆/ })).toBeVisible();
+  } finally {
+    await removeAccount(page, reader.email, [PASSWORD]);
+    await removeAccount(page, author.email, [PASSWORD]);
+  }
+});
+
+test('a redirect to another site is ignored', async ({ page }) => {
+  const account = await createAccount(page, 'offsite');
+  try {
+    await page.goto('/signin?redirect=//evil.example/');
+    await page.getByRole('tab', { name: 'Sign in' }).click();
+    await page.getByLabel('Email', { exact: true }).fill(account.email);
+    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.locator('form button[type="submit"]').click();
+    await expect(page).toHaveURL(`/${account.handle}`);
+  } finally {
+    await removeAccount(page, account.email, [PASSWORD]);
+  }
+});
+
 /**
  * Handles are as long as their owners like, and the signed-in bar once ran off
  * a phone's right edge, taking Settings and Sign out with it.
