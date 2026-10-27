@@ -149,6 +149,10 @@ test('sign up, publish a recipe, and read it back', async ({ browser }) => {
   await expect(visitor.getByRole('heading', { level: 1 })).toHaveText('My First Loaf');
   await expect(visitor.getByText(`@${cook.handle}`).first()).toBeVisible();
 
+  // A licence on its own, with nothing to separate it from.
+  await expect(visitor.locator('.source')).toHaveText('CC-BY-SA-4.0');
+  await expect(visitor.getByText(/^Last changed just now/)).toBeVisible();
+
   // Each page names its tab, including after client-side navigation.
   await expect(visitor).toHaveTitle('My First Loaf · OpenSkillet');
   await visitor.getByRole('link', { name: 'Cook' }).first().click();

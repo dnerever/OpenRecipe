@@ -10,6 +10,7 @@ import { thumbUrlFor } from '../lib/api.ts';
 import { DEFAULT_CONTENT_LICENSE, licenseUrlFor } from '../lib/license.ts';
 import { useTicked } from '../lib/use-ticked.ts';
 import { TagList } from './TagList.tsx';
+import { pluralUnit } from '../lib/words.ts';
 
 const SECTIONS = ['ingredients', 'method'] as const;
 
@@ -202,8 +203,8 @@ export function RecipeView({
           {frontmatter.yield && (
             <li>
               <span>Makes</span>
-              {frontmatter.yield.count} {frontmatter.yield.unit}
-              {frontmatter.yield.count === 1 ? '' : 's'}
+              {frontmatter.yield.count}{' '}
+              {pluralUnit(frontmatter.yield.count, frontmatter.yield.unit)}
             </li>
           )}
           {times.map(([label, minutes]) => (
@@ -322,8 +323,8 @@ export function RecipeView({
               )}
               {license && (
                 <>
-                  {' '}
-                  ·{' '}
+                  {/* A separator only between two things, never ahead of one. */}
+                  {frontmatter.source?.url && ' · '}
                   {licenseUrl ? (
                     <a href={licenseUrl} rel="noreferrer noopener" target="_blank">
                       {license}

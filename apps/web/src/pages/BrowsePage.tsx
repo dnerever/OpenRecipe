@@ -1,9 +1,10 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Loading } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
+import { TagList } from '../components/TagList.tsx';
 import { SignInLink } from '../components/SignInLink.tsx';
-import { fetchPublicIndex, type IndexCursor } from '../lib/api.ts';
+import { fetchPublicIndex, fetchTags, type IndexCursor } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 import { useLocalFlag } from '../lib/use-local-flag.ts';
 import { useTitle } from '../lib/use-title.ts';
@@ -33,6 +34,8 @@ export function BrowsePage() {
       getNextPageParam: (last) => last.nextCursor,
       retry: false,
     });
+
+  const topTags = useQuery({ queryKey: ['tags'], queryFn: () => fetchTags(30) });
 
   const recipes = data?.pages.flatMap((page) => page.recipes) ?? [];
   const total = data?.pages[0]?.total;
@@ -91,6 +94,18 @@ export function BrowsePage() {
             <span aria-hidden="true">✕</span>
           </button>
         </header>
+      )}
+
+      {/*
+        A way in for someone who came to browse rather than to search for a
+        thing they already had in mind: the tags most recipes share, one tap
+        from a filtered list. Same query and cache as the search page's own
+        tag cloud.
+      */}
+      {topTags.data && topTags.data.tags.length > 0 && (
+        <nav className="home-tags" aria-label="Popular tags">
+          <TagList tags={topTags.data.tags.map((t) => t.tag).slice(0, 10)} />
+        </nav>
       )}
 
       {isPending && <Loading what="Loading recipes…" shape="cards" />}
