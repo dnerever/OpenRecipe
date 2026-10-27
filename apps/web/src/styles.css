@@ -613,14 +613,31 @@ a.button.secondary {
   color: var(--accent);
   text-decoration-color: currentColor;
 }
+/* Shown at one width only: the same control lives in the panel on a wide
+   screen and in the drawer on a phone. `contents` keeps the wrapper out of
+   the row's layout. */
+.wide-only {
+  display: contents;
+}
+.phone-only {
+  display: none;
+}
 @media (max-width: 42rem) {
+  .wide-only {
+    display: none;
+  }
+  .phone-only {
+    display: contents;
+  }
   /*
-   * The section bar below carries Cook on a phone, pinned where a thumb can
-   * reach it all the way down the recipe; a second one up here only pushed the
-   * rest of the row onto another line.
+   * Cook leads on a phone too, on a row of its own. The section bar further
+   * down carries it as well, pinned where a thumb can reach it — but that bar
+   * only appears once you have scrolled past the panel, and a first screen
+   * with no Cook on it reads as a page about a recipe rather than one to cook
+   * from.
    */
   .recipe-actions .cook-button {
-    display: none;
+    flex-basis: 100%;
   }
   /* Full rows rather than a ragged wrap: each button grows into the space
      left on its line, so no row ends in a gap. */
@@ -2234,6 +2251,7 @@ button.star.on {
   padding: 0 0.2em;
   border-radius: 0.3em;
   font-weight: 700;
+  white-space: nowrap;
   background: color-mix(in oklab, var(--yolk) 40%, transparent);
 }
 .timer-tray {
@@ -2667,6 +2685,10 @@ textarea:focus-visible {
   padding: 1.1rem 1.2rem;
   overflow: hidden;
 }
+.card h2.card-type {
+  margin: 0;
+}
+.card h2.card-type a,
 .card-type span {
   font-family: var(--display);
   font-weight: 800;
@@ -3270,33 +3292,6 @@ a.button.yolk {
   gap: 1rem;
   margin-bottom: 2.5rem;
 }
-.kitchen-stats {
-  flex: 1 1 20rem;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin: 0;
-}
-.kitchen-stats div {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 8.5rem;
-  padding: 1.1rem 1.2rem;
-  border-radius: var(--radius-card);
-  color: #1a1714;
-}
-.kitchen-stats dt {
-  color: #1a1714;
-  font-size: 0.92rem;
-  font-weight: 700;
-}
-.kitchen-stats dd {
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 3.2rem;
-  line-height: 1;
-}
 .kitchen-feed {
   flex: 2 1 30rem;
   min-width: 0;
@@ -3382,6 +3377,52 @@ a.button.yolk {
 }
 .shelf-cards {
   grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+}
+/* On a phone a shelf is one row you swipe along, as shelves are everywhere
+   else on a phone, instead of four cards stacked a screen each. */
+@media (max-width: 42rem) {
+  .shelf-cards {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 78%;
+    grid-template-columns: none;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--gutter));
+    padding-inline: var(--gutter);
+    scroll-padding-inline: var(--gutter);
+  }
+  .shelf-cards > li {
+    scroll-snap-align: start;
+  }
+}
+
+/* What the site is, in a line, for someone who has not been here before. */
+.home-intro {
+  margin: 0 0 1.75rem;
+}
+.home-intro h1 {
+  margin: 0 0 0.5rem;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.9rem, 4.2vw, 2.8rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+.home-intro p {
+  max-width: 44rem;
+  margin: 0;
+  font-size: 1.08rem;
+  color: var(--ink-2);
+}
+.home-intro a {
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.home-intro a::after {
+  content: ' →';
 }
 /* The header carries the categories on a wide screen. */
 @media (min-width: 64rem) {

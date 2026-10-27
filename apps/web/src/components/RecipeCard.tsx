@@ -37,6 +37,8 @@ export function RecipeCard({
 
         A recipe without a photo gets its category's colour with its name set
         large, so every card has the same shape and none looks unfinished.
+        There the name on the colour *is* the heading — set again underneath,
+        it read as the same thing twice on every card.
       */}
       {recipe.imageUrl ? (
         <div className="card-photo">
@@ -46,17 +48,21 @@ export function RecipeCard({
         </div>
       ) : (
         <div className="card-photo">
-          <div className="card-type" style={{ background: tintForRecipe(recipe.tags) }}>
-            <span aria-hidden="true">{recipe.title}</span>
-          </div>
+          <h2 className="card-type" style={{ background: tintForRecipe(recipe.tags) }}>
+            <Link to="/$handle/$slug" params={{ handle, slug: recipe.slug }}>
+              {recipe.title}
+            </Link>
+          </h2>
         </div>
       )}
 
-      <h2>
-        <Link to="/$handle/$slug" params={{ handle, slug: recipe.slug }}>
-          {recipe.title}
-        </Link>
-      </h2>
+      {recipe.imageUrl && (
+        <h2>
+          <Link to="/$handle/$slug" params={{ handle, slug: recipe.slug }}>
+            {recipe.title}
+          </Link>
+        </h2>
+      )}
 
       {changes && (
         <div className="card-changes">

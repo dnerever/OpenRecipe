@@ -202,7 +202,13 @@ export function RecipePage() {
             {!recipe.canEdit && (
               <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
             )}
-            {!recipe.canEdit && <ProposeButton handle={handle} slug={slug} />}
+            {/* In the drawer on a phone, where a fifth button in the panel
+                pushed the recipe itself below the first screen. */}
+            {!recipe.canEdit && (
+              <span className="wide-only">
+                <ProposeButton handle={handle} slug={slug} />
+              </span>
+            )}
 
             {/*
             Grouped by what the reader is after: using the recipe, and
@@ -251,6 +257,11 @@ export function RecipePage() {
                 </a>
 
                 <hr className="more-rule" />
+                {!recipe.canEdit && (
+                  <span className="phone-only">
+                    <ProposeButton handle={handle} slug={slug} />
+                  </span>
+                )}
                 {/* Your own recipe, forked: a second version to try alongside it. */}
                 {recipe.canEdit && (
                   <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
