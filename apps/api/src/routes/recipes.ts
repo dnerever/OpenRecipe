@@ -18,6 +18,7 @@ import {
   loadVersion,
   revertRecipe,
   serializeRecipeResponse,
+  forkParentsOf,
   serializeRecipeSummary,
   serializeVersion,
   setVisibility,
@@ -287,13 +288,14 @@ export const userRoutes = new Hono<AppEnv>()
       c.req.param('handle'),
       c.get('viewer'),
     );
+    const parents = await forkParentsOf(db, recipes);
     return c.json({
       // `bio` and `createdAt` are what a profile header needs beyond a listing
       // card — which is why `listRecipesForOwner` selects them. Omitting them
       // here left the page rendering `new Date(undefined)` as "Invalid Date",
       // and silently dropped every bio.
       owner: profileUser(owner),
-      recipes: recipes.map(serializeRecipeSummary),
+      recipes: recipes.map((recipe) => serializeRecipeSummary(recipe, parents)),
     });
   })
 

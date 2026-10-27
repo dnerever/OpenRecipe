@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { createApp } from './app.ts';
 import { cleanupRun } from './test-support.ts';
-import { renderShellWithRecipeMeta } from './og.ts';
+import { metaForPath, renderPage } from './og.ts';
 import { db } from './db/index.ts';
 
 const app = createApp();
@@ -57,36 +57,47 @@ async function create(
 
 let owner: Session;
 
-describe('renderShellWithRecipeMeta', () => {
+const render = (path: string, viewer: { id: string } | null = null) =>
+  renderPage(SHELL, db, path, viewer);
+
+const RECIPE = (title: string, extra = '') => `---
+schema: 1
+title: ${title}
+${extra}ingredients:
+  - { qty: 500, unit: g, item: bread flour }
+  - { qty: null, item: salt, note: to taste }
+---
+
+## Mix
+Mix it.
+
+## Bake
+Bake it for 40 minutes.
+`;
+
+describe('renderPage', () => {
   before(async () => {
     owner = await newUser('owner');
   });
 
   after(() => cleanupRun(`og-${run}-`));
 
-  it('splices title, description and og tags in for a public recipe', async () => {
-    const content = `---
-schema: 1
-title: <b>Sourdough</b> & Rye
-description: A loaf with "character" & a long ferment.
-image: https://example.test/loaf.jpg
-ingredients:
-  - { qty: 500, unit: g, item: bread flour }
----
+  it('splices escaped title, description and og tags in for a public recipe', async () => {
+    const { recipe } = await create(
+      owner,
+      RECIPE(
+        '<b>Sourdough</b> & Rye',
+        'description: A loaf with "character" & a long ferment.\nimage: https://example.test/loaf.jpg\n',
+      ),
+      { slug: `og-public-${run}` },
+    );
 
-## Bake
-Bake it.
-`;
-    const { recipe } = await create(owner, content, { slug: `og-public-${run}` });
+    const { status, html } = await render(`/${owner.handle}/${recipe.slug}`);
 
-    const html = await renderShellWithRecipeMeta(SHELL, db, owner.handle, recipe.slug, null);
-
+    assert.equal(status, 200);
     assert.ok(
       html.includes('<title>&lt;b&gt;Sourdough&lt;/b&gt; &amp; Rye · OpenSkillet</title>'),
       html,
-    );
-    assert.ok(
-      html.includes('property="og:title" content="&lt;b&gt;Sourdough&lt;/b&gt; &amp; Rye"'),
     );
     assert.ok(
       html.includes(
@@ -102,74 +113,118 @@ Bake it.
     assert.equal(html.match(/property="og:description"/g)?.length, 1);
   });
 
-  it('falls back to a generic description when the recipe has none', async () => {
-    const content = `---
-schema: 1
-title: Plain Loaf
-ingredients:
-  - { qty: 500, unit: g, item: bread flour }
----
-
-## Bake
-Bake it.
-`;
-    const { recipe } = await create(owner, content, { slug: `og-no-desc-${run}` });
-
-    const html = await renderShellWithRecipeMeta(SHELL, db, owner.handle, recipe.slug, null);
-
-    assert.ok(html.includes(`A recipe by @${owner.handle} on OpenSkillet.`));
-    assert.ok(!html.includes('og:image'));
-    assert.ok(html.includes('name="twitter:card" content="summary"'));
-  });
-
-  it('resolves an uploaded image path against APP_URL', async () => {
-    const content = `---
-schema: 1
-title: Uploaded Photo Loaf
-image: /api/media/abc123
-ingredients:
-  - { qty: 500, unit: g, item: bread flour }
----
-
-## Bake
-Bake it.
-`;
-    const { recipe } = await create(owner, content, { slug: `og-uploaded-${run}` });
-
-    const html = await renderShellWithRecipeMeta(SHELL, db, owner.handle, recipe.slug, null);
-
+  it('names the canonical URL without the query, so ?scale=2 is the same page', async () => {
+    const { recipe } = await create(owner, RECIPE('Canonical Loaf'), { slug: `og-canon-${run}` });
+    const { html } = await render(`/${owner.handle}/${recipe.slug}`);
     assert.ok(
-      html.includes('property="og:image" content="http://localhost:5173/api/media/abc123"'),
+      html.includes(
+        `<link rel="canonical" href="http://localhost:5173/${owner.handle}/${recipe.slug}" />`,
+      ),
     );
+
+    // Cook mode is the recipe again: canonical to it, and kept out of search.
+    const cook = await render(`/${owner.handle}/${recipe.slug}/cook`);
+    assert.ok(cook.html.includes('<title>Cooking: Canonical Loaf · OpenSkillet</title>'));
+    assert.ok(cook.html.includes(`href="http://localhost:5173/${owner.handle}/${recipe.slug}"`));
+    assert.ok(cook.html.includes('name="robots" content="noindex"'));
   });
 
-  it('falls back to the plain shell for a private recipe the viewer cannot read', async () => {
-    const content = `---
-schema: 1
-title: Secret Loaf
-ingredients:
-  - { qty: 500, unit: g, item: bread flour }
----
+  it('describes a recipe in schema.org terms, steps grouped by phase', async () => {
+    const { recipe } = await create(
+      owner,
+      RECIPE(
+        'Structured Loaf',
+        'yield: { count: 2, unit: loaves }\ntime: { prep: 45m, total: 25h }\n',
+      ),
+      { slug: `og-ld-${run}` },
+    );
+    const meta = await metaForPath(db, `/${owner.handle}/${recipe.slug}`, null);
+    const ld = meta.jsonLd as Record<string, unknown>;
 
-## Bake
-Bake it.
-`;
-    const { recipe } = await create(owner, content, {
+    assert.equal(ld['@type'], 'Recipe');
+    assert.equal(ld['name'], 'Structured Loaf');
+    assert.equal(ld['recipeYield'], '2 loaves');
+    assert.equal(ld['prepTime'], 'PT45M');
+    assert.equal(ld['totalTime'], 'P1DT1H');
+    assert.deepEqual(ld['recipeIngredient'], ['500 g bread flour', 'salt, to taste']);
+    assert.deepEqual(
+      (ld['recipeInstructions'] as { name: string }[]).map((s) => s.name),
+      ['Mix', 'Bake'],
+    );
+    assert.equal(ld['license'], 'https://creativecommons.org/licenses/by-sa/4.0/');
+  });
+
+  it('cannot be broken out of: a title with </script> stays inside the JSON', async () => {
+    const { recipe } = await create(owner, RECIPE('"</script><script>alert(1)</script>"'), {
+      slug: `og-xss-${run}`,
+    });
+    const { html } = await render(`/${owner.handle}/${recipe.slug}`);
+    const ld = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)?.[1];
+    assert.ok(ld);
+    assert.ok(!ld.includes('<'));
+    assert.equal((JSON.parse(ld) as { name: string }).name, '</script><script>alert(1)</script>');
+  });
+
+  it('is a 404 for a private recipe the viewer cannot read, and noindex for its owner', async () => {
+    const { recipe } = await create(owner, RECIPE('Secret Loaf'), {
       slug: `og-private-${run}`,
       visibility: 'private',
     });
+    const path = `/${owner.handle}/${recipe.slug}`;
 
-    const anonymous = await renderShellWithRecipeMeta(SHELL, db, owner.handle, recipe.slug, null);
-    assert.equal(anonymous, SHELL);
+    const anonymous = await render(path);
+    assert.equal(anonymous.status, 404);
+    assert.ok(!anonymous.html.includes('Secret Loaf'));
+    assert.ok(anonymous.html.includes('<title>Not found · OpenSkillet</title>'));
 
-    const asOwner = await renderShellWithRecipeMeta(SHELL, db, owner.handle, recipe.slug, {
-      id: owner.id,
-    });
-    assert.ok(asOwner.includes('Secret Loaf'));
+    const asOwner = await render(path, { id: owner.id });
+    assert.equal(asOwner.status, 200);
+    assert.ok(asOwner.html.includes('Secret Loaf'));
+    assert.ok(asOwner.html.includes('name="robots" content="noindex"'));
+    assert.ok(!asOwner.html.includes('application/ld+json'));
   });
 
-  it('falls back to the plain shell for a nonexistent recipe', async () => {
-    const html = await renderShellWithRecipeMeta(SHELL, db, owner.handle, 'does-not-exist', null);
-    assert.equal(html, SHELL);
+  it('is a 404 for paths that name nothing', async () => {
+    for (const path of [
+      `/${owner.handle}/does-not-exist`,
+      '/nobody-has-this-handle-xyz',
+      `/${owner.handle}/lists/no-such-list`,
+      `/${owner.handle}/does-not-exist/history`,
+      '/a/b/c/d/e',
+    ]) {
+      assert.equal((await render(path)).status, 404, path);
+    }
+  });
+
+  it('gives profiles and static pages their own title and canonical', async () => {
+    const profile = await render(`/${owner.handle}`);
+    assert.equal(profile.status, 200);
+    assert.ok(profile.html.includes(`<title>@${owner.handle} · OpenSkillet</title>`));
+    assert.ok(profile.html.includes(`href="http://localhost:5173/${owner.handle}"`));
+
+    const terms = await render('/terms');
+    assert.ok(terms.html.includes('<title>Terms of Service · OpenSkillet</title>'));
+
+    const settings = await render('/settings');
+    assert.equal(settings.status, 200);
+    assert.ok(settings.html.includes('name="robots" content="noindex"'));
+  });
+});
+
+describe('response headers', () => {
+  it('carry HSTS, nosniff and a framing ban on every response', async () => {
+    const res = await app.request('/api/health');
+    assert.match(res.headers.get('strict-transport-security') ?? '', /max-age=\d+/);
+    assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(res.headers.get('x-frame-options'), 'DENY');
+  });
+
+  it('publish a security.txt that has not expired', async () => {
+    const res = await app.request('/.well-known/security.txt');
+    assert.equal(res.status, 200);
+    const text = await res.text();
+    assert.match(text, /^Contact: https:\/\//m);
+    const expires = /^Expires: (.+)$/m.exec(text)?.[1];
+    assert.ok(expires && new Date(expires) > new Date());
   });
 });

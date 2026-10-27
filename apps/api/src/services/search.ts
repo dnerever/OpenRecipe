@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, sql as raw, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import { recipes, users } from '../db/schema.ts';
-import { serializeRecipeSummary } from './recipes.ts';
+import { forkParentsOf, serializeRecipeSummary } from './recipes.ts';
 import { publicUserColumns } from './users.ts';
 
 /**
@@ -107,9 +107,13 @@ export async function searchRecipes(db: Db, query: SearchQuery) {
   ]);
 
   const total = counted?.count ?? 0;
+  const parents = await forkParentsOf(
+    db,
+    rows.map((row) => row.recipe),
+  );
   return {
     recipes: rows.map((row) => ({
-      ...serializeRecipeSummary(row.recipe),
+      ...serializeRecipeSummary(row.recipe, parents),
       owner: row.owner,
     })),
     total,

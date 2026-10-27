@@ -15,6 +15,7 @@ import { users } from '../db/schema.ts';
  * the option to add the route.
  */
 export const RESERVED_HANDLES = new Set([
+  '.well-known',
   'about',
   'account',
   'admin',
@@ -36,6 +37,7 @@ export const RESERVED_HANDLES = new Set([
   'fork',
   'forks',
   'health',
+  'icons',
   'healthz',
   'help',
   'home',

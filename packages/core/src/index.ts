@@ -76,6 +76,7 @@ export {
   type MeasurementSystem,
 } from './units.ts';
 export { normalizeBody } from './body.ts';
+export { DEFAULT_CONTENT_LICENSE, licenseUrlFor } from './license.ts';
 export type {
   Frontmatter,
   Ingredient,

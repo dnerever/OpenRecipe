@@ -2,6 +2,8 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { secureHeaders } from 'hono/secure-headers';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RecipeParseError, SCHEMA_VERSION } from '@openrecipe/core';
@@ -10,7 +12,7 @@ import { auth } from './auth.ts';
 import { db, sql as rawSql } from './db/index.ts';
 import { env, githubOAuth, turnstile } from './env.ts';
 import { withViewer, type AppEnv } from './middleware/session.ts';
-import { renderShellWithRecipeMeta } from './og.ts';
+import { renderPage } from './og.ts';
 import { renderSitemap } from './sitemap.ts';
 import { listRoutes } from './routes/lists.ts';
 import { mediaRoutes } from './routes/media.ts';
@@ -41,6 +43,32 @@ export function createApp() {
   const api = new Hono<AppEnv>();
 
   app.use('*', logger());
+
+  /**
+   * The headers every response carries. HSTS because the site is HTTPS-only
+   * and a downgrade is how session cookies leak; `nosniff` so an uploaded file
+   * is never run as anything but what it was served as; no framing, because a
+   * page with a Delete button inside someone else's iframe is a clickjacking
+   * kit. The content policy is per page, so it is set where the shell is
+   * served — see `mountSpa`.
+   */
+  app.use(
+    '*',
+    secureHeaders({
+      strictTransportSecurity: 'max-age=63072000; includeSubDomains',
+      xFrameOptions: 'DENY',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      crossOriginResourcePolicy: false,
+      crossOriginOpenerPolicy: 'same-origin',
+      contentSecurityPolicy: undefined,
+      permissionsPolicy: {
+        camera: [],
+        microphone: [],
+        geolocation: [],
+        payment: [],
+      },
+    }),
+  );
 
   /**
    * Only needed in development, where Vite serves the SPA from its own port. In
@@ -118,6 +146,27 @@ export function createApp() {
   /** A static file cannot know APP_URL, and the sitemap directive needs an absolute one. */
   app.get('/robots.txt', (c) =>
     c.text(`User-agent: *\nAllow: /\n\nSitemap: ${env.APP_URL}/sitemap.xml\n`),
+  );
+
+  /**
+   * RFC 9116: where to report a vulnerability, for anyone who looks before
+   * they look at the repository. Points at the same private advisory form as
+   * SECURITY.md. `Expires` is required and must be in the future, so it is a
+   * year from whenever this process started — it can never go stale on a
+   * site that is still being deployed.
+   */
+  const securityTxtExpires = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString();
+  app.get('/.well-known/security.txt', (c) =>
+    c.text(
+      [
+        'Contact: https://github.com/dnerever/OpenRecipe/security/advisories/new',
+        `Expires: ${securityTxtExpires}`,
+        'Preferred-Languages: en',
+        `Canonical: ${env.APP_URL}/.well-known/security.txt`,
+        'Policy: https://github.com/dnerever/OpenRecipe/blob/main/SECURITY.md',
+        '',
+      ].join('\n'),
+    ),
   );
 
   if (env.SERVE_STATIC_DIR) mountSpa(app, env.SERVE_STATIC_DIR);
@@ -221,39 +270,78 @@ function mountSpa(app: Hono<AppEnv>, dir: string) {
     '/*',
     serveStatic({
       root: dir,
+      // Never answer `/` with the raw index.html: the home page goes through
+      // the page renderer like every other page, for its headers and tags.
+      index: '.no-index-file',
       onFound: (path, c) => {
-        if (path.endsWith('.html')) c.header('Cache-Control', 'no-cache');
+        // The service worker and the manifest are re-checked on every load, or
+        // a deploy is invisible to an installed app until the cache expires.
+        if (/\.(html|webmanifest)$|\/sw\.js$/.test(path)) c.header('Cache-Control', 'no-cache');
       },
     }),
   );
 
-  /**
-   * A recipe's own page, matched before the catch-all so a shared link
-   * carries a real title, description and photo. Unfurlers (iMessage, Slack,
-   * Discord) fetch this HTML unauthenticated and never run the SPA's JS, so
-   * this is the only place that can reach them. `withViewer` still runs
-   * first so a signed-in owner previewing their own private recipe link sees
-   * it too, not just public ones.
-   *
-   * Falls back to the plain shell for anything that isn't a readable recipe
-   * — a typo, a private recipe, or a reserved two-segment path like
-   * `/:handle/lists` — so the SPA router resolves those exactly as before.
-   */
-  app.get('/:handle/:slug', withViewer, async (c) => {
-    const html = await renderShellWithRecipeMeta(
-      indexHtml,
-      db,
-      c.req.param('handle'),
-      c.req.param('slug'),
-      c.get('viewer'),
-    );
-    return c.html(html, 200, { 'Cache-Control': 'no-cache' });
-  });
+  const csp = contentSecurityPolicy(indexHtml);
 
-  // Any path the API did not claim is a client route: hand back the shell and
-  // let the router resolve it.
-  app.get('/*', (c) => {
+  /**
+   * Every other path is a page of the app. The server answers with the shell
+   * either way — the SPA draws the page, "not found" included — but with the
+   * status and tags the page deserves: a real 404 for a recipe that is not
+   * there or not yours to see, so a crawler does not index an empty page as
+   * a real one, and a title, preview and canonical link for one that is.
+   * `withViewer` runs first so an owner previewing their own private recipe
+   * link sees it too.
+   *
+   * A path with a file extension is never a page. A missing icon or script
+   * gets a plain 404, not three kilobytes of HTML a browser will try to parse
+   * as an image.
+   */
+  app.get('/*', withViewer, async (c) => {
     if (c.req.path.startsWith('/api/')) return c.json({ error: 'not_found' }, 404);
-    return c.html(indexHtml, 200, { 'Cache-Control': 'no-cache' });
+    if (/\.[a-z0-9]+$/i.test(c.req.path)) return c.text('Not found', 404);
+
+    const { status, html } = await renderPage(indexHtml, db, c.req.path, c.get('viewer'));
+    return c.html(html, status, {
+      'Cache-Control': 'no-cache',
+      'Content-Security-Policy': csp,
+    });
   });
+}
+
+/**
+ * What the page may load, and from where.
+ *
+ * Scripts are this origin plus the one inline script the shell has (the
+ * theme, set before first paint), allowed by its hash rather than by
+ * `'unsafe-inline'` — which would let any injected `<script>` run too.
+ * Styles do need `'unsafe-inline'`: React sets `style` attributes and the
+ * source editor injects its own `<style>` elements. Images come from
+ * anywhere over HTTPS, because an imported recipe's photo is wherever its
+ * author's site keeps it.
+ *
+ * The third parties are the optional ones the code already knows about:
+ * Plausible, Sentry's ingest, and Cloudflare's bot check.
+ */
+function contentSecurityPolicy(indexHtml: string): string {
+  const hashes = [...indexHtml.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
+    ([, body]) =>
+      `'sha256-${createHash('sha256')
+        .update(body ?? '')
+        .digest('base64')}'`,
+  );
+  return [
+    "default-src 'self'",
+    `script-src 'self' ${hashes.join(' ')} https://plausible.io https://challenges.cloudflare.com`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://plausible.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io",
+    'frame-src https://challenges.cloudflare.com',
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    'upgrade-insecure-requests',
+  ].join('; ');
 }

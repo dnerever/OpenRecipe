@@ -314,6 +314,22 @@ async function loadComments(db: Db, proposalId: string) {
  */
 export type ProposalSelector = { id: string } | { targetRecipeId: string; number: number };
 
+/**
+ * Just the title, under the same visibility rule as `loadProposal` — for a
+ * page's `<title>` and link preview, which must not pay for a mergeability
+ * walk or write a snapshot on every crawler visit.
+ */
+export async function proposalTitle(
+  db: Db,
+  targetRecipeId: string,
+  number: number,
+  viewer: Viewer,
+): Promise<string | null> {
+  const row = await fetchProposal(db, { targetRecipeId, number });
+  if (!row || !canSeeProposal(row.proposal, row.target, row.source, viewer)) return null;
+  return row.proposal.title;
+}
+
 export async function loadProposal(db: Db, selector: ProposalSelector, viewer: Viewer) {
   const row = await fetchProposal(db, selector);
   if (!row) throw new NotFoundError();
