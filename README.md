@@ -14,11 +14,15 @@ it with one click.
 [an open proposal](https://openskillet.com/openrecipe-dev/tartine-country-loaf/proposals/1),
 or [its history](https://openskillet.com/openrecipe-dev/tartine-country-loaf/history).
 
-![A recipe page: ingredients with scaling and unit controls beside the method](docs/screenshots/recipe.png)
+![A recipe page: the recipe's panel with times and actions, a timeline of how the day breaks down, and the ingredients beside the method](docs/screenshots/recipe.png)
 
-| A proposal, merging cleanly                     | History, with any two versions compared       | Cook mode, one step at a time                            |
-| ----------------------------------------------- | --------------------------------------------- | -------------------------------------------------------- |
-| ![Proposal page](docs/screenshots/proposal.png) | ![History page](docs/screenshots/history.png) | ![Cook mode, dark theme](docs/screenshots/cook-mode.png) |
+| A proposal, merging cleanly                     | History, with any two versions compared       |
+| ----------------------------------------------- | --------------------------------------------- |
+| ![Proposal page](docs/screenshots/proposal.png) | ![History page](docs/screenshots/history.png) |
+
+| Scaled ×2 — the amounts in the steps follow the list             | Cook mode, one step at a time                            |
+| ---------------------------------------------------------------- | -------------------------------------------------------- |
+| ![Recipe scaled to twice the batch](docs/screenshots/scaled.png) | ![Cook mode, dark theme](docs/screenshots/cook-mode.png) |
 
 ## What it does
 
@@ -29,13 +33,21 @@ or [its history](https://openskillet.com/openrecipe-dev/tartine-country-loaf/his
   `water: 750 g → 780 g` and `Hydration 77.3% → 80%`, not just which lines moved.
 - **Recipes as documents.** Markdown with YAML frontmatter — the same text you
   can download from `/raw` and keep. Ingredients are structured; the method is
-  prose.
+  prose. Write one in a form or as the source, a tab apart, and unsaved work
+  survives a closed tab.
 - **Built for the kitchen.** Scale by yield or by one ingredient, switch metric
-  and US units, and cook step by step with timers lifted from the text and the
-  screen kept awake.
+  and US units, and amounts written into the steps ("700g of the water") follow
+  along. A timeline shows how the time splits across the sections. Cook step by
+  step with timers lifted from the text, the screen kept awake, and each step's
+  ingredients beside it.
+- **Installable, and readable offline.** A web app manifest and a service
+  worker: add it to a home screen, and recipes you have opened still load
+  without a connection.
 - **The rest of a real product.** Private recipes, shared lists with
-  collaborators, full-text search, stars, link previews, password reset,
-  reporting and moderation, and account deletion.
+  collaborators, full-text search, stars, link previews with structured data,
+  sign-up confirmed by an emailed code, account settings (email, password,
+  sessions), password reset, bot checks and rate limits, reporting and
+  moderation, a feedback inbox, and account deletion.
 
 ## How it works
 
@@ -66,7 +78,7 @@ A few decisions that carry most of the weight — each is written up in
 - **One container, any host.** Hono serves the built SPA from the same origin as
   the API: no CORS, no cross-site cookies. Migrations run before the server
   binds, and the [`Dockerfile`](Dockerfile) is the only contract with the host.
-- **Tests against real infrastructure.** 700+ tests on Node's built-in runner.
+- **Tests against real infrastructure.** 800+ tests on Node's built-in runner.
   CI runs the API suite against real Postgres and S3-compatible storage, and
   [a guard](apps/api/src/test-guard.ts) refuses to run it against a non-local
   database.
@@ -89,8 +101,11 @@ npm run db:migrate
 npm run dev          # core watcher + api :8787 + web :5173
 ```
 
-Open <http://localhost:5173>. The page reports API and database health — if both
-are green, your stack is working.
+Open <http://localhost:5173>. To check the stack,
+<http://localhost:5173/api/health> should answer `"status":"ok"` with
+`"database":"up"`. A fresh database is empty; `npm run db:seed` (see
+[Demo data](#demo-data)) gives it the demo recipes, forks and proposals the
+live site links to above.
 
 ## Layout
 
@@ -130,6 +145,16 @@ user/password `openrecipe` / `openrecipe-dev-secret`). Image uploads need
 `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` (`S3_REGION` is
 optional, defaulting to `auto`); without them everything else works and uploads
 answer 503.
+
+Everything else is optional, and documented in [`.env.example`](.env.example):
+
+| Variable                                     | Without it                                                                                   |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`, `MAIL_FROM`                | Sign-up codes, password-reset links and email-change links are printed to the API's console. |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | No bot check on sign-up, sign-in and password reset. `TURNSTILE_ENABLED=false` turns it off. |
+| `ADMIN_EMAILS`                               | Nobody is an admin; `/admin` (reports and feedback) is a 404 for everyone.                   |
+| `CLIENT_IP_HEADER`                           | Rate limits key on `x-forwarded-for`. Behind Cloudflare's proxy, use `cf-connecting-ip`.     |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`   | No GitHub sign-in — see [Sign-in](#sign-in).                                                 |
 
 ## End-to-end tests
 
@@ -230,10 +255,16 @@ a user agent that says what it is.
 
 ## Sign-in
 
-Email and password work out of the box. GitHub sign-in is **only registered when
-both `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are set**, so a fresh clone
-runs without anyone creating an OAuth app. When you do want it, the callback URL
-is `http://localhost:5173/api/auth/callback/github`.
+Email and password work out of the box. In production a new email account is
+confirmed with a six-digit code sent to the address before it can set a
+password; locally, without `RESEND_API_KEY`, the code is printed to the API's
+console instead. `/login`, `/signup` and the other addresses people type out of
+habit redirect to `/signin`.
+
+GitHub sign-in is **only registered when both `GITHUB_CLIENT_ID` and
+`GITHUB_CLIENT_SECRET` are set**, so a fresh clone runs without anyone creating
+an OAuth app. When you do want it, the callback URL is
+`http://localhost:5173/api/auth/callback/github`.
 
 Handles are claimed at signup: supply one, or we derive it from your email and
 suffix `-2`, `-3`, … on collision. Anything that could become a top-level route
@@ -242,14 +273,20 @@ suffix `-2`, `-3`, … on collision. Anything that could become a top-level rout
 
 ## URLs
 
-| Path                               | What                            |
-| ---------------------------------- | ------------------------------- |
-| `/{handle}`                        | A cook's recipes                |
-| `/{handle}/{slug}`                 | A recipe                        |
-| `/{handle}/{slug}/cook`            | Cook mode — one step at a time  |
-| `/{handle}/{slug}/proposals`       | Proposals against this recipe   |
-| `/new`                             | Write a recipe                  |
-| `/api/recipes/{handle}/{slug}/raw` | The recipe as portable Markdown |
+| Path                               | What                                        |
+| ---------------------------------- | ------------------------------------------- |
+| `/{handle}`                        | A cook's recipes, stars and lists           |
+| `/{handle}/{slug}`                 | A recipe                                    |
+| `/{handle}/{slug}/cook`            | Cook mode — one step at a time              |
+| `/{handle}/{slug}/history`         | Every version, and any two compared         |
+| `/{handle}/{slug}/forks`           | Its forks, with what each one changed       |
+| `/{handle}/{slug}/proposals`       | Proposals against this recipe               |
+| `/{handle}/lists/{list}`           | A list of recipes                           |
+| `/search`                          | Full-text search, filtered by tag           |
+| `/new`                             | Write a recipe                              |
+| `/settings`                        | Email, password, sessions, account deletion |
+| `/admin`                           | Reports and feedback, for `ADMIN_EMAILS`    |
+| `/api/recipes/{handle}/{slug}/raw` | The recipe as portable Markdown             |
 
 `?scale=` and `?units=metric|us` on a recipe are a _view_ of it: they scale and
 convert what you are reading, mint no version, and are inherited by cook mode.
