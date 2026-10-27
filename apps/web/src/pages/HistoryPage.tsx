@@ -1,9 +1,20 @@
+import { deriveSteps, parseRecipe } from '@openrecipe/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DiffView } from '../components/DiffView.tsx';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
-import { fetchDiff, fetchRecipe, fetchVersions, revertRecipe } from '../lib/api.ts';
+import { RecipeCrumb } from '../components/RecipeCrumb.tsx';
+import { RecipeView } from '../components/RecipeView.tsx';
+import { When } from '../components/When.tsx';
+import {
+  fetchDiff,
+  fetchRecipe,
+  fetchVersion,
+  fetchVersions,
+  revertRecipe,
+  type VersionSummary,
+} from '../lib/api.ts';
 import { useTitle } from '../lib/use-title.ts';
 import { useFeedback } from '../components/Feedback.tsx';
 
@@ -31,6 +42,7 @@ export function HistoryPage() {
 
   const [base, setBase] = useState<string | null>(null);
   const [compare, setCompare] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
 
   const revert = useMutation({
     mutationFn: (versionId: string) => revertRecipe(handle, slug, versionId),
@@ -55,46 +67,52 @@ export function HistoryPage() {
   // Newest first from the API, so the default comparison is "the last edit".
   const to = compare ?? versions[0]?.id ?? null;
   const fromId = base ?? versions[1]?.id ?? null;
+  const byId = new Map(versions.map((v) => [v.id, v]));
+  const comparing = versions.length > 1;
 
   return (
     <section>
-      <p className="crumb">
-        <Link to="/$handle" params={{ handle }}>
-          @{handle}
-        </Link>
-        <span> / </span>
-        <Link to="/$handle/$slug" params={{ handle, slug }}>
-          {slug}
-        </Link>
-      </p>
+      <RecipeCrumb handle={handle} slug={slug} />
       <h1>History</h1>
       <p className="lede">
-        {versions.length} version{versions.length === 1 ? '' : 's'}. Pick any two to compare.
+        {versions.length === 1
+          ? 'One version so far.'
+          : `${versions.length} versions. Pick a “From” and a “To” to see what changed between them.`}
       </p>
 
+      {/* Column labels for the two rows of choices; each choice also has its
+          own name for a screen reader, which cannot see the columns. */}
+      {comparing && (
+        <div className="timeline-head" aria-hidden="true">
+          <span>From</span>
+          <span>To</span>
+        </div>
+      )}
       <ol className="timeline">
         {versions.map((version) => (
           <li key={version.id} className={version.id === headVersionId ? 'is-head' : undefined}>
-            <div className="picks">
-              <label title="Compare from">
-                <input
-                  type="radio"
-                  name="base"
-                  checked={fromId === version.id}
-                  onChange={() => setBase(version.id)}
-                />
-                <span className="sr">base</span>
-              </label>
-              <label title="Compare to">
-                <input
-                  type="radio"
-                  name="compare"
-                  checked={to === version.id}
-                  onChange={() => setCompare(version.id)}
-                />
-                <span className="sr">compare</span>
-              </label>
-            </div>
+            {comparing && (
+              <div className="picks">
+                <label title="Compare from this version">
+                  <input
+                    type="radio"
+                    name="base"
+                    checked={fromId === version.id}
+                    onChange={() => setBase(version.id)}
+                  />
+                  <span className="sr">Compare from “{version.message}”</span>
+                </label>
+                <label title="Compare to this version">
+                  <input
+                    type="radio"
+                    name="compare"
+                    checked={to === version.id}
+                    onChange={() => setCompare(version.id)}
+                  />
+                  <span className="sr">Compare to “{version.message}”</span>
+                </label>
+              </div>
+            )}
 
             <div className="entry">
               <p className="entry-message">
@@ -105,47 +123,73 @@ export function HistoryPage() {
                 <Link to="/$handle" params={{ handle: version.author.handle }}>
                   @{version.author.handle}
                 </Link>{' '}
-                · {new Date(version.createdAt).toLocaleString()} ·{' '}
-                <code>{version.id.slice(0, 8)}</code>
-                {version.parentVersionId === null && <span> · root</span>}
+                · <When date={version.createdAt} />
+                {version.parentVersionId === null && <span> · first version</span>}
               </p>
             </div>
 
-            {canEdit && version.id !== headVersionId && (
-              <button
-                type="button"
-                className="secondary"
-                disabled={revert.isPending}
-                onClick={() =>
-                  void (async () => {
-                    const ok = await confirm({
-                      title: `Restore version ${version.id.slice(0, 8)}?`,
-                      body: (
-                        <>
-                          <p>“{version.message}”</p>
-                          <p>
-                            This writes a new version at the top of the history. Nothing is deleted
-                            or rewritten.
-                          </p>
-                        </>
-                      ),
-                      confirm: 'Restore this version',
-                    });
-                    if (ok) revert.mutate(version.id);
-                  })()
-                }
-              >
-                Revert to this
-              </button>
-            )}
+            <div className="entry-actions">
+              {version.id !== headVersionId && (
+                <button
+                  type="button"
+                  className="secondary"
+                  aria-expanded={viewing === version.id}
+                  onClick={() => setViewing((was) => (was === version.id ? null : version.id))}
+                >
+                  {viewing === version.id ? 'Hide' : 'View'}
+                </button>
+              )}
+              {canEdit && version.id !== headVersionId && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={revert.isPending}
+                  onClick={() =>
+                    void (async () => {
+                      const ok = await confirm({
+                        title: 'Restore this version?',
+                        body: (
+                          <>
+                            <p>“{version.message}”</p>
+                            <p>
+                              This writes a new version at the top of the history. Nothing is
+                              deleted or rewritten.
+                            </p>
+                          </>
+                        ),
+                        confirm: 'Restore this version',
+                      });
+                      if (ok) revert.mutate(version.id);
+                    })()
+                  }
+                >
+                  Restore
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ol>
 
       {revert.isError && <p className="bad">{revert.error.message}</p>}
 
+      {viewing && byId.get(viewing) && (
+        <OldVersion
+          handle={handle}
+          slug={slug}
+          version={byId.get(viewing) as VersionSummary}
+          onClose={() => setViewing(null)}
+        />
+      )}
+
       {fromId && to ? (
-        <Comparison handle={handle} slug={slug} from={fromId} to={to} />
+        <Comparison
+          handle={handle}
+          slug={slug}
+          from={byId.get(fromId)}
+          to={byId.get(to)}
+          headVersionId={headVersionId}
+        />
       ) : (
         <p className="notice">
           Only one version so far. Comparisons start with the second{' '}
@@ -164,29 +208,82 @@ function Comparison({
   slug,
   from,
   to,
+  headVersionId,
 }: {
   handle: string;
   slug: string;
-  from: string;
-  to: string;
+  from: VersionSummary | undefined;
+  to: VersionSummary | undefined;
+  headVersionId: string;
 }) {
   const { data, isPending, error } = useQuery({
-    queryKey: ['diff', handle, slug, from, to],
-    queryFn: () => fetchDiff(handle, slug, from, to),
+    queryKey: ['diff', handle, slug, from?.id, to?.id],
+    queryFn: () => fetchDiff(handle, slug, from?.id ?? '', to?.id ?? ''),
     retry: false,
+    enabled: from !== undefined && to !== undefined && from.id !== to.id,
   });
 
-  if (from === to) return <p className="notice">Pick two different versions to compare.</p>;
+  if (!from || !to) return null;
+  if (from.id === to.id) return <p className="notice">Pick two different versions to compare.</p>;
   if (isPending) return <Loading what="Comparing…" shape="text" />;
   if (error) return <p className="bad">{error.message}</p>;
 
   return (
     <>
-      <p className="compare-line muted">
-        <code>{data.from.id.slice(0, 8)}</code> → <code>{data.to.id.slice(0, 8)}</code>
-        {data.to.isHead && ' (current)'}
-      </p>
-      <DiffView semantic={data.semantic} hunks={data.hunks} identical={data.identical} />
+      <h2 className="section-head sentence-head">
+        From “{from.message}” to “{to.message}”{to.id === headVersionId && ' (current)'}
+      </h2>
+      <DiffView semantic={data.semantic} identical={data.identical} />
     </>
+  );
+}
+
+/**
+ * An earlier version, read the way the recipe page reads the current one.
+ * Parsed here rather than on the server: this page already carries the parser
+ * for comparisons, and old versions are opened rarely enough not to need a route.
+ */
+function OldVersion({
+  handle,
+  slug,
+  version,
+  onClose,
+}: {
+  handle: string;
+  slug: string;
+  version: VersionSummary;
+  onClose: () => void;
+}) {
+  const { data, isPending, error } = useQuery({
+    queryKey: ['version', handle, slug, version.id],
+    queryFn: () => fetchVersion(handle, slug, version.id),
+    retry: false,
+  });
+  const doc = useMemo(() => {
+    if (!data) return null;
+    const parsed = parseRecipe(data.content);
+    return { frontmatter: parsed.frontmatter, phases: deriveSteps(parsed) };
+  }, [data]);
+
+  return (
+    <section className="old-version" aria-label={`The recipe as of “${version.message}”`}>
+      <div className="panel-head">
+        <h2 className="section-head sentence-head">
+          As it was at “{version.message}” · <When date={version.createdAt} />
+        </h2>
+        <button type="button" className="secondary" onClick={onClose}>
+          Close
+        </button>
+      </div>
+      {isPending && <Loading what="Loading that version…" shape="text" />}
+      {error && <p className="bad">{error.message}</p>}
+      {doc && (
+        <RecipeView
+          frontmatter={doc.frontmatter}
+          phases={doc.phases}
+          storageKey={`openrecipe:version:${version.id}`}
+        />
+      )}
+    </section>
   );
 }

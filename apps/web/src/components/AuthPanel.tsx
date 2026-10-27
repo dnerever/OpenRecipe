@@ -15,9 +15,15 @@ type Mode = 'sign-in' | 'sign-up' | 'forgot';
  * invalidates the session query and lets the page redirect; it does not track
  * signed-in state itself, so there is only ever one source of truth.
  */
-export function AuthPanel({ health }: { health: Health | null }) {
+export function AuthPanel({
+  health,
+  initialMode = 'sign-in',
+}: {
+  health: Health | null;
+  initialMode?: 'sign-in' | 'sign-up';
+}) {
   const bot = useBotCheck(health?.auth.turnstileSiteKey ?? null);
-  return <AuthForms health={health} bot={bot} />;
+  return <AuthForms health={health} bot={bot} initialMode={initialMode} />;
 }
 
 const BOT_PENDING = 'Still checking that you are not a bot. Try again in a moment.';
@@ -29,9 +35,17 @@ function failure(error: { status?: number; code?: string; message?: string }): s
   return error.message ?? 'That did not work. Try again.';
 }
 
-function AuthForms({ health, bot }: { health: Health | null; bot: BotCheck }) {
+function AuthForms({
+  health,
+  bot,
+  initialMode,
+}: {
+  health: Health | null;
+  bot: BotCheck;
+  initialMode: 'sign-in' | 'sign-up';
+}) {
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState<Mode>('sign-up');
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPasswordValue] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -74,13 +88,28 @@ function AuthForms({ health, bot }: { health: Health | null; bot: BotCheck }) {
 
   return (
     <section className="panel">
-      <div className="tabs" role="tablist">
-        {(['sign-up', 'sign-in'] as const).map((m) => (
+      {/* Arrow keys move between the two, as they do in any tab strip; Tab
+          goes on to the form rather than stopping on the other tab first. */}
+      <div
+        className="tabs"
+        role="tablist"
+        aria-label="Sign in or create an account"
+        onKeyDown={(e) => {
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+          e.preventDefault();
+          const next = mode === 'sign-up' ? 'sign-in' : 'sign-up';
+          switchMode(next);
+          e.currentTarget.querySelector<HTMLButtonElement>(`[data-mode="${next}"]`)?.focus();
+        }}
+      >
+        {(['sign-in', 'sign-up'] as const).map((m) => (
           <button
             key={m}
             role="tab"
             type="button"
+            data-mode={m}
             aria-selected={mode === m}
+            tabIndex={mode === m ? 0 : -1}
             className={mode === m ? 'tab active' : 'tab'}
             onClick={() => switchMode(m)}
           >
@@ -350,13 +379,11 @@ function SignUpFlow({
         />
       </label>
       <label>
-        Handle <span className="hint">optional — we’ll pick one from your email</span>
-        <input
-          value={handle}
-          onChange={(e) => setHandle(e.target.value)}
-          placeholder="chad-robertson"
-          autoComplete="username"
-        />
+        Handle{' '}
+        <span className="hint">
+          optional — your address on the site, like @sam-bakes. We’ll pick one from your email.
+        </span>
+        <input value={handle} onChange={(e) => setHandle(e.target.value)} autoComplete="username" />
       </label>
       <label>
         Email

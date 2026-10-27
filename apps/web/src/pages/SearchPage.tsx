@@ -76,6 +76,11 @@ export function SearchPage() {
           placeholder="rye, 30 minutes, one pot…"
           aria-label="Search recipes"
           autoComplete="off"
+          // The one box on this page (the header hides its own here), so a
+          // reader who came to search can start typing. Not when the page was
+          // opened on a tag or a query: then the results are the point.
+          autoFocus={!q && tag.length === 0}
+          data-autofocus
         />
         <button type="submit">Search</button>
       </form>
@@ -85,7 +90,7 @@ export function SearchPage() {
           {tag.map((t) => (
             <li key={t} className="on">
               <button type="button" onClick={() => toggleTag(t)} aria-label={`Remove tag ${t}`}>
-                {t} ×
+                {t} <span aria-hidden="true">✕</span>
               </button>
             </li>
           ))}
@@ -102,6 +107,7 @@ export function SearchPage() {
               key={option.value}
               type="button"
               className={`tab${activeSort === option.value ? ' active' : ''}`}
+              aria-pressed={activeSort === option.value}
               // Relevance needs something to be relevant to.
               disabled={option.value === 'relevance' && !q}
               onClick={() => update({ sort: option.value })}
@@ -146,18 +152,18 @@ export function SearchPage() {
       )}
 
       {tags.data && tags.data.tags.length > 0 && (
-        <>
+        <div className="browse-tags">
           <h2>Browse by tag</h2>
           <ul className="tags">
             {tags.data.tags.map(({ tag: t, count }) => (
               <li key={t} className={tag.includes(t) ? 'on' : undefined}>
-                <button type="button" onClick={() => toggleTag(t)}>
+                <button type="button" onClick={() => toggleTag(t)} aria-pressed={tag.includes(t)}>
                   {t} <span className="count">{count}</span>
                 </button>
               </li>
             ))}
           </ul>
-        </>
+        </div>
       )}
     </section>
   );

@@ -7,7 +7,7 @@ import {
 } from '@openrecipe/core';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { thumbUrlFor } from '../lib/api.ts';
-import { DEFAULT_CONTENT_LICENSE, licenseUrlFor } from '../lib/license.ts';
+import { DEFAULT_CONTENT_LICENSE, licenseNameFor, licenseUrlFor } from '../lib/license.ts';
 import { useTicked } from '../lib/use-ticked.ts';
 import { TagList } from './TagList.tsx';
 import { pluralUnit } from '../lib/words.ts';
@@ -51,7 +51,7 @@ function anchorOf(element: HTMLElement, bar: HTMLElement | null): number {
  *
  * Offsets are kept relative to the section's anchor, not as page coordinates,
  * because everything above a section moves — the photo lands, the shopping
- * list opens, `Adjust` grows the scale row. A page coordinate is stale the
+ * list opens, `Custom amount…` grows the scale row. A page coordinate is stale the
  * moment any of that happens; an offset into the section is not.
  *
  * The jump is a scroll rather than a link, for the reason the rest of this
@@ -327,7 +327,7 @@ export function RecipeView({
                   {frontmatter.source?.url && ' · '}
                   {licenseUrl ? (
                     <a href={licenseUrl} rel="noreferrer noopener" target="_blank">
-                      {license}
+                      {licenseNameFor(license)}
                     </a>
                   ) : (
                     license

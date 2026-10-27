@@ -17,6 +17,22 @@ const LICENSE_URLS: Record<string, string> = {
   'CC0-1.0': 'https://creativecommons.org/publicdomain/zero/1.0/',
 };
 
+const LICENSE_NAMES: Record<string, string> = {
+  'CC-BY-SA-4.0': 'CC BY-SA 4.0',
+  'CC-BY-4.0': 'CC BY 4.0',
+  'CC-BY-NC-4.0': 'CC BY-NC 4.0',
+  'CC0-1.0': 'CC0 1.0',
+};
+
+/**
+ * The licence as people write it ("CC BY-SA 4.0"), not its identifier
+ * ("CC-BY-SA-4.0"), so the recipe page and the footer name it the same way.
+ * Anything unrecognized is shown as the author wrote it.
+ */
+export function licenseNameFor(license: string): string {
+  return LICENSE_NAMES[license] ?? license;
+}
+
 /** A link only for licenses we recognize — an arbitrary string is shown as text, not guessed at. */
 export function licenseUrlFor(license: string): string | undefined {
   return LICENSE_URLS[license];

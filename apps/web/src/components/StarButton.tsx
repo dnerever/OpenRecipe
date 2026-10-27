@@ -35,7 +35,11 @@ export function StarButton({
 
   if (!user) {
     return (
-      <SignInLink className="button secondary" label={`Sign in to star · ${total} stars`}>
+      <SignInLink
+        className="button secondary"
+        label={`Sign in to star · ${total} stars`}
+        reason="star"
+      >
         ☆ {total}
       </SignInLink>
     );

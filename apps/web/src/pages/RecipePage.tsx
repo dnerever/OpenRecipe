@@ -9,12 +9,14 @@ import { ForkedFrom } from '../components/ForkedFrom.tsx';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { ProposeButton } from '../components/ProposeButton.tsx';
 import { ProposeForm } from '../components/ProposeForm.tsx';
+import { RecipeActivity } from '../components/RecipeActivity.tsx';
 import { RecipeView } from '../components/RecipeView.tsx';
 import { ReportButton } from '../components/ReportButton.tsx';
 import { ScaleControl } from '../components/ScaleControl.tsx';
 import { ShoppingList } from '../components/ShoppingList.tsx';
 import { StarButton } from '../components/StarButton.tsx';
 import { VisibilityToggle } from '../components/VisibilityToggle.tsx';
+import { When } from '../components/When.tsx';
 import { fetchRecipe, rawUrl } from '../lib/api.ts';
 import { useDismiss } from '../lib/use-dismiss.ts';
 import { tickKey } from '../lib/use-ticked.ts';
@@ -26,7 +28,6 @@ import {
   type CookOptions,
 } from '../lib/cook-options.ts';
 import { useTitle } from '../lib/use-title.ts';
-import { timeAgo } from '../lib/words.ts';
 
 export function RecipePage() {
   const { handle, slug } = useParams({ from: '/$handle/$slug' });
@@ -87,14 +88,19 @@ export function RecipePage() {
           <Link to="/$handle" params={{ handle: recipe.owner.handle }}>
             @{recipe.owner.handle}
           </Link>
-          <span> / </span>
-          <strong>{recipe.slug}</strong>
           {recipe.visibility === 'private' && <span className="badge">Private</span>}
         </p>
 
         <h1>{recipe.title}</h1>
         {recipe.forkedFrom && <ForkedFrom from={recipe.forkedFrom} />}
         {recipe.description && <p className="lede">{recipe.description}</p>}
+        <RecipeActivity
+          handle={handle}
+          slug={slug}
+          versionCount={recipe.versionCount}
+          forkCount={recipe.forkCount}
+          openProposalCount={recipe.openProposalCount}
+        />
         {options.scale !== 1 && (
           <p className="print-only">
             Printed at {formatFactor(options.scale)} the original quantities.
@@ -102,18 +108,19 @@ export function RecipePage() {
         )}
 
         {/*
-         * Four actions and a drawer. Everything else a recipe can do is real
-         * but occasional — forking, history, raw, visibility — and a reader who
-         * came here to cook should not have to read past eight buttons to find
-         * the ingredients.
+         * The things a reader does here, and a drawer. Everything else a recipe
+         * can do is real but occasional — printing, raw text, visibility — and
+         * a reader who came here to cook should not have to read past eight
+         * buttons to find the ingredients. Fork is out here because it is what
+         * the site is for.
          *
          * Saving to a list earns its place beside starring for the same reason
          * starring did: it is a thought you have while reading, and burying it
          * in the drawer is what would make people not bother.
          */}
-        <div className="row">
+        <div className="row recipe-actions">
           <Link
-            className="button"
+            className="button cook-button"
             to="/$handle/$slug/cook"
             params={{ handle, slug }}
             search={search}
@@ -148,13 +155,16 @@ export function RecipePage() {
               Propose changes
             </button>
           )}
+          {!recipe.canEdit && (
+            <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
+          )}
           {!recipe.canEdit && <ProposeButton handle={handle} slug={slug} />}
 
           {/*
-            Grouped by what the reader is after: using the recipe, looking
-            at where it came from and went, and changing it. Links that go
-            elsewhere close the menu; actions that happen here leave it
-            open, so their result or refusal is still in view.
+            Grouped by what the reader is after: using the recipe, and
+            changing it. History, forks and proposals have the line under the
+            title. Links that go elsewhere close the menu; actions that happen
+            here leave it open, so their result or refusal is still in view.
           */}
           <details
             ref={menuRef}
@@ -196,34 +206,11 @@ export function RecipePage() {
                 View as text
               </a>
 
-              <p className="more-label">Versions and copies</p>
-              <Link
-                className="button secondary"
-                to="/$handle/$slug/proposals"
-                params={{ handle, slug }}
-                onClick={closeMenu}
-              >
-                Proposals
-              </Link>
-              <Link
-                className="button secondary"
-                to="/$handle/$slug/history"
-                params={{ handle, slug }}
-                onClick={closeMenu}
-              >
-                History
-              </Link>
-              <Link
-                className="button secondary"
-                to="/$handle/$slug/forks"
-                params={{ handle, slug }}
-                onClick={closeMenu}
-              >
-                Forks{recipe.forkCount > 0 && ` (${recipe.forkCount})`}
-              </Link>
-
               <hr className="more-rule" />
-              <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
+              {/* Your own recipe, forked: a second version to try alongside it. */}
+              {recipe.canEdit && (
+                <ForkButton handle={handle} slug={slug} visibility={recipe.visibility} />
+              )}
               {!recipe.canEdit && <ReportButton handle={handle} slug={slug} />}
               {recipe.canEdit && (
                 <VisibilityToggle
@@ -300,11 +287,7 @@ export function RecipePage() {
       {/* When and why it last changed, in words; the version id is for the
           history page, where versions are compared, not for a reader. */}
       <footer className="version-line muted">
-        Last changed{' '}
-        <time dateTime={version.createdAt} title={new Date(version.createdAt).toLocaleString()}>
-          {timeAgo(new Date(version.createdAt))}
-        </time>{' '}
-        — “{version.message}” ·{' '}
+        Last changed <When date={version.createdAt} /> — “{version.message}” ·{' '}
         <Link to="/$handle/$slug/history" params={{ handle, slug }}>
           See all changes
         </Link>

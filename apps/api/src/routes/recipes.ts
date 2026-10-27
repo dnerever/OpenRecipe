@@ -10,6 +10,7 @@ import {
   deleteRecipe,
   diffVersions,
   forkRecipe,
+  describeForks,
   listForks,
   listPublicRecipes,
   listRecipesForOwner,
@@ -76,6 +77,7 @@ const DiffQuery = z.object({
 /** Keyset cursor, passed back verbatim from the previous page. */
 const IndexQuery = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),
+  cursorHasPhoto: z.enum(['true', 'false']).optional(),
   cursorUpdatedAt: z.iso.datetime().optional(),
   cursorId: z.uuid().optional(),
 });
@@ -87,10 +89,14 @@ export const recipeRoutes = new Hono<AppEnv>()
    * `/recipes/:handle/:slug` so the static path wins.
    */
   .get('/recipes', async (c) => {
-    const { limit, cursorUpdatedAt, cursorId } = readQuery(c, IndexQuery);
+    const { limit, cursorHasPhoto, cursorUpdatedAt, cursorId } = readQuery(c, IndexQuery);
     const cursor =
       cursorUpdatedAt && cursorId
-        ? { updatedAt: new Date(cursorUpdatedAt), id: cursorId }
+        ? {
+            hasPhoto: cursorHasPhoto === 'true',
+            updatedAt: new Date(cursorUpdatedAt),
+            id: cursorId,
+          }
         : undefined;
 
     const [page, total] = await Promise.all([
@@ -248,12 +254,18 @@ export const recipeRoutes = new Hono<AppEnv>()
 
   /** Ancestry downward. The source is authorized first, then the list filtered. */
   .get('/recipes/:handle/:slug/forks', async (c) => {
-    const { recipe } = await loadRecipe(db, ...addressed(c));
+    const { recipe, content } = await loadRecipe(db, ...addressed(c));
     const forks = await listForks(db, recipe.id, c.get('viewer'));
+    const described = await describeForks(
+      db,
+      content,
+      forks.map((row) => row.recipe),
+    );
     return c.json({
       forks: forks.map((row) => ({
         ...serializeRecipeSummary(row.recipe),
         owner: publicUser(row.owner),
+        ...(described.get(row.recipe.id) ?? { changes: [], changeCount: 0 }),
       })),
     });
   })

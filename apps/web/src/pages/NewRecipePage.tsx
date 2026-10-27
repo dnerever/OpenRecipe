@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Navigate, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Loading } from '../components/LoadState.tsx';
 import { RecipeEditor } from '../components/RecipeEditor.tsx';
@@ -11,7 +11,6 @@ import {
   type RecipeIssueWire,
   type Visibility,
 } from '../lib/api.ts';
-import { SignInLink } from '../components/SignInLink.tsx';
 import { BLANK_SOURCE } from '../lib/recipe-draft.ts';
 import { loadSavedDraft, useDraftAutosave } from '../lib/saved-draft.ts';
 import { STARTER_RECIPE } from '../lib/starter-recipe.ts';
@@ -27,18 +26,10 @@ export function NewRecipePage() {
 
   if (isPending) return <Loading />;
 
+  // Straight to the form, saying why, rather than a page that only links to it.
+  // `replace`, so Back from sign-in returns to wherever "Write" was pressed.
   if (!user) {
-    return (
-      <section className="panel">
-        <h1>Sign in first</h1>
-        <p className="muted">You need an account to publish a recipe. It takes a minute.</p>
-        <div className="row">
-          <SignInLink className="button" redirect="/new">
-            Sign in or create an account
-          </SignInLink>
-        </div>
-      </section>
-    );
+    return <Navigate to="/signin" search={{ redirect: '/new', reason: 'write' }} replace />;
   }
 
   return (

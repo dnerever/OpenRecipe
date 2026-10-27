@@ -163,6 +163,8 @@ describe('formatUnit', () => {
 
   it('keeps the singular for one, and for a quantity there is none of', () => {
     assert.equal(formatUnit('cup', 1), 'cup');
+    assert.equal(formatUnit('cup', 0.5), 'cup');
+    assert.equal(formatUnit('cup', 1.5), 'cups');
     assert.equal(formatUnit('cup', null), 'cup');
     assert.equal(formatUnit(undefined, 2), '');
   });

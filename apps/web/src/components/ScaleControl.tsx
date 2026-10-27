@@ -89,11 +89,11 @@ export function ScaleControl({
         {adjustable && (
           <button
             type="button"
-            className="linkish"
+            className="secondary scale-more"
             aria-expanded={open}
             onClick={() => setOpen((was) => !was)}
           >
-            {open ? 'Less' : 'Adjust'}
+            {open ? 'Done' : 'Custom amount…'}
           </button>
         )}
       </div>

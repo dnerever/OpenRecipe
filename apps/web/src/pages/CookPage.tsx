@@ -12,6 +12,7 @@ import {
   optionsFromSearch,
   searchFromOptions,
 } from '../lib/cook-options.ts';
+import { ingredientsInStep } from '../lib/step-ingredients.ts';
 import { useTimers } from '../lib/use-timers.ts';
 import { useWakeLock } from '../lib/use-wake-lock.ts';
 import { useWide } from '../lib/use-wide.ts';
@@ -134,6 +135,15 @@ export function CookPage() {
 
   const options = optionsFromSearch(search, native);
   const shown = applyCookOptions(data.doc.frontmatter, options, native);
+  const inStep = step
+    ? ingredientsInStep(
+        step.text,
+        step.phase,
+        shown.ingredients,
+        data.doc.phases.map((p) => p.title),
+      )
+    : new Set<number>();
+  const groups = groupByIndex(shown.ingredients);
   /** Leaving drops the step; the scale and units go back with you. */
   const exit = {
     to: '/$handle/$slug',
@@ -222,6 +232,24 @@ export function CookPage() {
                   }
                 />
               </p>
+              {/* The amounts this step needs, under it, on a phone — where the
+                  ingredients are otherwise a sheet away. A wide screen marks
+                  them in the rail beside the step instead. */}
+              {!wide && inStep.size > 0 && (
+                <div className="cook-uses">
+                  <p className="cook-uses-label">For this step</p>
+                  <ul>
+                    {[...inStep].map((i) => {
+                      const ing = shown.ingredients[i];
+                      return ing ? (
+                        <li key={i}>
+                          {amountOf(ing) && <strong>{amountOf(ing)}</strong>} {ing.item}
+                        </li>
+                      ) : null;
+                    })}
+                  </ul>
+                </div>
+              )}
             </>
           ) : (
             <p className="muted">This recipe has no steps yet.</p>
@@ -255,32 +283,43 @@ export function CookPage() {
                   </button>
                 )}
               </div>
-              <ul className="checklist cook-ingredients">
-                {shown.ingredients.map((ing, i) => (
-                  <li key={`${ing.item}-${i}`}>
-                    <label className={got.has(i) ? 'got' : ''}>
-                      <input
-                        type="checkbox"
-                        checked={got.has(i)}
-                        onChange={() =>
-                          setGot((previous) => {
-                            const next = new Set(previous);
-                            if (!next.delete(i)) next.add(i);
-                            return next;
-                          })
-                        }
-                      />
-                      <span>
-                        {ing.qty === null
-                          ? ''
-                          : `${formatQuantity(ing.qty, ing.unit)}${ing.unit ? ` ${formatUnit(ing.unit, ing.qty)}` : ''} `}
-                        {ing.item}
-                        {ing.note && <em> — {ing.note}</em>}
-                      </span>
-                    </label>
-                  </li>
+              {/* Grouped as the recipe groups them — the levain's flour is not
+                  the dough's — and the ones this step mentions marked. */}
+              <div className="cook-ingredients">
+                {groups.map(({ group, items }) => (
+                  <div key={group ?? '_'} className="cook-group">
+                    {group && <h3>{group}</h3>}
+                    <ul className="checklist">
+                      {items.map(({ ing, index: i }) => (
+                        <li
+                          key={`${ing.item}-${i}`}
+                          className={inStep.has(i) ? 'in-step' : undefined}
+                        >
+                          <label className={got.has(i) ? 'got' : ''}>
+                            <input
+                              type="checkbox"
+                              checked={got.has(i)}
+                              onChange={() =>
+                                setGot((previous) => {
+                                  const next = new Set(previous);
+                                  if (!next.delete(i)) next.add(i);
+                                  return next;
+                                })
+                              }
+                            />
+                            <span>
+                              {amountOf(ing) && `${amountOf(ing)} `}
+                              {ing.item}
+                              {ing.note && <em> — {ing.note}</em>}
+                              {inStep.has(i) && <span className="sr"> (this step)</span>}
+                            </span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </aside>
           </>
         )}
@@ -312,4 +351,28 @@ export function CookPage() {
       </footer>
     </div>
   );
+}
+
+type Ingredient = {
+  qty: number | null;
+  unit?: string | undefined;
+  item: string;
+  group?: string | undefined;
+};
+
+/** "100 g", "1½ cups", or nothing for "salt, to taste". */
+function amountOf(ing: Ingredient): string {
+  if (ing.qty === null) return '';
+  return `${formatQuantity(ing.qty, ing.unit)}${ing.unit ? ` ${formatUnit(ing.unit, ing.qty)}` : ''}`;
+}
+
+/** The author's groups, in the author's order; each item keeps its index for ticking. */
+function groupByIndex<T extends Ingredient>(ingredients: readonly T[]) {
+  const groups: { group: string | undefined; items: { ing: T; index: number }[] }[] = [];
+  ingredients.forEach((ing, index) => {
+    const last = groups.at(-1);
+    if (last && last.group === ing.group) last.items.push({ ing, index });
+    else groups.push({ group: ing.group, items: [{ ing, index }] });
+  });
+  return groups;
 }

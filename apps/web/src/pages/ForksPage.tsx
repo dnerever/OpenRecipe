@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import { LoadFailure, Loading, NO_SUCH_RECIPE } from '../components/LoadState.tsx';
 import { RecipeCard } from '../components/RecipeCard.tsx';
+import { RecipeCrumb, useRecipeTitle } from '../components/RecipeCrumb.tsx';
 import { fetchForks } from '../lib/api.ts';
 import { useTitle } from '../lib/use-title.ts';
 
@@ -17,7 +18,7 @@ export function ForksPage() {
     queryFn: () => fetchForks(handle, slug),
     retry: false,
   });
-  useTitle(`Forks · ${handle}/${slug}`);
+  useTitle(`Forks · ${useRecipeTitle(handle, slug) ?? slug}`);
 
   if (isPending) return <Loading />;
 
@@ -25,15 +26,7 @@ export function ForksPage() {
 
   return (
     <section>
-      <p className="crumb">
-        <Link to="/$handle" params={{ handle }}>
-          @{handle}
-        </Link>
-        <span> / </span>
-        <Link to="/$handle/$slug" params={{ handle, slug }}>
-          {slug}
-        </Link>
-      </p>
+      <RecipeCrumb handle={handle} slug={slug} />
       <h1>Forks</h1>
 
       {data.forks.length === 0 ? (
@@ -44,8 +37,10 @@ export function ForksPage() {
       ) : (
         <>
           <p className="lede">
-            {data.forks.length} {data.forks.length === 1 ? 'cook has' : 'cooks have'} taken this
-            somewhere of their own.
+            {data.forks.length === 1
+              ? 'One cook has made their own copy of this recipe.'
+              : `${data.forks.length} cooks have made their own copies of this recipe.`}{' '}
+            Each one says how it differs from the original.
           </p>
           <ul className="cards">
             {data.forks.map((fork) => (
@@ -53,6 +48,7 @@ export function ForksPage() {
                 key={`${fork.owner.handle}/${fork.slug}`}
                 recipe={fork}
                 handle={fork.owner.handle}
+                changes={{ lines: fork.changes, count: fork.changeCount }}
               />
             ))}
           </ul>

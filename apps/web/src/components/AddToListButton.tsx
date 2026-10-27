@@ -110,7 +110,11 @@ export function AddToListButton({
   });
 
   if (!user) {
-    return <SignInLink className="button secondary">Add to list</SignInLink>;
+    return (
+      <SignInLink className="button secondary" reason="list">
+        Add to list
+      </SignInLink>
+    );
   }
 
   const lists = (data?.lists ?? []).filter((list) => list.canEdit);

@@ -144,6 +144,12 @@ describe('opening a proposal', () => {
     // Only the target's owner may accept it.
     assert.equal(body.canMerge, false);
     assert.equal(body.canClose, true);
+
+    // The recipe page points at it, and at the history behind it.
+    const { body: target } = await call('GET', `/api/recipes/${alice.handle}/${slug}`, null);
+    assert.equal(target.recipe.openProposalCount, 1);
+    assert.equal(target.recipe.versionCount, 1);
+    assert.equal(target.recipe.forkCount, 1);
   });
 
   it('numbers proposals per target recipe', async () => {

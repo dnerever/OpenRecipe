@@ -5,10 +5,11 @@ import {
   lazyRouteComponent,
   Link,
   Outlet,
+  useLocation,
   useNavigate,
   useParams,
 } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AccountMenu } from './components/AccountMenu.tsx';
 import { SignInLink } from './components/SignInLink.tsx';
 import { SiteFooter } from './components/SiteFooter.tsx';
@@ -20,6 +21,8 @@ import { useOnline } from './lib/offline.ts';
 import { useRevealOnScrollUp } from './lib/use-reveal-on-scroll-up.ts';
 import { parseCookSearch } from './lib/cook-options.ts';
 import { safeRedirect } from './lib/redirect.ts';
+import { parseSearch, stringifySearch } from './lib/search-params.ts';
+import { readReason, type SignInReason } from './lib/sign-in-reasons.ts';
 import type { SearchSort } from './lib/api.ts';
 import { FeedbackProvider } from './components/Feedback.tsx';
 import { Loading } from './components/LoadState.tsx';
@@ -33,36 +36,59 @@ import { Loading } from './components/LoadState.tsx';
 function RootLayout() {
   const { user } = useCurrentUser();
   const chrome = useRevealOnScrollUp();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const main = useMainFocus(pathname);
+  // The search page has a box of its own, and two boxes holding one query
+  // invite the question of which one counts.
+  const onSearch = pathname === '/search';
 
   return (
     <FeedbackProvider>
-      <nav className={chrome.hidden ? 'topbar is-hidden' : 'topbar'} ref={chrome.bar}>
+      {/* Focuses rather than following the hash, which would put `#main` in
+          the address bar and a no-op entry on the back button. */}
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(e) => {
+          e.preventDefault();
+          main.current?.focus();
+        }}
+      >
+        Skip to content
+      </a>
+      <nav
+        className={chrome.hidden ? 'topbar is-hidden' : 'topbar'}
+        ref={chrome.bar}
+        aria-label="Site"
+      >
         <Link to="/" className="brand">
           OpenSkillet
         </Link>
-        <TopSearch />
-        <Link
-          to="/search"
-          search={{ q: '', tag: [] }}
-          className="mobile-search-link"
-          aria-label="Search recipes"
-        >
-          {/* Drawn, not the emoji: the emoji's size and colour are the
-              platform's, and it was an 18px target. */}
-          <svg
-            viewBox="0 0 20 20"
-            width="20"
-            height="20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            aria-hidden="true"
+        {!onSearch && <TopSearch />}
+        {!onSearch && (
+          <Link
+            to="/search"
+            search={{ q: '', tag: [] }}
+            className="mobile-search-link"
+            aria-label="Search recipes"
           >
-            <circle cx="8.5" cy="8.5" r="5.5" />
-            <path d="m13 13 4.5 4.5" />
-          </svg>
-        </Link>
+            {/* Drawn, not the emoji: the emoji's size and colour are the
+              platform's, and it was an 18px target. */}
+            <svg
+              viewBox="0 0 20 20"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="8.5" cy="8.5" r="5.5" />
+              <path d="m13 13 4.5 4.5" />
+            </svg>
+          </Link>
+        )}
         <span className="spacer" />
         {user ? (
           <>
@@ -74,12 +100,39 @@ function RootLayout() {
         )}
       </nav>
       <OfflineNotice />
-      <main>
+      <main id="main" tabIndex={-1} ref={main}>
         <Outlet />
       </main>
       <SiteFooter />
     </FeedbackProvider>
   );
+}
+
+/**
+ * Moves keyboard focus to the new page after a navigation.
+ *
+ * A server-rendered site does this for free: each page load starts focus at
+ * the top. A single-page app keeps focus on the link that was pressed, which
+ * now belongs to a page that is gone, so the next Tab starts from nowhere in
+ * particular and a screen reader announces nothing. Only the path counts —
+ * scaling a recipe rewrites the query string, and that is the same page.
+ */
+function useMainFocus(pathname: string) {
+  const main = useRef<HTMLElement>(null);
+  // Compared, not counted: the first page load is not a navigation, and an
+  // effect that runs twice for the same path (as React's dev mode does) is not
+  // two of them.
+  const last = useRef(pathname);
+  useEffect(() => {
+    if (last.current === pathname) return;
+    last.current = pathname;
+    // A page that put focus somewhere on purpose (the search box, marked
+    // `data-autofocus`) keeps it. The link that was just pressed does not: it
+    // belongs to the page on its way out.
+    if (document.activeElement?.matches('[data-autofocus]')) return;
+    main.current?.focus({ preventScroll: true });
+  }, [pathname]);
+  return main;
 }
 
 /**
@@ -176,8 +229,16 @@ const signInRoute = createRoute({
    * The key is always returned, `undefined` when refused: leaving it out lets
    * the router keep the raw value from the address bar alongside ours.
    */
-  validateSearch: (search: Record<string, unknown>): { redirect?: string | undefined } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    redirect?: string | undefined;
+    tab?: 'signup' | undefined;
+    reason?: SignInReason | undefined;
+  } => ({
     redirect: safeRedirect(search['redirect']),
+    tab: search['tab'] === 'signup' ? 'signup' : undefined,
+    reason: readReason(search['reason']),
   }),
   component: lazyRouteComponent(() => import('./pages/SignInPage.tsx'), 'SignInPage'),
 });
@@ -355,6 +416,8 @@ export const router = createRouter({
   defaultPreload: 'intent',
   defaultPreloadDelay: 50,
   defaultPendingComponent: () => <Loading />,
+  parseSearch,
+  stringifySearch,
 });
 
 declare module '@tanstack/react-router' {

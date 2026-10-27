@@ -246,6 +246,23 @@ describe('forks', () => {
       assert.equal(body.forks.length, 1);
       assert.equal(body.forks[0].slug, forked.recipe.slug);
       assert.equal(body.forks[0].owner.handle, bob.handle);
+      // Unchanged since the fork, so there is nothing to tell apart.
+      assert.deepEqual(body.forks[0].changes, []);
+      assert.equal(body.forks[0].changeCount, 0);
+    });
+
+    it('says how each fork differs from the original', async () => {
+      const slug = `differs-${run}`;
+      await create(alice, slug);
+      const { body: forked } = await fork(bob, alice.handle, slug);
+      await put(bob, bob.handle, forked.recipe.slug, LOAF.replace('qty: 750', 'qty: 800'));
+
+      const { body } = await forksOf(alice.handle, slug);
+      assert.equal(body.forks[0].changeCount > 0, true);
+      assert.ok(
+        body.forks[0].changes.some((line: string) => /750 g → 800 g|Hydration/.test(line)),
+        JSON.stringify(body.forks[0].changes),
+      );
     });
 
     it('reports null on a recipe that is nobody’s fork', async () => {

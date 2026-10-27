@@ -91,7 +91,7 @@ export async function metaForPath(db: Db, path: string, viewer: Viewer): Promise
       const { handle } = loaded.recipe.owner;
       return {
         status: 200,
-        title: `#${fourth} ${title} · ${handle}/${loaded.recipe.slug}`,
+        title: `#${fourth} ${title} · ${loaded.doc.frontmatter.title}`,
         description: `A proposed change to ${loaded.doc.frontmatter.title}, by way of a fork.`,
         canonical: `/${handle}/${loaded.recipe.slug}/proposals/${fourth}`,
       };
