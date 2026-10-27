@@ -1260,6 +1260,7 @@ button.small {
   margin: 0;
 }
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1267,6 +1268,34 @@ button.small {
   border: 1px solid var(--rule);
   border-radius: 7px;
   background: var(--surface);
+}
+/**
+ * The whole card opens the recipe, not just its title: on a phone the title
+ * was a 22px strip, and a thumb aimed at a card lands anywhere on it. The
+ * title link's box is stretched over the card; the owner, tags and any
+ * action are lifted above it so each still goes where it says.
+ */
+.card h3 a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.card:hover {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--rule));
+}
+.card h3 a:focus-visible {
+  outline: none;
+}
+.card h3 a:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.card-owner,
+.card .tags,
+.card-action {
+  position: relative;
+  z-index: 1;
 }
 .card h3 {
   margin: 0;
@@ -2605,5 +2634,95 @@ dialog.confirm h2 {
 @media print {
   .toast-region {
     display: none;
+  }
+}
+
+/**
+ * Touch screens: every control at least 44px in its smaller dimension, the
+ * size a fingertip can hit without looking twice — and this is an app used
+ * with wet hands. Tag chips, which come thirty at a time, get 36px and the
+ * gap between them, which keeps neighbours from overlapping. Links inside
+ * sentences stay the size of the sentence; enlarging those only spreads the
+ * text out.
+ */
+@media (pointer: coarse) {
+  button,
+  .button,
+  summary.button,
+  input:not([type='checkbox'], [type='radio']),
+  select {
+    min-height: 44px;
+  }
+  .segmented button,
+  .ing-scale button,
+  .theme-toggle button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .more-menu button,
+  .more-menu .button,
+  .more-menu a.button {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .topbar .brand,
+  .topbar > a:not(.mobile-search-link),
+  .account-menu > summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  /* Sized only: whether it shows at all is the 34rem rule's decision. */
+  .mobile-search-link {
+    min-height: 44px;
+    justify-content: center;
+    min-width: 44px;
+    margin: 0 -0.6rem;
+  }
+  .intro-dismiss {
+    min-width: 44px;
+    min-height: 44px;
+    top: -0.5rem;
+    right: -0.75rem;
+  }
+  .linkish {
+    min-height: 44px;
+    padding: 0 0.25rem;
+  }
+  .tags li > a,
+  .tags li > button,
+  .tags.small li > a,
+  .tags.small li > button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 0.75rem;
+  }
+  .tags {
+    gap: 0.5rem;
+  }
+  .card-owner {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+  }
+  .ingredients label {
+    padding: 0.6rem 0;
+    align-items: center;
+  }
+  .ingredients input,
+  .checklist input,
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+  .form-remove {
+    min-width: 44px;
+  }
+  .crumb a {
+    display: inline-block;
+    padding: 0.6rem 0;
   }
 }
