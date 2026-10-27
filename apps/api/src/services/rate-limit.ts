@@ -97,6 +97,8 @@ export const limits = {
   fork: rateLimit('fork', { windowSeconds: TEN_MINUTES, max: 30 }),
   proposal: rateLimit('proposal', { windowSeconds: TEN_MINUTES, max: 20 }),
   report: rateLimit('report', { windowSeconds: TEN_MINUTES, max: 10 }),
+  // Open to anyone signed out, so the address is all there is to count by.
+  feedback: rateLimit('feedback', { windowSeconds: TEN_MINUTES, max: 5 }),
   upload: rateLimit('upload', { windowSeconds: TEN_MINUTES, max: 30 }),
   listCreate: rateLimit('list-create', { windowSeconds: TEN_MINUTES, max: 30 }),
 };

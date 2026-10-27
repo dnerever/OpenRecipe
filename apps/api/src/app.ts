@@ -19,6 +19,7 @@ import { mediaRoutes } from './routes/media.ts';
 import { meRoutes } from './routes/me.ts';
 import { proposalRoutes } from './routes/proposals.ts';
 import { recipeRoutes, userRoutes } from './routes/recipes.ts';
+import { feedbackRoutes } from './routes/feedback.ts';
 import { reportRoutes } from './routes/reports.ts';
 import { ImportUrlError, NotARecipeError } from './import/fetch-recipe.ts';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from './services/authorization.ts';
@@ -130,6 +131,7 @@ export function createApp() {
   // `/lists/...` may be matched as a recipe by a looser pattern.
   api.route('/', listRoutes);
   api.route('/', reportRoutes);
+  api.route('/', feedbackRoutes);
   api.route('/', recipeRoutes);
   api.route('/', userRoutes);
 

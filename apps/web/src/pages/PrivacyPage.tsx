@@ -13,7 +13,7 @@ export function PrivacyPage() {
   return (
     <section>
       <h1>Privacy Policy</h1>
-      <p className="lede">Last updated 2026-09-21.</p>
+      <p className="lede">Last updated 2026-10-26.</p>
 
       <h2>What we collect</h2>
       <p>
@@ -44,6 +44,11 @@ export function PrivacyPage() {
       <p>
         If you flag a recipe, an admin sees the report and the recipe in question in order to act on
         it.
+      </p>
+      <p>
+        If you send feedback, an admin sees your note, the page you sent it from, and either your
+        handle (when signed in) or the email you chose to give (when not). Feedback is only ever
+        used to improve the site and to reply to you.
       </p>
 
       <h2>Third parties we rely on</h2>

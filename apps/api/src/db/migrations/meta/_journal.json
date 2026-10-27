@@ -71,6 +71,13 @@
       "when": 1789956105194,
       "tag": "0009_flippant_random",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793075456081,
+      "tag": "0010_spotty_sentry",
+      "breakpoints": true
     }
   ]
 }

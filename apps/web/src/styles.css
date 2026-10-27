@@ -439,6 +439,25 @@ a {
   margin: 0;
   font-size: 0.85rem;
 }
+/* A button, because it opens something here, but it sits in a line of links
+   and has to read as one. */
+.site-footer .linkish {
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.feedback-dialog form {
+  display: grid;
+  gap: 0.85rem;
+}
+.feedback-dialog h2,
+.feedback-dialog p {
+  margin: 0;
+}
+.feedback-dialog .confirm-actions {
+  margin-top: 0.25rem;
+}
 
 /**
  * Segments, not a switch: the pressed one is the setting, and the other two
@@ -3727,4 +3746,10 @@ main:has(.recipe-page) {
   .timeline-strip li {
     flex: 1 1 8rem !important;
   }
+}
+
+/* A tester's note keeps its own line breaks. */
+.feedback-note {
+  margin: 0;
+  white-space: pre-wrap;
 }
