@@ -10,6 +10,7 @@ import {
   revertRecipe,
   type VersionSummary,
 } from '../lib/api.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * The history is append-only, so this page never offers to change the past.
@@ -25,6 +26,7 @@ export function HistoryPage() {
     queryFn: () => fetchRecipe(handle, slug),
     retry: false,
   });
+  useTitle(`History · ${recipeQuery.data?.recipe.title ?? `${handle}/${slug}`}`);
   const historyQuery = useQuery({
     queryKey: ['versions', handle, slug],
     queryFn: () => fetchVersions(handle, slug),

@@ -5,6 +5,7 @@ import { SignInLink } from '../components/SignInLink.tsx';
 import { fetchPublicIndex, type IndexCursor } from '../lib/api.ts';
 import { useCurrentUser } from '../lib/session.ts';
 import { useLocalFlag } from '../lib/use-local-flag.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * Remembered per browser, not per account: the pitch stops being useful once
@@ -21,6 +22,7 @@ export function BrowsePage() {
   const { user } = useCurrentUser();
   const signedIn = user !== null;
   const [introHidden, setIntroHidden] = useLocalFlag(INTRO_HIDDEN);
+  useTitle(undefined);
 
   const { data, isPending, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({

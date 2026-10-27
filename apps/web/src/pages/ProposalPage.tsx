@@ -15,6 +15,7 @@ import {
 } from '../lib/api.ts';
 import { SignInLink } from '../components/SignInLink.tsx';
 import { useCurrentUser } from '../lib/session.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * The editor is only needed by whoever is resolving a conflict, which is a
@@ -36,6 +37,7 @@ export function ProposalPage() {
     queryFn: () => fetchProposal(handle, slug, n),
     retry: false,
   });
+  useTitle(proposal.data ? `#${n} ${proposal.data.title} · ${handle}/${slug}` : `Proposal #${n}`);
 
   const diff = useQuery({
     queryKey: ['proposal-diff', handle, slug, n],

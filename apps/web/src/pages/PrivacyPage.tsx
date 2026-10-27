@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * Describes what the app actually does today, not a boilerplate policy —
@@ -8,6 +9,7 @@ import { Link } from '@tanstack/react-router';
  * analytics are actually configured.
  */
 export function PrivacyPage() {
+  useTitle('Privacy Policy');
   return (
     <section>
       <h1>Privacy Policy</h1>

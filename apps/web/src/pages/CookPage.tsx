@@ -15,6 +15,7 @@ import {
 import { useTimers } from '../lib/use-timers.ts';
 import { useWakeLock } from '../lib/use-wake-lock.ts';
 import { useWide } from '../lib/use-wide.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * Cook mode is one step at a time, at arm's length, on a screen that will not
@@ -31,6 +32,7 @@ export function CookPage() {
     queryFn: () => fetchRecipe(handle, slug),
     retry: false,
   });
+  useTitle(`Cooking: ${data?.recipe.title ?? `${handle}/${slug}`}`);
 
   const frontmatter = data?.doc.frontmatter;
   const native = useMemo(() => (frontmatter ? detectSystem(frontmatter) : 'metric'), [frontmatter]);

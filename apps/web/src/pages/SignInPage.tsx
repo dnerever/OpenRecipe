@@ -5,12 +5,14 @@ import { AuthPanel } from '../components/AuthPanel.tsx';
 import { fetchHealth } from '../lib/api.ts';
 import { safeRedirect } from '../lib/redirect.ts';
 import { useCurrentUser } from '../lib/session.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /**
  * Sign-in used to sit on the home page. Now that `/` is the public index, it
  * gets its own address — the front door should not ask you for credentials.
  */
 export function SignInPage() {
+  useTitle('Sign in');
   const { user } = useCurrentUser();
   const navigate = useNavigate();
   const router = useRouter();

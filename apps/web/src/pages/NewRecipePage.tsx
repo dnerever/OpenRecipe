@@ -12,8 +12,10 @@ import {
 import { SignInLink } from '../components/SignInLink.tsx';
 import { BLANK_SOURCE } from '../lib/recipe-draft.ts';
 import { useCurrentUser } from '../lib/session.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 export function NewRecipePage() {
+  useTitle('New recipe');
   const { user, isPending } = useCurrentUser();
   const [mode, setMode] = useState<'write' | 'import'>('write');
 

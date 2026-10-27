@@ -24,6 +24,7 @@ import {
   searchFromOptions,
   type CookOptions,
 } from '../lib/cook-options.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 export function RecipePage() {
   const { handle, slug } = useParams({ from: '/$handle/$slug' });
@@ -38,6 +39,7 @@ export function RecipePage() {
     queryFn: () => fetchRecipe(handle, slug),
     retry: false,
   });
+  useTitle(data?.recipe.title ?? `${handle}/${slug}`);
 
   const frontmatter = data?.doc.frontmatter;
   /** The kitchen the author wrote in, which is the units this reader starts in. */

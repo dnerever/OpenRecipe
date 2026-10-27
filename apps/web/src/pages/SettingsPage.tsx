@@ -15,6 +15,7 @@ import {
   unlinkAccount,
 } from '../lib/auth.ts';
 import { SESSION_KEY, useCurrentUser } from '../lib/session.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 /** better-auth asks for a recent sign-in before changing credentials. */
 function failure(error: { status?: number; code?: string; message?: string }): string {
@@ -69,6 +70,7 @@ function Messages({ outcome }: { outcome: Outcome }) {
  * because they share no state, and each reports its own outcome in place.
  */
 export function SettingsPage() {
+  useTitle('Settings');
   const { user } = useCurrentUser();
   if (!user) return null;
 

@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { RecipeCard } from '../components/RecipeCard.tsx';
 import { fetchTags, searchRecipes, type SearchSort } from '../lib/api.ts';
+import { useTitle } from '../lib/use-title.ts';
 
 const SORTS: { value: SearchSort; label: string }[] = [
   { value: 'relevance', label: 'Best match' },
@@ -17,6 +18,7 @@ const SORTS: { value: SearchSort; label: string }[] = [
  */
 export function SearchPage() {
   const { q = '', tag = [], sort } = useSearch({ from: '/search' });
+  useTitle(q ? `“${q}” — Search` : tag.length ? `${tag.join(', ')} — Search` : 'Search');
   const navigate = useNavigate();
   const [draft, setDraft] = useState(q);
 
