@@ -7,3 +7,6 @@ interface ImportMetaEnv {
   readonly VITE_SENTRY_DSN?: string;
   readonly VITE_PLAUSIBLE_SCRIPT_SRC?: string;
 }
+
+/** Set by vite.config.ts; names this build's service-worker caches. */
+declare const __BUILD_ID__: string;

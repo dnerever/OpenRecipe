@@ -16,6 +16,7 @@ import { BrowsePage } from './pages/BrowsePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
 import { useCurrentUser } from './lib/session.ts';
+import { useOnline } from './lib/offline.ts';
 import { useRevealOnScrollUp } from './lib/use-reveal-on-scroll-up.ts';
 import { parseCookSearch } from './lib/cook-options.ts';
 import { safeRedirect } from './lib/redirect.ts';
@@ -72,11 +73,27 @@ function RootLayout() {
           <SignInLink>Sign in</SignInLink>
         )}
       </nav>
+      <OfflineNotice />
       <main>
         <Outlet />
       </main>
       <SiteFooter />
     </FeedbackProvider>
+  );
+}
+
+/**
+ * Says so when the network goes, because the app now keeps working without
+ * one and a reader should know why Save is failing while the recipe is not.
+ */
+function OfflineNotice() {
+  const online = useOnline();
+  if (online) return null;
+  return (
+    <p className="offline-notice" role="status">
+      You’re offline. Recipes you’ve opened on this device still work; saving waits for the
+      connection.
+    </p>
   );
 }
 

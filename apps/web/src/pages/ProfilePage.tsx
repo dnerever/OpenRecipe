@@ -136,11 +136,11 @@ export function ProfilePage({
           <ul className="cards">
             {lists.data.lists.map((list) => (
               <li key={list.slug} className="card">
-                <h3>
+                <h2>
                   <Link to="/$handle/lists/$listSlug" params={{ handle, listSlug: list.slug }}>
                     {list.title}
                   </Link>
-                </h3>
+                </h2>
                 {list.description && <p className="card-desc">{list.description}</p>}
                 <div className="card-foot">
                   <span>

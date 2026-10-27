@@ -23,18 +23,38 @@ export function RecipeCard({
   return (
     <li className={`card${recipe.imageUrl ? ' has-photo' : ''}`}>
       {recipe.imageUrl && (
-        <Link className="card-photo" to="/$handle/$slug" params={{ handle, slug: recipe.slug }}>
+        // Not a link of its own: the title's link already covers the whole
+        // card, photo included, and a second unnamed link to the same place
+        // is one more stop for a keyboard and a blank one for a screen reader.
+        <div className="card-photo">
           {/* The thumbnail, not the full image: a browse page of full-size
               photos is a browse page nobody waits for. */}
           <img src={thumbUrlFor(recipe.imageUrl)} alt="" loading="lazy" />
-        </Link>
+        </div>
       )}
 
-      <h3>
+      <h2>
         <Link to="/$handle/$slug" params={{ handle, slug: recipe.slug }}>
           {recipe.title}
         </Link>
-      </h3>
+      </h2>
+
+      {/* Without this, a fork beside its original reads as a duplicate. */}
+      {recipe.isFork && (
+        <p className="card-fork">
+          Fork of{' '}
+          {recipe.forkedFrom ? (
+            <Link
+              to="/$handle/$slug"
+              params={{ handle: recipe.forkedFrom.handle, slug: recipe.forkedFrom.slug }}
+            >
+              @{recipe.forkedFrom.handle}/{recipe.forkedFrom.slug}
+            </Link>
+          ) : (
+            'another recipe'
+          )}
+        </p>
+      )}
 
       {recipe.description && <p className="card-desc">{recipe.description}</p>}
 

@@ -4,11 +4,13 @@ import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { initAnalytics, initSentry } from './lib/monitoring.ts';
+import { registerOfflineSupport } from './lib/offline.ts';
 import { router } from './router.tsx';
 import './styles.css';
 
 initSentry();
 initAnalytics();
+registerOfflineSupport();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('#root missing from index.html');

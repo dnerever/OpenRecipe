@@ -346,7 +346,32 @@ export function serializeRecipeResponse(loaded: LoadedRecipe, viewer: Viewer) {
   };
 }
 
-export function serializeRecipeSummary(recipe: Recipe) {
+/** A fork's parent as a listing names it: public parents only, never a private one. */
+export type ForkParentRef = { handle: string; slug: string };
+
+/**
+ * The public parents of whichever of `rows` are forks, in one query.
+ *
+ * A listing of forks next to their originals reads as a list of duplicates
+ * unless each fork says what it is a fork of. A private parent is left out —
+ * the card still says it is a fork, but not of what — because naming it
+ * would confirm a private recipe exists.
+ */
+export async function forkParentsOf(
+  db: Db,
+  rows: Pick<Recipe, 'forkParentRecipeId'>[],
+): Promise<Map<string, ForkParentRef>> {
+  const ids = [...new Set(rows.map((r) => r.forkParentRecipeId).filter((id) => id !== null))];
+  if (ids.length === 0) return new Map();
+  const parents = await db
+    .select({ id: recipes.id, slug: recipes.slug, handle: users.handle })
+    .from(recipes)
+    .innerJoin(users, eq(users.id, recipes.ownerId))
+    .where(and(inArray(recipes.id, ids), eq(recipes.visibility, 'public')));
+  return new Map(parents.map((p) => [p.id, { handle: p.handle, slug: p.slug }]));
+}
+
+export function serializeRecipeSummary(recipe: Recipe, parents?: Map<string, ForkParentRef>) {
   return {
     slug: recipe.slug,
     title: recipe.titleCache,
@@ -358,6 +383,8 @@ export function serializeRecipeSummary(recipe: Recipe) {
     forkCount: recipe.forkCount,
     starCount: recipe.starCount,
     updatedAt: recipe.updatedAt.toISOString(),
+    isFork: recipe.forkParentRecipeId !== null,
+    forkedFrom: (recipe.forkParentRecipeId && parents?.get(recipe.forkParentRecipeId)) || null,
   };
 }
 
@@ -403,10 +430,14 @@ export async function listPublicRecipes(
 
   const page = rows.slice(0, limit);
   const last = page.at(-1);
+  const parents = await forkParentsOf(
+    db,
+    page.map((row) => row.recipe),
+  );
 
   return {
     recipes: page.map((row) => ({
-      ...serializeRecipeSummary(row.recipe),
+      ...serializeRecipeSummary(row.recipe, parents),
       owner: publicUser(row.owner),
     })),
     nextCursor:

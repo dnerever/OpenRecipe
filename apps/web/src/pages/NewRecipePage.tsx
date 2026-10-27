@@ -30,7 +30,7 @@ export function NewRecipePage() {
   if (!user) {
     return (
       <section className="panel">
-        <h2>Sign in first</h2>
+        <h1>Sign in first</h1>
         <p className="muted">You need an account to publish a recipe. It takes a minute.</p>
         <div className="row">
           <SignInLink className="button" redirect="/new">

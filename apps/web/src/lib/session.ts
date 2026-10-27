@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchMe, type CurrentUser } from './api.ts';
+import { clearOfflineCopies } from './offline.ts';
 
 export const SESSION_KEY = ['me'] as const;
 
@@ -35,6 +36,7 @@ export function useSignOut() {
     mutationFn: async () => {
       const { signOut } = await import('./auth.ts');
       await signOut();
+      await clearOfflineCopies();
     },
     onSettled: () => {
       queryClient.setQueryData(SESSION_KEY, { user: null });

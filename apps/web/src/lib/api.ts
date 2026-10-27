@@ -43,6 +43,9 @@ export type RecipeSummary = {
   forkCount: number;
   starCount: number;
   updatedAt: string;
+  isFork: boolean;
+  /** Named only when the original is public; a fork of a private recipe just says "fork". */
+  forkedFrom: { handle: string; slug: string } | null;
 };
 
 export type IndexCursor = { updatedAt: string; id: string };
