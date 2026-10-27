@@ -233,7 +233,7 @@ export function RecipeView({
       <div className="cols">
         <section id="ingredients" aria-label="Ingredients">
           <div className="ing-head">
-            <h3>Ingredients</h3>
+            <h2>Ingredients</h2>
             {/* Only once there is something to clear: an affordance for undoing
                 a state you are not in is just another word on the screen. */}
             {ticked.size > 0 && (
@@ -245,7 +245,7 @@ export function RecipeView({
           {scaleControl}
           {groups.map(({ group, items }) => (
             <div key={group ?? '_'} className="ing-group">
-              {group && <h4>{group}</h4>}
+              {group && <h3>{group}</h3>}
               <ul className="ingredients">
                 {items.map(({ ing, index }) => (
                   <li key={index}>
@@ -276,7 +276,7 @@ export function RecipeView({
 
           {frontmatter.equipment?.length ? (
             <>
-              <h3 className="equip-head">Equipment</h3>
+              <h2 className="equip-head">Equipment</h2>
               <p className="muted">{frontmatter.equipment.join(', ')}</p>
             </>
           ) : null}
@@ -285,10 +285,10 @@ export function RecipeView({
         </section>
 
         <section id="method" aria-label="Method">
-          <h3>Method</h3>
+          <h2>Method</h2>
           {phases.map((phase, i) => (
             <div key={`${phase.title}-${i}`} className="phase">
-              {phase.title && <h4>{phase.title}</h4>}
+              {phase.title && <h3>{phase.title}</h3>}
               <ol className="steps">
                 {phase.steps.map((step) => (
                   <li key={step.number} value={step.number}>

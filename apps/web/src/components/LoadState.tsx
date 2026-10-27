@@ -1,4 +1,6 @@
+import { Link } from '@tanstack/react-router';
 import { ApiError } from '../lib/api.ts';
+import { useTitleOverride } from '../lib/use-title.ts';
 
 /**
  * What a page shows while it waits, and what it shows when the wait ended
@@ -86,12 +88,34 @@ export function LoadFailure({
   missingTitle?: string;
 }) {
   const notFound = error instanceof ApiError && error.status === 404;
-  const message = error instanceof Error ? error.message : 'Something went wrong.';
+  // No answer at all, rather than a bad one: the request never reached the
+  // server. Offline, that means this page was never saved on this device.
+  const unreachable = !(error instanceof ApiError) && !navigator.onLine;
+  const message = unreachable
+    ? 'You’re offline, and this page isn’t saved on this device. Recipes you’ve opened before still work.'
+    : error instanceof Error
+      ? error.message
+      : 'Something went wrong.';
+  const heading = notFound
+    ? missingTitle
+    : unreachable
+      ? 'Not available offline'
+      : 'Something went wrong';
+  useTitleOverride(heading);
 
+  // The page's only heading, so an h1: a screen reader jumping to "the
+  // heading" finds the message rather than nothing.
   return (
     <section className="panel">
-      <h2>{notFound ? missingTitle : 'Something went wrong'}</h2>
+      <h1>{heading}</h1>
       <p className="muted">{notFound ? missing : message}</p>
+      <p>
+        <Link to="/">Browse recipes</Link> or{' '}
+        <Link to="/search" search={{ q: '', tag: [] }}>
+          search
+        </Link>
+        .
+      </p>
     </section>
   );
 }

@@ -48,7 +48,7 @@ export function DiffView({
       )}
 
       <h2>Source</h2>
-      <pre className="hunks">
+      <pre className="hunks" tabIndex={0} aria-label="Changes, line by line">
         {hunks.map((hunk, i) =>
           hunk.type === 'context' ? (
             hunk.lines.map((line, j) => <Line key={`${i}-${j}`} mark=" " text={line} />)

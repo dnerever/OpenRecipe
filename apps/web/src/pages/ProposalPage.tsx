@@ -255,7 +255,7 @@ function MergeBox({
         {mergeability.conflicts.map((hunk, i) => (
           <li key={i}>
             <p className="entry-meta muted">Line {hunk.startLine}</p>
-            <pre className="hunks">
+            <pre className="hunks" tabIndex={0} aria-label="Changes, line by line">
               {hunk.ours.map((line, j) => (
                 <span className="line del" key={`o${j}`}>
                   <span className="mark">-</span>

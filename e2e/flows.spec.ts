@@ -220,3 +220,31 @@ test('propose a change, and the owner merges it', async ({ browser }) => {
   await owner.page.goto(source);
   await expect(owner.page.getByText('Bake until it sounds hollow when tapped.')).toBeVisible();
 });
+
+test('a page that names nothing is a real 404, with a page to match', async ({ page }) => {
+  const response = await page.goto('/nobody-has-this-handle/no-such-recipe');
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Not found');
+  await expect(page).toHaveTitle('Not found · OpenSkillet');
+});
+
+test('a recipe opened online can be opened, and cooked, offline', async ({ browser }) => {
+  const author = await signUp(browser, 'offline');
+  const path = await publishStarter(author);
+
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto(path);
+  // The worker installs on the first visit and controls the page from the next.
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('My First Loaf');
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('My First Loaf');
+  await expect(page.getByText('You’re offline.', { exact: false })).toBeVisible();
+  await page.getByRole('link', { name: 'Cook' }).first().click();
+  await expect(page.getByText(/Step 1 of/)).toBeVisible();
+  await context.close();
+});

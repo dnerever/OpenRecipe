@@ -539,11 +539,11 @@ a.button.secondary {
    * exactly as it was. `display: contents` dissolves `.cols` so its two
    * sections land in this grid instead of in one cell of it.
    *
-   * The photo comes last of the three. It is the one thing on the page the
-   * reader has already decided about — they opened this recipe — and at the
-   * head of the rail it spent the top of the window pushing the ingredients
-   * under the fold. Below them it costs nothing: the rail is a column, and a
-   * column has room after its list.
+   * The photo heads the rail, as a short banner. It used to sit below the
+   * ingredients, which kept them high but meant a desk reader never saw what
+   * they were making without scrolling for it — on a recipe site, the photo
+   * is half of why anyone clicked. Cropped wide and capped low (see `.hero`
+   * below), it costs the ingredients a few lines, not the fold.
    *
    * The areas are named rather than counted because the photo and the meta
    * strip are both optional: an area with nothing in it collapses to nothing,
@@ -562,17 +562,17 @@ a.button.secondary {
      */
     grid-template-columns: minmax(22rem, 36rem) minmax(0, 72ch);
     grid-template-areas:
+      'photo  method'
       'meta   method'
       'ing    method'
-      'photo  method'
       'tags   tags'
       'source source';
     /*
-     * The slack sits in the photo's row — the one place where a gap costs
-     * nothing. A row-spanning item hands its extra height to the `auto` rows
-     * it crosses, so with three of them the method's length would be shared
-     * out between the meta strip, the ingredients and the photo, prising
-     * apart three things that belong against each other.
+     * The slack sits in the last row of the rail, under the ingredients — the
+     * one place where a gap costs nothing. A row-spanning item hands its extra
+     * height to the `auto` rows it crosses, so with three of them the method's
+     * length would be shared out between the photo, the meta strip and the
+     * ingredients, prising apart three things that belong against each other.
      */
     grid-template-rows: auto auto 1fr auto auto;
     column-gap: 3.5rem;
@@ -613,7 +613,7 @@ a.button.secondary {
    */
   /*
    * `.equip-head` asks for 1.5rem of space above it and has never got any:
-   * `.cols h3` sets all four margins and outruns it on specificity, so the
+   * `.cols h2` sets all four margins and outruns it on specificity, so the
    * heading sits on the last ingredient's rule. It shows here, where the
    * ingredients are the length of the rail. Fixed at this width only — the
    * same line is wrong on a phone, but a phone is not what this change is
@@ -700,14 +700,14 @@ a.button.secondary {
     scroll-margin-top: 4rem;
   }
 }
-.cols h3 {
+.cols h2 {
   font-size: 0.78rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-2);
   margin: 0 0 0.75rem;
 }
-.cols h4 {
+.cols h3 {
   font-size: 0.95rem;
   margin: 1.1rem 0 0.4rem;
 }
@@ -756,7 +756,7 @@ a.button.secondary {
   justify-content: space-between;
   gap: 1rem;
 }
-.ing-head h3 {
+.ing-head h2 {
   margin-bottom: 0;
 }
 .ing-head button {
@@ -1281,7 +1281,7 @@ button.small {
  * title link's box is stretched over the card; the owner, tags and any
  * action are lifted above it so each still goes where it says.
  */
-.card h3 a::after {
+.card h2 a::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -1290,29 +1290,39 @@ button.small {
 .card:hover {
   border-color: color-mix(in oklab, var(--accent) 45%, var(--rule));
 }
-.card h3 a:focus-visible {
+.card h2 a:focus-visible {
   outline: none;
 }
-.card h3 a:focus-visible::after {
+.card h2 a:focus-visible::after {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 .card-owner,
 .card .tags,
-.card-action {
+.card-action,
+.card-fork a {
   position: relative;
   z-index: 1;
 }
-.card h3 {
+.card-fork {
+  margin: -0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+/* An h2 for the outline, a title to look at: none of the section-label style. */
+.card h2 {
   margin: 0;
   font-size: 1.02rem;
   line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
 }
-.card h3 a {
+.card h2 a {
   color: var(--ink);
   text-decoration: none;
 }
-.card h3 a:hover {
+.card h2 a:hover {
   color: var(--accent);
 }
 .card-desc {
@@ -1410,7 +1420,8 @@ main {
   font-size: 0.82rem;
 }
 .entry-meta a {
-  text-decoration: none;
+  /* Underlined: colour alone does not tell a link from the text around it. */
+  text-underline-offset: 0.15em;
 }
 .sr {
   position: absolute;
@@ -1558,7 +1569,7 @@ main {
   cursor: not-allowed;
 }
 .tags li .count {
-  opacity: 0.6;
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .active-tags {
@@ -2361,11 +2372,9 @@ textarea:focus-visible {
  */
 @media screen and (min-width: 64rem) {
   .recipe .hero {
-    aspect-ratio: 4 / 3;
-    max-height: 22rem;
-    /* It sits at the foot of the rail now, under the ingredients rather than
-       over them, so the margin moves to the side the rail approaches from. */
-    margin: 1.5rem 0 0;
+    aspect-ratio: 16 / 9;
+    max-height: 15rem;
+    margin: 0 0 1.25rem;
   }
 }
 
@@ -2769,5 +2778,33 @@ dialog.confirm h2 {
   }
   .home-tags .tags li {
     flex: 0 0 auto;
+  }
+}
+
+/* A diff that scrolls sideways has to be reachable from the keyboard. */
+pre.hunks:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The page's one heading when a page is only a message. */
+.panel h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
+}
+
+.offline-notice {
+  margin: 0;
+  padding: 0.5rem max(1.5rem, env(safe-area-inset-left));
+  font-size: 0.85rem;
+  text-align: center;
+  color: var(--ink);
+  background: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  border-bottom: 1px solid var(--rule);
+}
+@media print {
+  .offline-notice {
+    display: none;
   }
 }

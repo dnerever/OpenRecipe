@@ -185,8 +185,9 @@ export function CookPage() {
           text. Vertical movement is left to the browser (`touch-action:
           pan-y`), so a long step still scrolls.
         */}
-        <main
+        <section
           className="cook-step"
+          aria-label="Current step"
           onPointerDown={(e) => {
             swipe.current = e.pointerType === 'touch' ? { x: e.clientX, y: e.clientY } : null;
           }}
@@ -225,7 +226,7 @@ export function CookPage() {
           ) : (
             <p className="muted">This recipe has no steps yet.</p>
           )}
-        </main>
+        </section>
 
         {showIngredients && (
           <>
