@@ -15,6 +15,7 @@ import {
   unlinkAccount,
 } from '../lib/auth.ts';
 import { SESSION_KEY, useCurrentUser } from '../lib/session.ts';
+import { clearOfflineCopies } from '../lib/offline.ts';
 import { useTitle } from '../lib/use-title.ts';
 import { useFeedback } from '../components/Feedback.tsx';
 
@@ -423,6 +424,7 @@ function DeleteSection({ handle }: { handle: string }) {
       }
       queryClient.setQueryData(SESSION_KEY, { user: null });
       void queryClient.invalidateQueries();
+      await clearOfflineCopies();
       announce('Your account has been deleted.');
       void navigate({ to: '/' });
     } catch (err) {

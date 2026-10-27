@@ -69,4 +69,13 @@ export default tseslint.config(
     files: ['**/*.config.{js,ts}', 'e2e/**/*.ts'],
     ...tseslint.configs.disableTypeChecked,
   },
+  {
+    // Served as-is, never bundled: plain JavaScript in a worker's scope.
+    files: ['apps/web/public/sw.js'],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
+      globals: globals.serviceworker,
+    },
+  },
 );

@@ -1,0 +1,24 @@
+{
+  "name": "OpenSkillet",
+  "short_name": "OpenSkillet",
+  "description": "Recipes with real version history — fork, edit and propose changes like a cookbook you can pull-request.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f3",
+  "theme_color": "#7a2e58",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Search recipes", "url": "/search" },
+    { "name": "Write a recipe", "url": "/new" }
+  ]
+}

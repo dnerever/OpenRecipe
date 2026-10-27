@@ -9,6 +9,17 @@
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <!--
+      Installable: "Add to Home Screen" opens the site full-screen with its own
+      icon. Cook mode is the reason — a recipe on the counter should not have
+      an address bar over the step.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="OpenSkillet" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#f6f7f3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141713" media="(prefers-color-scheme: dark)" />
     <!--
@@ -32,6 +43,7 @@
       property="og:description"
       content="Recipes with real version history — fork, edit and propose changes like a cookbook you can pull-request."
     />
+    <meta property="og:image" content="/social-preview.png" />
     <meta name="twitter:card" content="summary" />
     <!-- default-meta:end -->
     <script>
