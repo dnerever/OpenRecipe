@@ -2209,6 +2209,14 @@ button.star.on {
   content: '⏱ ';
   font-size: 0.85em;
 }
+/* An amount the reader's scale or units changed: marked, so a step that no
+   longer says what the author typed does not pass for what they typed. */
+.step-qty {
+  padding: 0 0.2em;
+  border-radius: 0.3em;
+  font-weight: 700;
+  background: color-mix(in oklab, var(--yolk) 40%, transparent);
+}
 .timer-tray {
   list-style: none;
   margin: 0;

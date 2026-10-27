@@ -307,6 +307,10 @@ export function RecipePage() {
         afterIngredients={<RecipeHistory handle={handle} slug={slug} canEdit={recipe.canEdit} />}
         storageKey={tickKey(handle, slug)}
         visibility={recipe.visibility}
+        restate={{
+          scale: options.scale,
+          units: options.units === native ? null : options.units,
+        }}
         scaleControl={
           <ScaleControl
             frontmatter={doc.frontmatter}

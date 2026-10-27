@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { ingredientsInStep } from './step-ingredients.ts';
+import { ingredientsInStep, statedAmount } from './step-ingredients.ts';
 
 const LOAF = [
   { item: 'mature starter', group: 'Levain' },
@@ -45,5 +45,31 @@ describe('ingredientsInStep', () => {
   it('does not match inside another word', () => {
     const found = ingredientsInStep('A flourish of salt on top.', undefined, [{ item: 'flour' }]);
     assert.equal(found.size, 0);
+  });
+});
+
+describe('ingredientsInStep — an ingredient with no amount', () => {
+  it('is matched by its full name only', () => {
+    const dough = [
+      { item: 'bread flour', qty: 900 },
+      { item: 'rice flour', qty: null },
+    ];
+    assert.deepEqual(names(ingredientsInStep('Combine both flours.', undefined, dough)), [0]);
+    assert.deepEqual(names(ingredientsInStep('Dust with rice flour.', undefined, dough)), [1]);
+  });
+});
+
+describe('statedAmount', () => {
+  it('finds the amount a step gives for an ingredient', () => {
+    assert.equal(statedAmount('Combine both flours with 700g of the water.', 'water')?.qty, 700);
+    assert.equal(statedAmount('Add the salt with the remaining 50g water.', 'water')?.qty, 50);
+  });
+
+  it('does not lend one ingredient the amount of another', () => {
+    assert.equal(
+      statedAmount('Combine both flours with 700g of the water.', 'bread flour'),
+      undefined,
+    );
+    assert.equal(statedAmount('Whisk in 2 tbsp olive oil.', 'water'), undefined);
   });
 });

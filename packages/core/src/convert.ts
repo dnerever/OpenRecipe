@@ -88,7 +88,14 @@ export function convertIngredient(ing: Ingredient, system: MeasurementSystem): I
   const base = unitBase(ing.unit);
   if (base === null) return ing;
 
-  const expressed = expressBaseAmount(ing.qty * base, dimension, system);
+  /**
+   * The one exception to mass never becoming volume. A gram of water is a
+   * millilitre — the density is exact, not a guess — and a US kitchen measures
+   * water in a cup, not on a scale: "3⅓ lb water" is right and nobody's
+   * instruction.
+   */
+  const asVolume = system === 'us' && dimension === 'mass' && isWater(ing.item);
+  const expressed = expressBaseAmount(ing.qty * base, asVolume ? 'volume' : dimension, system);
   if (expressed.qty === ing.qty && expressed.unit === ing.unit) return ing;
   return { ...ing, qty: expressed.qty, unit: expressed.unit };
 }
@@ -141,6 +148,11 @@ export function convertFrontmatter(fm: Frontmatter, system: MeasurementSystem): 
 
 export function convertRecipe(doc: RecipeDoc, system: MeasurementSystem): RecipeDoc {
   return { ...doc, frontmatter: convertFrontmatter(doc.frontmatter, system) };
+}
+
+/** "water", "warm water", "ice water" — and not "watercress". */
+function isWater(item: string): boolean {
+  return /(^|\s)water$/i.test(item.trim());
 }
 
 function bestRung(baseAmount: number, dimension: 'mass' | 'volume', system: MeasurementSystem) {
