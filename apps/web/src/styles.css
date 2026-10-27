@@ -312,6 +312,13 @@ a {
   padding: 1.25rem max(1.5rem, env(safe-area-inset-right))
     calc(1.25rem + env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left));
 }
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
 .site-footer p {
   margin: 0;
   font-size: 0.85rem;
@@ -319,8 +326,7 @@ a {
 
 /**
  * Segments, not a switch: the pressed one is the setting, and the other two
- * are the alternatives. Sized off the eyebrow rather than the body text so it
- * reads as chrome and never competes with the nav links beside it.
+ * are the alternatives.
  */
 .theme-toggle {
   display: flex;
@@ -334,14 +340,13 @@ a {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  min-height: 2rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 500;
   color: var(--ink-2);
   background: none;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 4px;
 }
 .theme-toggle button:hover {
@@ -350,29 +355,7 @@ a {
 .theme-toggle button[aria-pressed='true'] {
   color: var(--ink);
   background: var(--surface);
-  border: 1px solid var(--rule);
-  padding: calc(0.25rem - 1px) calc(0.5rem - 1px);
-}
-/**
- * Below 60rem the words go and the glyphs speak alone — the bar holds a brand,
- * a search box and up to three account links, and 200pt of "AUTO LIGHT DARK"
- * is what tips it into a sideways scroll long before the phone widths. The
- * glyph grows as it loses its label, because 0.66rem is a readable size for a
- * word next to an icon and not for an icon on its own. `aria-label` and
- * `title` still say the word at every width, so only the sighted-and-roomy
- * case pays for the extra room.
- */
-@media (max-width: 60rem) {
-  .theme-toggle .seg-text {
-    display: none;
-  }
-  .theme-toggle button {
-    padding: 0.15rem 0.4rem;
-    font-size: 0.95rem;
-  }
-  .theme-toggle button[aria-pressed='true'] {
-    padding: calc(0.15rem - 1px) calc(0.4rem - 1px);
-  }
+  border-color: var(--rule);
 }
 
 .panel-head {
@@ -2089,7 +2072,8 @@ button.star.on {
   .notice,
   .version-line,
   .forked-from,
-  .tags {
+  .tags,
+  .theme-toggle {
     display: none !important;
   }
   .print-only {

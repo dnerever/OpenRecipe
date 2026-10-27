@@ -12,7 +12,6 @@ import { useState } from 'react';
 import { AccountMenu } from './components/AccountMenu.tsx';
 import { SignInLink } from './components/SignInLink.tsx';
 import { SiteFooter } from './components/SiteFooter.tsx';
-import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { BrowsePage } from './pages/BrowsePage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { RecipePage } from './pages/RecipePage.tsx';
@@ -48,7 +47,6 @@ function RootLayout() {
           🔍
         </Link>
         <span className="spacer" />
-        <ThemeToggle />
         {user ? (
           <>
             <Link to="/new">Write</Link>

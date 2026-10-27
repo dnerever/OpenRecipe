@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { ThemeToggle } from './ThemeToggle.tsx';
 
 /**
  * The one place both licenses in docs/ARCHITECTURE.md §8 get a mention
@@ -20,6 +21,7 @@ export function SiteFooter() {
         unless a recipe says otherwise. <Link to="/terms">Terms</Link> ·{' '}
         <Link to="/privacy">Privacy</Link>
       </p>
+      <ThemeToggle />
     </footer>
   );
 }
