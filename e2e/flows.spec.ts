@@ -106,6 +106,34 @@ test('the form editor writes a recipe without any YAML', async ({ browser }) => 
   await expect(page.getByText('Cook 2 minutes a side.')).toBeVisible();
 });
 
+test('an unpublished recipe asks before leaving, and comes back if you do', async ({ browser }) => {
+  const { page } = await signUp(browser, 'unsaved');
+  await page.goto('/new');
+  await page.getByLabel('Title', { exact: true }).fill('Half-written soup');
+  await page.getByLabel('Ingredient', { exact: true }).fill('leeks');
+
+  // Cancel the prompt: still here, nothing lost.
+  page.once('dialog', (dialog) => void dialog.dismiss());
+  await page.getByRole('link', { name: 'OpenSkillet' }).click();
+  await expect(page).toHaveURL(/\/new$/);
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Half-written soup');
+
+  // Accept it: gone — and back again on return, from this browser.
+  page.once('dialog', (dialog) => void dialog.accept());
+  await page.getByRole('link', { name: 'OpenSkillet' }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto('/new');
+  await expect(page.getByText('Picked up where you left off')).toBeVisible();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('Half-written soup');
+  await expect(page.getByLabel('Ingredient', { exact: true })).toHaveValue('leeks');
+
+  // Discarding it is one tap, and it stays discarded.
+  await page.getByRole('button', { name: 'Discard it' }).click();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue('');
+  await page.reload();
+  await expect(page.getByText('Picked up where you left off')).toHaveCount(0);
+});
+
 test('sign up, publish a recipe, and read it back', async ({ browser }) => {
   const cook = await signUp(browser, 'author');
   const path = await publishStarter(cook);

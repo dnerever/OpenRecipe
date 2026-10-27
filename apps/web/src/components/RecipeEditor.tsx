@@ -3,8 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { RecipeIssueWire } from '../lib/api.ts';
 import {
   BLANK_SOURCE,
-  blankDraft,
-  draftFromDoc,
+  draftFromSource,
   draftToSource,
   type RecipeDraft,
 } from '../lib/recipe-draft.ts';
@@ -56,11 +55,11 @@ export function RecipeEditor({
   const parsed = useMemo(() => safeParseRecipe(value), [value]);
   const [preferSource, setPreferSource] = useLocalFlag(PREFER_SOURCE);
   const [synced, setSynced] = useState(value);
-  const [draft, setDraft] = useState<RecipeDraft | null>(() => draftFor(value));
+  const [draft, setDraft] = useState<RecipeDraft | null>(() => draftFromSource(value));
 
   if (value !== synced) {
     setSynced(value);
-    setDraft(draftFor(value));
+    setDraft(draftFromSource(value));
   }
 
   const issues: RecipeIssueWire[] = parsed.ok
@@ -187,17 +186,6 @@ export function RecipeEditor({
       )}
     </>
   );
-}
-
-/**
- * The text the form can be built from: a recipe that parses, or the blank
- * draft's own text — which does not parse, having no title yet, but is plainly
- * the form's to show. Anything else is a source the form would misrepresent.
- */
-function draftFor(value: string): RecipeDraft | null {
-  if (value === BLANK_SOURCE) return blankDraft();
-  const parsed = safeParseRecipe(value);
-  return parsed.ok ? draftFromDoc(parsed.doc) : null;
 }
 
 /**

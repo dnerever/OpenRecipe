@@ -4,6 +4,7 @@ import { parseRecipe, safeParseRecipe } from '@openrecipe/core';
 import {
   blankDraft,
   draftFromDoc,
+  draftFromSource,
   draftToSource,
   ingredientPaths,
   parseQty,
@@ -118,6 +119,39 @@ describe('the form draft', () => {
     const paths = ingredientPaths(draft);
     assert.equal(paths.get(0), draft.groups[0]!.items[1]!.key);
     assert.equal(paths.size, 4);
+  });
+});
+
+describe('draftFromSource', () => {
+  it('brings an unfinished form back as the same boxes', () => {
+    const draft = blankDraft();
+    draft.groups[0]!.items[0]!.qty = '1 1/';
+    draft.groups[0]!.items[0]!.item = 'flour';
+    draft.time.cook = 'a while';
+    const text = draftToSource(draft);
+    assert.ok(!safeParseRecipe(text).ok);
+
+    const back = draftFromSource(text);
+    assert.ok(back);
+    assert.equal(back.groups[0]!.items[0]!.qty, '1 1/');
+    assert.equal(back.time.cook, 'a while');
+    assert.equal(draftToSource(back), text);
+  });
+
+  it('reads the blank draft, so /new needs no special case', () => {
+    const back = draftFromSource(draftToSource(blankDraft()));
+    assert.ok(back);
+    assert.equal(back.title, '');
+  });
+
+  it('refuses what it would have to drop or rewrite', () => {
+    const fm = (yaml: string) => `---\n${yaml}\n---\n`;
+    assert.equal(draftFromSource(fm('schema: 1\ntitel: Typo')), null);
+    assert.equal(draftFromSource(fm('schema: 1\ningredients: flour')), null);
+    assert.equal(draftFromSource(fm('schema: 1\ningredients: [{ item: x, colour: red }]')), null);
+    assert.equal(draftFromSource(fm('title: [unclosed')), null);
+    assert.equal(draftFromSource(fm('schema: 1\ntitle: { nested: map }')), null);
+    assert.equal(draftFromSource('no frontmatter at all'), null);
   });
 });
 
