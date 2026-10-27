@@ -1712,6 +1712,22 @@ button.star.on {
   background: var(--paper);
   color: var(--accent);
 }
+.more-label {
+  margin: 0.35rem 0.6rem 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.more-menu .more-label:first-child {
+  margin-top: 0.2rem;
+}
+.more-rule {
+  margin: 0.3rem 0.25rem;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
 .more-menu .bad {
   padding: 0.2rem 0.6rem;
   font-size: 0.8rem;

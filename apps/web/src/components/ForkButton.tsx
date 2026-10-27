@@ -58,7 +58,7 @@ export function ForkButton({
             : 'Copies this into your catalog to change as you like'
         }
       >
-        {mutation.isPending ? 'Forking…' : 'Fork'}
+        {mutation.isPending ? 'Forking…' : 'Fork to my recipes'}
       </button>
       {mutation.isError && <span className="bad">{mutation.error.message}</span>}
     </>

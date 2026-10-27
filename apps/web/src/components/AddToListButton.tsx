@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   addToList,
   createList,
@@ -9,6 +9,7 @@ import {
 } from '../lib/api.ts';
 import { SignInLink } from './SignInLink.tsx';
 import { useCurrentUser } from '../lib/session.ts';
+import { useDismiss } from '../lib/use-dismiss.ts';
 
 /**
  * The picker opens over the recipe rather than navigating away, because
@@ -31,6 +32,8 @@ export function AddToListButton({
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const closePicker = useCallback(() => setOpen(false), []);
+  const dismissRef = useDismiss(open, closePicker);
   const [creating, setCreating] = useState('');
 
   const key = ['my-lists', handle, slug];
@@ -114,7 +117,12 @@ export function AddToListButton({
   const saved = lists.filter((list) => list.contains).length;
 
   return (
-    <details className="more picker" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <details
+      ref={dismissRef}
+      className="more picker"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
       <summary className="button secondary">
         {saved > 0 ? `In ${saved} list${saved === 1 ? '' : 's'}` : 'Add to list'}
       </summary>

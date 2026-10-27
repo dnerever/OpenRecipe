@@ -162,8 +162,19 @@ test('fork someone else’s recipe and edit the copy', async ({ browser }) => {
   const forker = await signUp(browser, 'forker');
   const { page } = forker;
   await page.goto(source);
+
+  // The menu closes the way menus do: Escape, or a press anywhere else.
+  const fork = page.getByRole('button', { name: 'Fork to my recipes' });
   await page.getByText('More', { exact: true }).click();
-  await page.getByRole('button', { name: 'Fork' }).click();
+  await expect(fork).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(fork).toBeHidden();
+  await page.getByText('More', { exact: true }).click();
+  await page.getByRole('heading', { level: 1 }).click();
+  await expect(fork).toBeHidden();
+
+  await page.getByText('More', { exact: true }).click();
+  await fork.click();
   await expect(page).toHaveURL(new RegExp(`/${forker.handle}/`));
   await expect(page.getByText(`@${author.handle}`).first()).toBeVisible();
 
