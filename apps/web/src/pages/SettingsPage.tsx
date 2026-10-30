@@ -104,7 +104,7 @@ function EmailSection() {
       if (result.error) return { error: failure(result.error) };
       setNewEmail('');
       // Same words whether or not the address is taken: the API answers alike.
-      return `If ${newEmail} can receive mail, we’ve sent it a link. Your email changes once you follow it — and, if your current address is verified, once you have approved the change from the message we sent there.`;
+      return `If ${newEmail} can receive mail, we’ve sent it a link. Your email changes once you follow it and, if your current address is verified, once you have approved the change from the message we sent there.`;
     });
   };
 
@@ -292,7 +292,7 @@ function SessionsSection() {
             <li key={s.id} className="row">
               <span>
                 {deviceName(s.userAgent)}
-                {s.token === sessions.data.currentToken && <strong> — this device</strong>}
+                {s.token === sessions.data.currentToken && <strong> (this device)</strong>}
                 <span className="hint">
                   {' '}
                   last active <When date={new Date(s.updatedAt).toISOString()} />
@@ -440,7 +440,7 @@ function DeleteSection({ handle }: { handle: string }) {
       <h2>Delete account</h2>
       <p>
         Removes your profile, email, lists, stars and comments, and every recipe nobody has forked.
-        A recipe someone else has forked stays, because their copy's history depends on it — but it
+        A recipe someone else has forked stays, because their copy's history depends on it, but it
         is detached from you: it is shown as by “deleted”, your handle and name are gone from it,
         and it stays public or private as it was. You can make a recipe private first if you would
         rather it not stay visible.

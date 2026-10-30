@@ -37,7 +37,7 @@ export function SendFeedback() {
       setMessage('');
       setContact('');
       dialog.current?.close();
-      announce('Sent — thank you.');
+      announce('Sent. Thank you.');
     },
   });
 

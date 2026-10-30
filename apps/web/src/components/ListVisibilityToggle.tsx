@@ -42,8 +42,8 @@ export function ListVisibilityToggle({ list }: { list: ListResponse }) {
                   <>
                     <p>Anyone with the link will be able to read it.</p>
                     <p>
-                      Only the recipes in it that are already public will show — making a list
-                      public never publishes a private recipe.
+                      Only the recipes in it that are already public will show. Making a list public
+                      never publishes a private recipe.
                     </p>
                     {shared > 0 && (
                       <p>

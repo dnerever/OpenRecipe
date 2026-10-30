@@ -344,7 +344,7 @@ export function RecipePage() {
           showShopping ? (
             <ShoppingList
               frontmatter={shown}
-              title={`${recipe.title} — shopping list`}
+              title={`${recipe.title} | Shopping list`}
               slug={slug}
             />
           ) : null

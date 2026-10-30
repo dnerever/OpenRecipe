@@ -16,7 +16,7 @@ export function RestoredDraft({
 }) {
   return (
     <p className="notice restored" role="status">
-      Picked up where you left off — {what}, kept in this browser {savedWhen(draft.savedAt)}.{' '}
+      Picked up where you left off: {what}, kept in this browser {savedWhen(draft.savedAt)}.{' '}
       <button type="button" className="linkish" onClick={onDiscard}>
         Discard it
       </button>

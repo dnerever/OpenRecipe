@@ -381,7 +381,7 @@ function SignUpFlow({
       <label>
         Handle{' '}
         <span className="hint">
-          optional — your address on the site, like @sam-bakes. We’ll pick one from your email.
+          optional, your address on the site, like @sam-bakes. We’ll pick one from your email.
         </span>
         <input value={handle} onChange={(e) => setHandle(e.target.value)} autoComplete="username" />
       </label>

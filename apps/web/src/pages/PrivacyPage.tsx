@@ -24,21 +24,21 @@ export function PrivacyPage() {
       </p>
       <p>
         Recipes, images, lists, proposals, comments, and stars are the content you choose to create.
-        Photos you upload have their EXIF metadata — including GPS location — stripped before
-        storage, on purpose: a recipe photo is usually taken in someone's kitchen.
+        Photos you upload have their EXIF metadata, including GPS location, stripped before storage,
+        on purpose: a recipe photo is usually taken in someone's kitchen.
       </p>
 
       <h2>What we don't collect</h2>
       <p>
         No advertising trackers, no third-party analytics cookies, no data sold to anyone. The only
-        cookie is the one that keeps you signed in — it's necessary for the app to function, not for
+        cookie is the one that keeps you signed in. It's necessary for the app to function, not for
         tracking, which is why there's no cookie-consent banner.
       </p>
 
       <h2>Who else sees it</h2>
       <p>
         A public recipe, profile, or list is visible to anyone, including search engines. A private
-        one is visible only to you — see the visibility rules in <Link to="/terms">the Terms</Link>{' '}
+        one is visible only to you. See the visibility rules in <Link to="/terms">the Terms</Link>{' '}
         for what that promise does and doesn't cover across forks.
       </p>
       <p>

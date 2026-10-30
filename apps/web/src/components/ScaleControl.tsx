@@ -141,7 +141,7 @@ export function ScaleControl({
 
       {scaled && (
         <p className="scale-note muted">
-          {formatFactor(options.scale)} — times unchanged.{' '}
+          {formatFactor(options.scale)}, times unchanged.{' '}
           <button
             type="button"
             className="linkish"
