@@ -98,7 +98,7 @@ export function BrowsePage() {
           <h1>Every recipe, with its history.</h1>
           <p>
             Cook from anything here. Made it your own way? Fork it, write down what you changed, and
-            propose it back — the owner sees exactly what changed.
+            propose it back. The owner sees exactly what changed.
             {demo.data && (
               <>
                 {' '}

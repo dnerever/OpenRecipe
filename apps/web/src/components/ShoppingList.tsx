@@ -52,7 +52,7 @@ export function ShoppingList({
                 },
                 () => {
                   setCopied(false);
-                  announce('Couldn’t copy — try Download instead.');
+                  announce('Couldn’t copy. Try Download instead.');
                 },
               );
             }}

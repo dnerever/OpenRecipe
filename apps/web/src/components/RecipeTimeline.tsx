@@ -44,7 +44,7 @@ export function RecipeTimeline({
               }}
             >
               <span className="timeline-title">{segment.title}</span>
-              <span className="timeline-time">{segment.times.join(' · ') || '—'}</span>
+              <span className="timeline-time">{segment.times.join(' · ') || 'N/A'}</span>
             </button>
           </li>
         ))}

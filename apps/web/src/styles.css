@@ -967,6 +967,10 @@ a.button.secondary {
 .ing-head button {
   font-size: 0.8rem;
 }
+.ing-head .linkish:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
 .ingredients .qty {
   flex: 0 0 5.5rem;
   text-align: right;
@@ -3615,12 +3619,25 @@ main:has(.recipe-page) {
   place-items: center;
   width: 2.6rem;
   height: 2.6rem;
+  padding: 0;
   border-radius: 50%;
   background: var(--yolk);
   color: #1a1714;
   font-family: var(--display);
   font-weight: 800;
   font-size: 1.15rem;
+  cursor: pointer;
+}
+.step-number.is-complete {
+  color: var(--paper);
+  background: var(--good);
+}
+.steps li.step-done {
+  background: color-mix(in oklab, var(--surface) 60%, var(--paper));
+  border-color: color-mix(in oklab, var(--rule) 70%, var(--ink-2));
+}
+.steps li.step-done .step-body {
+  color: var(--ink-2);
 }
 .step-body p {
   margin: 0;

@@ -28,7 +28,7 @@ export function ForkButton({
   const mutation = useMutation({
     mutationFn: () => forkRecipe(handle, slug),
     onSuccess: (data) => {
-      announce('Forked — this copy is yours to change.');
+      announce('Forked. This copy is yours to change.');
       void queryClient.invalidateQueries({ queryKey: ['recipe', handle, slug] });
       void queryClient.invalidateQueries({ queryKey: ['forks', handle, slug] });
       void queryClient.invalidateQueries({ queryKey: ['user-recipes', data.recipe.owner.handle] });

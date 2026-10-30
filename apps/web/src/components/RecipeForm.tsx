@@ -152,7 +152,7 @@ export function RecipeForm({
 
       <Field
         label="Description"
-        hint="optional — a line about what this is"
+        hint="optional, a line about what this is"
         error={issueAt('description')}
       >
         <textarea
@@ -330,7 +330,7 @@ export function RecipeForm({
         {draft.method.kind === 'markdown' ? (
           <Field
             label="Steps"
-            hint="this method has formatting the step boxes can’t show, so it’s kept as written — one step per paragraph, ## for a section"
+            hint="this method has formatting the step boxes can’t show, so it’s kept as written. Use one step per paragraph and ## for a section"
           >
             <textarea
               rows={12}
@@ -411,7 +411,7 @@ export function RecipeForm({
 
       <section className="form-section" aria-labelledby={`${id}-details`}>
         <h2 id={`${id}-details`}>Details</h2>
-        <Field label="Equipment" hint="optional — separate with commas">
+        <Field label="Equipment" hint="optional, separate with commas">
           <input
             value={draft.equipment}
             onChange={(e) => set({ equipment: e.target.value })}
@@ -419,7 +419,7 @@ export function RecipeForm({
             autoComplete="off"
           />
         </Field>
-        <Field label="Tags" hint="optional — separate with commas; they’re how people find it">
+        <Field label="Tags" hint="optional, separate with commas; they’re how people find it">
           <input
             value={draft.tags}
             onChange={(e) => set({ tags: e.target.value })}

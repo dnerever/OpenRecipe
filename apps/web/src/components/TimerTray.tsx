@@ -23,7 +23,7 @@ export function TimerTray({
                 step and the author's phrase follow it, and are the first thing
                 to be dropped when the line runs out of room. */}
             <span className="timer-label">
-              <strong>{done ? `${timer.label} — done` : timer.label}</strong>
+              <strong>{done ? `${timer.label}: done` : timer.label}</strong>
               {timer.detail && <span className="timer-detail"> · {timer.detail}</span>}
             </span>
             <span

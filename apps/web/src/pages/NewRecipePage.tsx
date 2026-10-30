@@ -120,7 +120,7 @@ function WriteForm({ userId }: { userId: string }) {
 
       <div className="publish">
         <label>
-          Slug <span className="hint">optional — we’ll take it from the title</span>
+          Slug <span className="hint">optional, we’ll take it from the title</span>
           <input
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
@@ -139,7 +139,7 @@ function WriteForm({ userId }: { userId: string }) {
 
         {mutation.isError && !serverIssues && <p className="bad">{mutation.error.message}</p>}
         {serverIssues && (
-          <p className="bad">The server rejected this recipe — see the issues above.</p>
+          <p className="bad">The server rejected this recipe. See the issues above.</p>
         )}
       </div>
     </>

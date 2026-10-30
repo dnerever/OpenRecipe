@@ -50,7 +50,7 @@ export function VisibilityToggle({
                     <p>It will be hidden from everyone but you.</p>
                     <p>
                       {forkCount} existing fork{forkCount === 1 ? '' : 's'} will stay where{' '}
-                      {forkCount === 1 ? 'it is' : 'they are'} — going private does not retract
+                      {forkCount === 1 ? 'it is' : 'they are'}. Going private does not retract
                       copies people already made.
                     </p>
                   </>

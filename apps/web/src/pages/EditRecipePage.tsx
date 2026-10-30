@@ -139,7 +139,7 @@ export function EditRecipePage() {
           <Link to="/$handle/$slug" params={{ handle: targetHandle, slug: targetSlug }}>
             @{targetHandle}/{targetSlug}
           </Link>
-          . Change whatever you like here — saving offers it back to the author, who decides whether
+          . Change whatever you like here. Saving offers it back to the author, who decides whether
           to take it.
         </p>
       ) : (
@@ -174,8 +174,8 @@ export function EditRecipePage() {
           What changed?{' '}
           <span className="hint">
             {proposing
-              ? 'optional — becomes the proposal’s title'
-              : 'optional — shows up in the history'}
+              ? 'optional, becomes the proposal’s title'
+              : 'optional, shows up in the history'}
           </span>
           <input
             value={message}
@@ -205,13 +205,13 @@ export function EditRecipePage() {
         {unchanged && (
           <p className="muted">
             {proposing
-              ? 'No edits yet — a proposal has to change something before it can be opened.'
+              ? 'No edits yet. A proposal has to change something before it can be opened.'
               : 'No edits yet.'}
           </p>
         )}
         {mutation.isError && !serverIssues && <p className="bad">{mutation.error.message}</p>}
         {serverIssues && (
-          <p className="bad">The server rejected this recipe — see the issues above.</p>
+          <p className="bad">The server rejected this recipe. See the issues above.</p>
         )}
       </div>
     </section>

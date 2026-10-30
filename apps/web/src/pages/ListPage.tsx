@@ -124,7 +124,7 @@ export function ListPage() {
                 void (async () => {
                   const ok = await confirm({
                     title: 'Delete this list?',
-                    body: <p>The recipes in it are not affected — only the list goes.</p>,
+                    body: <p>The recipes in it are not affected. Only the list goes.</p>,
                     confirm: 'Delete list',
                     danger: true,
                   });
@@ -142,11 +142,11 @@ export function ListPage() {
         <p className="notice">
           {list.isOwner ? (
             <>
-              Private — only you{list.collaborators.length > 0 && ' and the people below'} can see
+              Private: only you{list.collaborators.length > 0 && ' and the people below'} can see
               this list.
             </>
           ) : (
-            <>Private — @{list.owner.handle} shared this list with you.</>
+            <>Private: @{list.owner.handle} shared this list with you.</>
           )}
         </p>
       )}

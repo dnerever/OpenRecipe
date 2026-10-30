@@ -319,7 +319,7 @@ export function CookPage() {
                             <span>
                               {amountOf(ing) && `${amountOf(ing)} `}
                               {ing.item}
-                              {ing.note && <em> — {ing.note}</em>}
+                              {ing.note && <em>, {ing.note}</em>}
                               {inStep.has(i) && <span className="sr"> (this step)</span>}
                             </span>
                           </label>

@@ -67,7 +67,7 @@ export function ProposalPage() {
     mutationFn: (input: { resolvedContent?: string }) => mergeProposal(handle, slug, n, input),
     onSuccess: () => {
       invalidate();
-      announce('Merged — the recipe has a new version.');
+      announce('Merged. The recipe has a new version.');
     },
   });
 
@@ -302,7 +302,7 @@ function describeMergeError(error: Error): string {
   if (!(error instanceof ApiError)) return error.message;
   switch (error.message) {
     case 'conflicted':
-      return 'This proposal conflicts — resolve it before merging.';
+      return 'This proposal conflicts. Resolve it before merging.';
     case 'unresolved_conflict':
       return 'The resolution still contains conflict markers. Remove them and try again.';
     case 'no_changes':

@@ -114,11 +114,11 @@ export function ProposeForm({
 function describeOpenError(error: Error): string {
   switch (error.message) {
     case 'no_changes':
-      return 'This fork is identical to the recipe it came from — change something first.';
+      return 'This fork is identical to the recipe it came from. Change something first.';
     case 'already_open':
       return (
         'This copy already has a proposal open on that recipe. To suggest a ' +
-        'second, separate change, start again from the original — you get a ' +
+        'second, separate change, start again from the original. You get a ' +
         'fresh copy, and both proposals stand on their own.'
       );
     case 'private_source':

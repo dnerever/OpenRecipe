@@ -119,7 +119,7 @@ export function RecipeEditor({
         <span className="hint">
           {mode === 'form'
             ? 'Prefer to type it out? Source is the same recipe as text.'
-            : 'YAML frontmatter, then Markdown — the same recipe the form edits.'}
+            : 'YAML frontmatter, then Markdown: the same recipe the form edits.'}
         </span>
       </div>
 
@@ -167,7 +167,7 @@ export function RecipeEditor({
             <p className="editor-status">
               {issues.length === 0 ? (
                 <span className="good">
-                  Valid — {stepCount(parsed.ok ? countSteps(parsed.doc) : 0)}
+                  Valid: {stepCount(parsed.ok ? countSteps(parsed.doc) : 0)}
                 </span>
               ) : (
                 <span className="bad">
@@ -205,7 +205,7 @@ function FormStatus({
   if (issues.length === 0) {
     return doc ? (
       <p className="editor-status form-status">
-        <span className="good">Ready — {stepCount(countSteps(doc))}</span>
+        <span className="good">Ready: {stepCount(countSteps(doc))}</span>
       </p>
     ) : null;
   }
@@ -236,7 +236,7 @@ function IssueList({ issues, plain = false }: { issues: RecipeIssueWire[]; plain
           {plain ? (
             <span className="loc">{fieldName(issue.path)}</span>
           ) : (
-            <span className="loc">{issue.line ? `line ${issue.line}` : '—'}</span>
+            <span className="loc">{issue.line ? `line ${issue.line}` : 'N/A'}</span>
           )}
           <span>
             {!plain && issue.path && <code>{issue.path}</code>} {issue.message}

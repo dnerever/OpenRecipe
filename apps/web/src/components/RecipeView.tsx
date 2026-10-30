@@ -194,6 +194,12 @@ export function RecipeView({
   const bar = useRef<HTMLElement | null>(null);
   const { active, goTo } = useSectionNav(bar);
   const { ticked, toggle, clear } = useTicked(storageKey, frontmatter.ingredients.length);
+  const steps = phases.flatMap((phase) => phase.steps);
+  const stepIndexes = new Map(steps.map((step, index) => [step, index]));
+  const { ticked: completedSteps, toggle: toggleStep } = useTicked(
+    `${storageKey}:steps`,
+    steps.length,
+  );
   const times = Object.entries(frontmatter.time ?? {}).filter(([, v]) => typeof v === 'number');
   const titles = phases.map((p) => p.title);
 
@@ -253,13 +259,15 @@ export function RecipeView({
         <section id="ingredients" aria-label="Ingredients">
           <div className="ing-head">
             <h2>Ingredients</h2>
-            {/* Only once there is something to clear: an affordance for undoing
-                a state you are not in is just another word on the screen. */}
-            {ticked.size > 0 && (
-              <button type="button" className="linkish" onClick={clear}>
-                Clear {ticked.size}
-              </button>
-            )}
+            <button
+              type="button"
+              className="linkish"
+              onClick={clear}
+              disabled={ticked.size === 0}
+              aria-label={`Clear ${ticked.size} checked ingredients`}
+            >
+              Clear {ticked.size}
+            </button>
           </div>
           {scaleControl}
           {groups.map(({ group, items }) => (
@@ -284,7 +292,7 @@ export function RecipeView({
                       </span>
                       <span className="item">
                         {ing.item}
-                        {ing.note && <em> — {ing.note}</em>}
+                        {ing.note && <em>, {ing.note}</em>}
                       </span>
                     </label>
                   </li>
@@ -312,16 +320,32 @@ export function RecipeView({
               {phase.title && <h3>{phase.title}</h3>}
               <ol className="steps">
                 {phase.steps.map((step) => {
+                  const stepIndex = stepIndexes.get(step);
+                  const complete = stepIndex !== undefined && completedSteps.has(stepIndex);
                   const uses = [
                     ...ingredientsInStep(step.text, phase.title, frontmatter.ingredients, titles),
                   ]
                     .map((i) => frontmatter.ingredients[i])
                     .filter((ing) => ing !== undefined);
                   return (
-                    <li key={step.number} value={step.number} id={`step-${step.number}`}>
-                      <span className="step-number" aria-hidden="true">
-                        {step.number}
-                      </span>
+                    <li
+                      key={step.number}
+                      value={step.number}
+                      id={`step-${step.number}`}
+                      className={complete ? 'step-done' : undefined}
+                    >
+                      <button
+                        type="button"
+                        className={`step-number${complete ? ' is-complete' : ''}`}
+                        aria-label={`Mark step ${step.number} ${complete ? 'incomplete' : 'complete'}`}
+                        aria-pressed={complete}
+                        disabled={stepIndex === undefined}
+                        onClick={() => {
+                          if (stepIndex !== undefined) toggleStep(stepIndex);
+                        }}
+                      >
+                        {complete ? '✓' : step.number}
+                      </button>
                       <div className="step-body">
                         <p>
                           <StepText text={step.text} scale={restate.scale} units={restate.units} />

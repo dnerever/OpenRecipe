@@ -83,7 +83,7 @@ function describeUploadError(error: Error): string {
     case 'file_too_large':
       return 'That photo is over 8 MB. Try a smaller one.';
     case 'unsupported_type':
-      return 'That file is not an image this can read — JPEG, PNG, WebP, AVIF or GIF.';
+      return 'That file is not an image this can read: JPEG, PNG, WebP, AVIF or GIF.';
     case 'unreadable_image':
       return 'That file says it is an image but does not decode as one.';
     case 'storage_unavailable':

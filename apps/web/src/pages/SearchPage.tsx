@@ -18,7 +18,7 @@ const SORTS: { value: SearchSort; label: string }[] = [
  */
 export function SearchPage() {
   const { q = '', tag = [], sort } = useSearch({ from: '/search' });
-  useTitle(q ? `“${q}” — Search` : tag.length ? `${tag.join(', ')} — Search` : 'Search');
+  useTitle(q ? `“${q}” | Search` : tag.length ? `${tag.join(', ')} | Search` : 'Search');
   const navigate = useNavigate();
   const [draft, setDraft] = useState(q);
 

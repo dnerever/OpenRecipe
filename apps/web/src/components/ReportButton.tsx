@@ -27,7 +27,7 @@ export function ReportButton({ handle, slug }: { handle: string; slug: string })
   }
 
   if (mutation.isSuccess) {
-    return <span className="hint">Reported — thanks for flagging it.</span>;
+    return <span className="hint">Reported, thanks for flagging it.</span>;
   }
 
   if (!open) {

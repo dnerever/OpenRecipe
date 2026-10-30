@@ -75,7 +75,7 @@ export function StepText({
             key={index}
             type="button"
             className="timer-chip"
-            title={`Start a ${phrase} timer${timer.label ? ` — ${timer.label}` : ''}`}
+            title={`Start a ${phrase} timer${timer.label ? `: ${timer.label}` : ''}`}
             onClick={() => onStartTimer(timer.seconds, label, phrase)}
           >
             {segment.text}
