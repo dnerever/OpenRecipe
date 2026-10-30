@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { safeParseRecipe } from '@openrecipe/core';
+import { safeParseRecipe } from '@openskillet/core';
 import { and, eq } from 'drizzle-orm';
 import { slugify } from '../services/slugs.ts';
 import { fetchRecipeFromUrl, ImportUrlError, NotARecipeError } from './fetch-recipe.ts';

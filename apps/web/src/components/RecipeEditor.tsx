@@ -1,4 +1,4 @@
-import { countSteps, safeParseRecipe, type RecipeDoc } from '@openrecipe/core';
+import { countSteps, safeParseRecipe, type RecipeDoc } from '@openskillet/core';
 import { useEffect, useMemo, useState } from 'react';
 import type { RecipeIssueWire } from '../lib/api.ts';
 import {
@@ -14,7 +14,8 @@ import { SourceEditor } from './SourceEditor.tsx';
 import { STARTER_RECIPE } from '../lib/starter-recipe.ts';
 
 /** Remembered per browser: someone who prefers the source should not have to ask twice. */
-const PREFER_SOURCE = 'openrecipe:editor-source';
+const PREFER_SOURCE = 'openskillet:editor-source';
+const LEGACY_PREFER_SOURCE = 'openrecipe:editor-source';
 
 /**
  * The recipe text has one home — `value` — and two ways to edit it.
@@ -29,7 +30,7 @@ const PREFER_SOURCE = 'openrecipe:editor-source';
  * which `synced` detects: it is the last text this component either produced
  * or caught up with.
  *
- * Validation runs against `@openrecipe/core` directly: the same parser the
+ * Validation runs against `@openskillet/core` directly: the same parser the
  * server uses, so the browser cannot disagree with it. Passing `baseline` turns
  * on the source editor's change gutter — see SourceEditor.
  */
@@ -53,7 +54,7 @@ export function RecipeEditor({
   fresh?: boolean;
 }) {
   const parsed = useMemo(() => safeParseRecipe(value), [value]);
-  const [preferSource, setPreferSource] = useLocalFlag(PREFER_SOURCE);
+  const [preferSource, setPreferSource] = useLocalFlag(PREFER_SOURCE, false, LEGACY_PREFER_SOURCE);
   const [synced, setSynced] = useState(value);
   const [draft, setDraft] = useState<RecipeDraft | null>(() => draftFromSource(value));
 

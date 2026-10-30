@@ -126,7 +126,7 @@ const { star } = await import('../services/stars.ts');
 type User = typeof users.$inferSelect;
 
 /** Locally only: the password every account this script creates is given. */
-const LOCAL_PASSWORD = 'openrecipe-demo';
+const LOCAL_PASSWORD = 'openskillet-demo';
 
 async function findUser(handle: string): Promise<User | undefined> {
   const [user] = await db

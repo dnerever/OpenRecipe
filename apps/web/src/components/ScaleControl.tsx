@@ -1,4 +1,4 @@
-import type { Frontmatter, MeasurementSystem } from '@openrecipe/core';
+import type { Frontmatter, MeasurementSystem } from '@openskillet/core';
 import { useEffect, useMemo, useState } from 'react';
 import { applyCookOptions, formatFactor, type CookOptions } from '../lib/cook-options.ts';
 import { pluralUnit } from '../lib/words.ts';

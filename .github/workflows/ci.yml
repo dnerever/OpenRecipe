@@ -17,16 +17,16 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: openrecipe
-          POSTGRES_PASSWORD: openrecipe
-          POSTGRES_DB: openrecipe
+          POSTGRES_USER: openskillet
+          POSTGRES_PASSWORD: openskillet
+          POSTGRES_DB: openskillet
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U openrecipe -d openrecipe"
+          --health-cmd "pg_isready -U openskillet -d openskillet"
           --health-interval 5s --health-timeout 3s --health-retries 20
 
     env:
-      DATABASE_URL: postgres://openrecipe:openrecipe@localhost:5432/openrecipe
+      DATABASE_URL: postgres://openskillet:openskillet@localhost:5432/openskillet
       NODE_ENV: test
       # Matches docker-compose.yml, so the image tests run against here is the
       # one they run against locally. Production is R2; the point of the S3
@@ -34,9 +34,9 @@ jobs:
       # the real bucket would mean live credentials in Actions and a test suite
       # that uploads and deletes objects in production storage.
       S3_ENDPOINT: http://127.0.0.1:9000
-      S3_BUCKET: openrecipe-ci
-      S3_ACCESS_KEY: openrecipe
-      S3_SECRET_KEY: openrecipe-dev-secret
+      S3_BUCKET: openskillet-ci
+      S3_ACCESS_KEY: openskillet
+      S3_SECRET_KEY: openskillet-dev-secret
       S3_REGION: auto
 
     steps:
@@ -56,8 +56,8 @@ jobs:
       - name: Object storage
         run: |
           docker run -d --name rustfs -p 9000:9000 \
-            -e RUSTFS_ACCESS_KEY=openrecipe \
-            -e RUSTFS_SECRET_KEY=openrecipe-dev-secret \
+            -e RUSTFS_ACCESS_KEY=openskillet \
+            -e RUSTFS_SECRET_KEY=openskillet-dev-secret \
             rustfs/rustfs:1.0.1
           for _ in $(seq 1 60); do
             if curl -sf http://127.0.0.1:9000/health > /dev/null; then
@@ -77,7 +77,7 @@ jobs:
         run: npm run build
 
       - name: Typecheck web
-        run: npm run typecheck -w @openrecipe/web
+        run: npm run typecheck -w @openskillet/web
 
       # After the build: the apps import core's compiled `dist/`, and type-aware
       # rules see every import from it as an error type until it exists.

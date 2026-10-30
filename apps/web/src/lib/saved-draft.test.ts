@@ -31,8 +31,18 @@ describe('saved drafts', () => {
     writeSavedDraft(store, 'k', { content: 'x', base: 'b', savedAt: 1 });
     clearSavedDraft(store, 'k');
     assert.equal(readSavedDraft(store, 'k', 'b'), null);
-    store.setItem('openrecipe:draft:k', '{not json');
+    store.setItem('openskillet:draft:k', '{not json');
     assert.equal(readSavedDraft(store, 'k', 'b'), null);
+  });
+
+  it('migrates a valid legacy draft to the new storage namespace', () => {
+    const store = memory();
+    const raw = JSON.stringify({ content: 'mine', base: 'v1', savedAt: 1 });
+    store.setItem('openrecipe:draft:k', raw);
+
+    assert.equal(readSavedDraft(store, 'k', 'v1')?.content, 'mine');
+    assert.equal(store.getItem('openskillet:draft:k'), raw);
+    assert.equal(store.getItem('openrecipe:draft:k'), null);
   });
 
   it('survive having no storage at all', () => {

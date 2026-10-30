@@ -14,7 +14,8 @@ import { useCallback, useEffect, useRef } from 'react';
  */
 export type SavedDraft = { content: string; base: string; savedAt: number };
 
-const PREFIX = 'openrecipe:draft:';
+const PREFIX = 'openskillet:draft:';
+const LEGACY_PREFIX = 'openrecipe:draft:';
 
 /** `localStorage`, or nothing — it throws when site data is blocked. */
 function storage(): Storage | null {
@@ -31,11 +32,23 @@ export function readSavedDraft(
   base: string,
 ): SavedDraft | null {
   try {
-    const raw = store?.getItem(PREFIX + key);
+    if (!store) return null;
+    const currentKey = PREFIX + key;
+    const legacyKey = LEGACY_PREFIX + key;
+    const raw = store.getItem(currentKey) ?? store.getItem(legacyKey);
     if (!raw) return null;
     const saved = JSON.parse(raw) as Partial<SavedDraft>;
     if (typeof saved.content !== 'string' || typeof saved.savedAt !== 'number') return null;
-    return saved.base === base ? (saved as SavedDraft) : null;
+    if (saved.base !== base) return null;
+    if (store.getItem(currentKey) === null) {
+      try {
+        store.setItem(currentKey, raw);
+        store.removeItem(legacyKey);
+      } catch {
+        // The legacy draft remains available if migration cannot be written.
+      }
+    }
+    return saved as SavedDraft;
   } catch {
     return null;
   }
@@ -52,6 +65,7 @@ export function writeSavedDraft(store: Storage | null, key: string, draft: Saved
 export function clearSavedDraft(store: Storage | null, key: string): void {
   try {
     store?.removeItem(PREFIX + key);
+    store?.removeItem(LEGACY_PREFIX + key);
   } catch {
     // Nothing to clear in a storage that cannot be read.
   }

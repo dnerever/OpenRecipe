@@ -6,7 +6,7 @@ import {
   type Frontmatter,
   type MeasurementSystem,
   type Phase,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { thumbUrlFor } from '../lib/api.ts';
 import { DEFAULT_CONTENT_LICENSE, licenseNameFor, licenseUrlFor } from '../lib/license.ts';

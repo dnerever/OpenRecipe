@@ -1,9 +1,9 @@
 ---
-name: run-openrecipe
-description: Build, launch, drive, screenshot and smoke-test the OpenRecipe app (Hono API + Vite/React SPA + Postgres). Use when asked to run, start, boot, screenshot, or verify OpenRecipe in the real app rather than in tests.
+name: run-openskillet
+description: Build, launch, drive, screenshot and smoke-test the OpenSkillet app (Hono API + Vite/React SPA + Postgres). Use when asked to run, start, boot, screenshot, or verify OpenSkillet in the real app rather than in tests.
 ---
 
-# Run OpenRecipe
+# Run OpenSkillet
 
 One deployable unit: `packages/core` (pure logic) → `apps/api` (Hono, :8787) →
 `apps/web` (Vite/React SPA, :5173). In dev, Vite proxies `/api` to the API
@@ -26,7 +26,7 @@ apt-get install -y google-chrome-stable   # or: chromium
 The driver's own dependency (installed once, gitignored):
 
 ```bash
-npm install --prefix .claude/skills/run-openrecipe
+npm install --prefix .claude/skills/run-openskillet
 ```
 
 ## Build and start
@@ -36,8 +36,8 @@ npm install --prefix .claude/skills/run-openrecipe
 npm install
 npm run db:up                            # postgres :5432 + rustfs :9000/:9001
 npm run db:migrate
-npm run build -w @openrecipe/core        # REQUIRED before the first `npm run dev` — see Gotchas
-setsid npm run dev > /tmp/openrecipe-dev.log 2>&1 &
+npm run build -w @openskillet/core        # REQUIRED before the first `npm run dev` — see Gotchas
+setsid npm run dev > /tmp/openskillet-dev.log 2>&1 &
 timeout 120 bash -c 'until curl -sf http://localhost:5173/api/health >/dev/null 2>&1; do sleep 1; done'
 ```
 
@@ -56,7 +56,7 @@ of them. Health when it is really up:
 ## Run (agent path)
 
 ```bash
-node .claude/skills/run-openrecipe/driver.mjs
+node .claude/skills/run-openskillet/driver.mjs
 ```
 
 Signs up a throwaway cook, publishes a recipe, then drives the SPA: home →
@@ -67,7 +67,7 @@ The ingredients are checked at both widths, because they are one panel with two
 shapes: a rail beside the step from 64rem up, a sheet over it below. The run
 resizes to a phone for the second half and back again, so the geometry of each
 is asserted rather than assumed.
-Screenshots land in `.claude/skills/run-openrecipe/shots/`. Verified output:
+Screenshots land in `.claude/skills/run-openskillet/shots/`. Verified output:
 
 ```
   ok    api healthy, database up, schema v1
@@ -88,11 +88,11 @@ no console or network errors.
 Other modes:
 
 ```bash
-node .claude/skills/run-openrecipe/driver.mjs --proposals                    # cross-account proposal rules
-node .claude/skills/run-openrecipe/driver.mjs --recipe marguerite/carbonara  # drive an existing recipe
-node .claude/skills/run-openrecipe/driver.mjs --seed-only                    # just make data, no browser
-node .claude/skills/run-openrecipe/driver.mjs --keep                         # leave the seeded data behind
-SHOTS_DIR=/tmp/shots WEB_URL=http://localhost:5173 node .claude/skills/run-openrecipe/driver.mjs
+node .claude/skills/run-openskillet/driver.mjs --proposals                    # cross-account proposal rules
+node .claude/skills/run-openskillet/driver.mjs --recipe marguerite/carbonara  # drive an existing recipe
+node .claude/skills/run-openskillet/driver.mjs --seed-only                    # just make data, no browser
+node .claude/skills/run-openskillet/driver.mjs --keep                         # leave the seeded data behind
+SHOTS_DIR=/tmp/shots WEB_URL=http://localhost:5173 node .claude/skills/run-openskillet/driver.mjs
 ```
 
 **It cleans up after itself.** Every account a run signs up carries a per-run
@@ -152,10 +152,10 @@ against a non-local `DATABASE_URL`** unless `ALLOW_REMOTE_TEST_DB=1`.
 
 ## Gotchas
 
-- **`npm run build -w @openrecipe/core` before the first `npm run dev`, or the
-  API never starts.** Both apps import `@openrecipe/core`'s built `dist/`. On a
+- **`npm run build -w @openskillet/core` before the first `npm run dev`, or the
+  API never starts.** Both apps import `@openskillet/core`'s built `dist/`. On a
   clean tree (fresh clone, or after `npm run clean`) that directory does not
-  exist, so the API dies with `ERR_MODULE_NOT_FOUND … @openrecipe/core/dist/index.js`.
+  exist, so the API dies with `ERR_MODULE_NOT_FOUND … @openskillet/core/dist/index.js`.
   It does **not** self-heal: `tsc -b --watch` writes `dist/` moments later, but
   `node --watch` only watches files it managed to load, and the failed import
   means it loaded none — it waits forever for a change it cannot see. Confirmed
@@ -163,7 +163,7 @@ against a non-local `DATABASE_URL`** unless `ALLOW_REMOTE_TEST_DB=1`.
   every `/api` call gets `ECONNREFUSED 127.0.0.1:8787`.
 - **Never `pkill -f` anything here.** Patterns like `concurrently -n core,api,web`
   match _every_ stack on the machine — including one a human left running — and
-  a pattern such as `openrecipe/node_modules/.bin/concurrently` also matches the
+  a pattern such as `openskillet/node_modules/.bin/concurrently` also matches the
   agent's own shell command line and kills the session mid-command (exit 144).
   Kill by port/pgid as in Stop.
 - **A half-dead stack still answers on :5173.** If :8787 is occupied, the API
@@ -193,13 +193,13 @@ against a non-local `DATABASE_URL`** unless `ALLOW_REMOTE_TEST_DB=1`.
 
 ## Troubleshooting
 
-| Symptom                                                 | Fix                                                                        |
-| ------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `ERR_MODULE_NOT_FOUND … @openrecipe/core/dist/index.js` | `npm run build -w @openrecipe/core`, then restart.                         |
-| `EADDRINUSE :::8787` and web still serves               | A stack is already running. Stop it (see Stop) before relaunching.         |
-| `vite] http proxy error … ECONNREFUSED 127.0.0.1:8787`  | The API is dead; read `/tmp/openrecipe-dev.log` for its stack trace.       |
-| `403 MISSING_OR_NULL_ORIGIN` on sign-up                 | Add `Origin: http://localhost:5173`.                                       |
-| `"database":"down"` in `/api/health`                    | `npm run db:up && npm run db:migrate`.                                     |
-| Driver: `No Chrome found`                               | `apt-get install -y google-chrome-stable` or set `CHROME_PATH`.            |
-| Driver: `Cannot find package 'playwright-core'`         | `npm install --prefix .claude/skills/run-openrecipe`.                      |
-| Shell dies mid-command, exit 144                        | You ran `pkill -f` with a pattern matching your own command. Kill by port. |
+| Symptom                                                  | Fix                                                                        |
+| -------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `ERR_MODULE_NOT_FOUND … @openskillet/core/dist/index.js` | `npm run build -w @openskillet/core`, then restart.                        |
+| `EADDRINUSE :::8787` and web still serves                | A stack is already running. Stop it (see Stop) before relaunching.         |
+| `vite] http proxy error … ECONNREFUSED 127.0.0.1:8787`   | The API is dead; read `/tmp/openskillet-dev.log` for its stack trace.      |
+| `403 MISSING_OR_NULL_ORIGIN` on sign-up                  | Add `Origin: http://localhost:5173`.                                       |
+| `"database":"down"` in `/api/health`                     | `npm run db:up && npm run db:migrate`.                                     |
+| Driver: `No Chrome found`                                | `apt-get install -y google-chrome-stable` or set `CHROME_PATH`.            |
+| Driver: `Cannot find package 'playwright-core'`          | `npm install --prefix .claude/skills/run-openskillet`.                     |
+| Shell dies mid-command, exit 144                         | You ran `pkill -f` with a pattern matching your own command. Kill by port. |

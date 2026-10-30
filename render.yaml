@@ -2,7 +2,7 @@
 # in the application reads it, and the Dockerfile is what actually matters.
 services:
   - type: web
-    name: openrecipe
+    name: openskillet
     runtime: docker
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health

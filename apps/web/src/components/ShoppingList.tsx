@@ -3,7 +3,7 @@ import {
   formatShoppingItem,
   formatShoppingList,
   type Frontmatter,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 import { useMemo, useState } from 'react';
 import { useFeedback } from './Feedback.tsx';
 

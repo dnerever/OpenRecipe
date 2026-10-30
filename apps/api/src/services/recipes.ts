@@ -9,7 +9,7 @@ import {
   serializeRecipe,
   summarizeDiff,
   type RecipeDoc,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 import { and, desc, eq, inArray, lt, or, sql as raw } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import {

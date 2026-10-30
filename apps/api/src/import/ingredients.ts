@@ -1,4 +1,4 @@
-import { normalizeUnit, unitSystem, type Ingredient } from '@openrecipe/core';
+import { normalizeUnit, unitSystem, type Ingredient } from '@openskillet/core';
 
 /**
  * One line of somebody's ingredient list, turned into an `Ingredient`.

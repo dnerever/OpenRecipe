@@ -1,4 +1,4 @@
-import { detectSystem, humanizeDuration } from '@openrecipe/core';
+import { detectSystem, humanizeDuration } from '@openskillet/core';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useCallback, useMemo, useState } from 'react';

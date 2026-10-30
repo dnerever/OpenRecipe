@@ -1,4 +1,4 @@
-import { formatClock } from '@openrecipe/core';
+import { formatClock } from '@openskillet/core';
 import type { RunningTimer } from '../lib/use-timers.ts';
 
 /** Every running timer, always visible, whatever step you have paged on to. */

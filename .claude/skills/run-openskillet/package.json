@@ -1,5 +1,5 @@
 {
-  "name": "run-openrecipe-driver",
+  "name": "run-openskillet-driver",
   "private": true,
   "type": "module",
   "dependencies": {

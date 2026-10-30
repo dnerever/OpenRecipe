@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { deriveSteps, safeParseRecipe, serializeRecipe } from '@openrecipe/core';
+import { deriveSteps, safeParseRecipe, serializeRecipe } from '@openskillet/core';
 import { STARTER_RECIPE } from './starter-recipe.ts';
 
 describe('the starter recipe', () => {

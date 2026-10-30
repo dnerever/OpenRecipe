@@ -6,7 +6,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RecipeParseError, SCHEMA_VERSION } from '@openrecipe/core';
+import { RecipeParseError, SCHEMA_VERSION } from '@openskillet/core';
 import { ZodError } from 'zod';
 import { auth } from './auth.ts';
 import { db, sql as rawSql } from './db/index.ts';
@@ -161,11 +161,11 @@ export function createApp() {
   app.get('/.well-known/security.txt', (c) =>
     c.text(
       [
-        'Contact: https://github.com/dnerever/OpenRecipe/security/advisories/new',
+        'Contact: https://github.com/dnerever/OpenSkillet/security/advisories/new',
         `Expires: ${securityTxtExpires}`,
         'Preferred-Languages: en',
         `Canonical: ${env.APP_URL}/.well-known/security.txt`,
-        'Policy: https://github.com/dnerever/OpenRecipe/blob/main/SECURITY.md',
+        'Policy: https://github.com/dnerever/OpenSkillet/blob/main/SECURITY.md',
         '',
       ].join('\n'),
     ),

@@ -5,7 +5,7 @@ import {
   serializeRecipe,
   type Frontmatter,
   type RecipeDoc,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 import { parse as parseYaml, stringify } from 'yaml';
 
 /**

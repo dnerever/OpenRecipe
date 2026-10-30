@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { mergeDocuments, parseRecipe, serializeRecipe } from '@openrecipe/core';
+import { mergeDocuments, parseRecipe, serializeRecipe } from '@openskillet/core';
 
 /**
  * The demo data, as data.

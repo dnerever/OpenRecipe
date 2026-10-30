@@ -10,7 +10,7 @@ import {
   summarizeDiff,
   type MergeOutcome,
   type VersionNode,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 import { and, asc, desc, eq, inArray, sql as raw } from 'drizzle-orm';
 import type { Db } from '../db/index.ts';
 import {
@@ -39,7 +39,7 @@ import { publicUser, userColumns, type PublicUser, type UserRef } from './users.
 /**
  * A proposal is this source recipe's head, offered to that target recipe.
  *
- * The merge itself is `@openrecipe/core`'s problem and is pure; everything here
+ * The merge itself is `@openskillet/core`'s problem and is pure; everything here
  * is about which versions to hand it, who is allowed to see the answer, and
  * what to write down when somebody accepts it.
  */
