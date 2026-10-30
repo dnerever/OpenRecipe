@@ -1,3 +1,5 @@
+# Keep the prior Compose project and service credentials so existing local
+# database and RustFS volumes continue to be used after the rebrand.
 name: openrecipe
 
 services:

@@ -32,9 +32,9 @@ ARG VITE_SENTRY_DSN
 ARG VITE_PLAUSIBLE_SCRIPT_SRC
 
 # core -> dist, api -> dist, web -> static bundle
-RUN npm run build -w @openrecipe/core \
- && npm run build -w @openrecipe/api \
- && npm run build -w @openrecipe/web
+RUN npm run build -w @openskillet/core \
+ && npm run build -w @openskillet/api \
+ && npm run build -w @openskillet/web
 
 # tsc emits .js but not the .sql files beside them.
 RUN cp -r apps/api/src/db/migrations apps/api/dist/db/migrations

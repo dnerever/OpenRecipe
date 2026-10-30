@@ -1,4 +1,4 @@
-import { parseRecipe, safeParseRecipe } from '@openrecipe/core';
+import { parseRecipe, safeParseRecipe } from '@openskillet/core';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { parseNotionPage, splitBody, toRecipe } from './notion.ts';

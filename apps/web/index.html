@@ -53,7 +53,14 @@
       // flash while the bundle loads. Mirrors readTheme/applyTheme in
       // src/lib/theme.ts — the key and the attribute have to stay in step.
       try {
-        var stored = localStorage.getItem('openrecipe:theme');
+        var stored = localStorage.getItem('openskillet:theme');
+        if (stored === null) {
+          stored = localStorage.getItem('openrecipe:theme');
+          if (stored !== null) {
+            localStorage.setItem('openskillet:theme', stored);
+            localStorage.removeItem('openrecipe:theme');
+          }
+        }
         if (stored === 'light' || stored === 'dark') {
           document.documentElement.setAttribute('data-theme', stored);
           // Point both theme-color metas at the chosen colour, or the address

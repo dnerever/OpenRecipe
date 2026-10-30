@@ -1,4 +1,4 @@
-import { deriveSteps, parseRecipe } from '@openrecipe/core';
+import { deriveSteps, parseRecipe } from '@openskillet/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
@@ -281,7 +281,7 @@ function OldVersion({
         <RecipeView
           frontmatter={doc.frontmatter}
           phases={doc.phases}
-          storageKey={`openrecipe:version:${version.id}`}
+          storageKey={`openskillet:version:${version.id}`}
         />
       )}
     </section>

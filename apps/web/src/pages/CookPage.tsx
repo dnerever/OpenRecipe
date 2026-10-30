@@ -1,4 +1,4 @@
-import { detectSystem, formatQuantity, formatUnit, restateQuantity } from '@openrecipe/core';
+import { detectSystem, formatQuantity, formatUnit, restateQuantity } from '@openskillet/core';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';

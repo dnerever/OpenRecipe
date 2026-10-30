@@ -1,4 +1,4 @@
-import { findTimers, type Phase } from '@openrecipe/core';
+import { findTimers, type Phase } from '@openskillet/core';
 
 export type TimelineSegment = {
   /** The section's name, or "Step 3" when the method has no sections. */

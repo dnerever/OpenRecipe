@@ -56,7 +56,7 @@ export const RESERVED_HANDLES = new Set([
   'new',
   'notifications',
   'oauth',
-  'openrecipe',
+  'openskillet',
   'password',
   'pricing',
   'privacy',

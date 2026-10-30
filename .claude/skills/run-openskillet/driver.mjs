@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * OpenRecipe smoke driver.
+ * OpenSkillet smoke driver.
  *
  * Seeds its own cook + recipe over the API, then drives the SPA in headless
  * Chrome: scale, unit conversion, cook mode, the ingredients panel. Screenshots
@@ -10,10 +10,10 @@
  * that assumed a recipe existed would only ever work on the machine that wrote
  * it.
  *
- *   node .claude/skills/run-openrecipe/driver.mjs
- *   node .claude/skills/run-openrecipe/driver.mjs --recipe marguerite/carbonara
- *   node .claude/skills/run-openrecipe/driver.mjs --seed-only
- *   node .claude/skills/run-openrecipe/driver.mjs --keep        # leave the data behind
+ *   node .claude/skills/run-openskillet/driver.mjs
+ *   node .claude/skills/run-openskillet/driver.mjs --recipe marguerite/carbonara
+ *   node .claude/skills/run-openskillet/driver.mjs --seed-only
+ *   node .claude/skills/run-openskillet/driver.mjs --keep        # leave the data behind
  *
  * Exits non-zero on the first failed assertion, so it works in CI.
  *
@@ -92,7 +92,7 @@ function findChrome() {
 const RECIPE = `---
 schema: 1
 title: Smoke Test Loaf
-description: Written by the run-openrecipe driver to prove the stack is up.
+description: Written by the run-openskillet driver to prove the stack is up.
 yield: { count: 2, unit: serving }
 time: { prep: 20m, cook: 40m, total: 1h }
 ingredients:

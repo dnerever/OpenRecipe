@@ -1,4 +1,4 @@
-import { humanizeDuration } from '@openrecipe/core';
+import { humanizeDuration } from '@openskillet/core';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { thumbUrlFor, type RecipeSummary } from '../lib/api.ts';

@@ -1,4 +1,4 @@
-import { humanizeDuration } from '@openrecipe/core';
+import { humanizeDuration } from '@openskillet/core';
 import type { TimelineSegment } from '../lib/timeline.ts';
 
 const TINTS = ['#ffd98a', '#f6c7a6', '#bfe3b9', '#bcd9ef', '#e2cdf5', '#f8b7a9'];

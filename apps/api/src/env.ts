@@ -141,7 +141,7 @@ const EnvSchema = z
         code: 'custom',
         path: ['APP_URL'],
         message:
-          "APP_URL is unset, so it fell back to localhost. Set it to the public URL this app is served from — the one shown at the top of your host's service page, e.g. https://openrecipe.onrender.com",
+          "APP_URL is unset, so it fell back to localhost. Set it to the public URL this app is served from — the one shown at the top of your host's service page, e.g. https://openskillet.com",
       });
     }
     if (!env.APP_URL.startsWith('https://')) {

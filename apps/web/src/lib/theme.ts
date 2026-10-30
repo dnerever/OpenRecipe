@@ -18,7 +18,8 @@ import { useCallback, useEffect, useState } from 'react';
 export type ThemePreference = 'system' | 'light' | 'dark';
 
 /** Namespaced because `localStorage` is shared with everything on the origin. */
-export const THEME_KEY = 'openrecipe:theme';
+export const THEME_KEY = 'openskillet:theme';
+const LEGACY_THEME_KEY = 'openrecipe:theme';
 
 /** Declaration order is the order the control renders them in. */
 export const THEME_PREFERENCES: readonly ThemePreference[] = ['system', 'light', 'dark'];
@@ -102,7 +103,19 @@ export function findThemeColorMetas(doc: Document): {
  */
 export function readTheme(): ThemePreference {
   try {
-    return parseTheme(window.localStorage.getItem(THEME_KEY));
+    const storage = window.localStorage;
+    const stored = storage.getItem(THEME_KEY);
+    if (stored !== null) return parseTheme(stored);
+
+    const legacy = storage.getItem(LEGACY_THEME_KEY);
+    if (legacy === null) return 'system';
+    try {
+      storage.setItem(THEME_KEY, legacy);
+      storage.removeItem(LEGACY_THEME_KEY);
+    } catch {
+      // The old preference still applies in this page view.
+    }
+    return parseTheme(legacy);
   } catch {
     return 'system';
   }
@@ -114,6 +127,7 @@ export function storeTheme(preference: ThemePreference): void {
     // so it clears the key instead of writing over it.
     if (preference === 'system') window.localStorage.removeItem(THEME_KEY);
     else window.localStorage.setItem(THEME_KEY, preference);
+    window.localStorage.removeItem(LEGACY_THEME_KEY);
   } catch {
     // Applied for this page view; it simply will not survive a reload.
   }

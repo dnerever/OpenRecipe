@@ -3,7 +3,7 @@ import {
   scaleFrontmatter,
   type Frontmatter,
   type MeasurementSystem,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 
 /**
  * How this reader wants the recipe expressed — a scale factor and a kitchen.

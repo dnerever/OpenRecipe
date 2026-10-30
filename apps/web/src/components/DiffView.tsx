@@ -1,4 +1,4 @@
-import { describeChange, isHeadline, type SemanticChange } from '@openrecipe/core';
+import { describeChange, isHeadline, type SemanticChange } from '@openskillet/core';
 import { wordDiff } from '../lib/word-diff.ts';
 
 /**

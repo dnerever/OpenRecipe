@@ -3,6 +3,14 @@
 One Docker service on Render, Postgres on Neon, and nothing in the application
 that knows which host it is on.
 
+The repository and app are now **OpenSkillet**. Provider-owned resources do not
+rename when this repository changes: reconcile the existing Render service
+before syncing the renamed service in `render.yaml` to avoid creating a second
+service. The current Render hostname, `https://openrecipe.onrender.com`, and
+any existing R2 bucket remain valid until deliberately migrated; keep their
+current values in provider settings. The canonical public URL is
+`https://openskillet.com`.
+
 ---
 
 ## What runs where
@@ -27,7 +35,7 @@ runs the compute, so changing hosts never moves data. See *Moving hosts* below.
 ## 1. Postgres (Neon)
 
 1. Sign up at [neon.tech](https://neon.tech) — the free plan needs no card.
-2. Create a project named `open-recipe`, region **AWS US East 2 (Ohio)**.
+2. Create a project named `OpenSkillet`, region **AWS US East 2 (Ohio)**.
    Leave every service except **Postgres** switched off — Object storage,
    Functions, AI gateway and especially **Neon Auth**, which would be a second
    auth system competing with better-auth.
@@ -41,6 +49,8 @@ runs the compute, so changing hosts never moves data. See *Moving hosts* below.
 
 Free plan: 0.5 GB storage, 100 CU-hours/month, autosuspend after ~5 minutes
 idle. A recipe is roughly 2 KB, so storage is not a constraint you will meet.
+Renaming an existing Neon project's display name is optional; the connection
+string and database data are independent of that label.
 
 ### Where the connection string lives
 
@@ -88,7 +98,7 @@ rather than the last.
    | `APP_URL` | leave blank — see below |
 
 5. Deploy. It should come up on the URL shown at the top of the service page,
-   e.g. `https://openrecipe.onrender.com`.
+   e.g. `https://<service-name>.onrender.com`.
 
 ### About `APP_URL`
 
@@ -118,7 +128,7 @@ Done in this order, so nothing is ever pointed at a host that is not ready for i
    | Type | Host | Value |
    |---|---|---|
    | `A Record` | `@` | `216.24.57.1` |
-   | `CNAME Record` | `www` | `openrecipe.onrender.com` |
+   | `CNAME Record` | `www` | the exact hostname shown by Render |
 
    Leave the nameservers on _Namecheap BasicDNS_. Any other `A`, `AAAA` or
    `CNAME` row on `@` or `www` conflicts and stops Render verifying the domain.
@@ -176,8 +186,8 @@ touches the build: it fails in ten seconds on your laptop instead of five
 minutes into a release.
 
 ```bash
-docker build -t openrecipe:check .
-docker run --rm openrecipe:check ls apps/api/dist/db/migrations   # .sql files present?
+docker build -t openskillet:check .
+docker run --rm openskillet:check ls apps/api/dist/db/migrations   # .sql files present?
 ```
 
 That second command is the one that matters, because `tsc` emits `.js` but not
@@ -237,11 +247,14 @@ Locally, RustFS from `docker-compose.yml` speaks the same S3 API and the app
 creates the bucket on first use. In production it does not: `ensureBucket()`
 tries `HeadBucket`, then `CreateBucket`, and swallows both failures, because a
 correctly scoped production token can do neither. Create the bucket yourself.
+If production already uses a bucket named `openrecipe-media`, keep that value
+in `S3_BUCKET` until its objects and credentials have been deliberately moved;
+changing a bucket name in configuration does not move its contents.
 
 1. **Enable R2 on the account.** It is a separate activation from the rest of
    Cloudflare, and nothing below is reachable until it is done. There is no CLI
    path for this one.
-2. **R2 → Create bucket**, named `openrecipe-media`. Leave public access off,
+2. **R2 → Create bucket**, named `openskillet-media`. Leave public access off,
    add no custom domain, and leave the Public Development URL disabled: the app
    streams objects itself so it can apply the recipe's visibility to them, and
    anything publicly reachable routes around that check entirely.
@@ -262,17 +275,17 @@ correctly scoped production token can do neither. Create the bucket yourself.
    ```
    S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
    S3_REGION=auto
-   S3_BUCKET=openrecipe-media
+   S3_BUCKET=openskillet-media
    S3_ACCESS_KEY=…   # Access Key ID
    S3_SECRET_KEY=…   # Secret Access Key
    ```
 
 **`S3_ENDPOINT` must not contain the bucket.** The bucket's General tab displays
-its S3 API as `https://<account-id>.r2.cloudflarestorage.com/openrecipe-media`,
+its S3 API as `https://<account-id>.r2.cloudflarestorage.com/openskillet-media`,
 and pasting that verbatim is the easiest mistake available here. `storage.ts`
 sets `forcePathStyle`, so the client appends the bucket to the path itself —
 leave it on the end and every upload addresses
-`…/openrecipe-media/openrecipe-media/…` and fails with `NoSuchBucket`. Trim it
+`…/openskillet-media/openskillet-media/…` and fails with `NoSuchBucket`. Trim it
 back to the origin.
 
 **Four of them are what actually matter, together.** `objectStore` in `env.ts`

@@ -1,4 +1,4 @@
-import { diffText } from '@openrecipe/core';
+import { diffText } from '@openskillet/core';
 
 /**
  * Which lines of `doc` differ from `baseline`, as 1-based line numbers.

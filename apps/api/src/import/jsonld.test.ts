@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
-import { safeParseRecipe } from '@openrecipe/core';
+import { safeParseRecipe } from '@openskillet/core';
 import {
   findRecipeNode,
   imageFrom,

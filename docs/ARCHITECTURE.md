@@ -25,7 +25,7 @@ Recipes are **public by default**, with a binary private toggle (§5.1). The *sh
 
 ### ADR-001 — Split API + SPA
 `apps/api` (Hono, TypeScript) and `apps/web` (Vite + React) as separate deployables sharing `packages/core`.
-**Why:** the public REST API becomes a first-class product surface — a future `openrecipe` CLI, mobile app, or "publish from my own site" integration falls out for free. That matters a lot for something positioning itself as an open archive.
+**Why:** the public REST API becomes a first-class product surface — a future `openskillet` CLI, mobile app, or "publish from my own site" integration falls out for free. That matters a lot for something positioning itself as an open archive.
 **Cost accepted:** two dev servers, CORS config, two deploy targets.
 
 ### ADR-002 — Versions are whole-document snapshots, not a git object store
@@ -130,7 +130,7 @@ Node 24.20 locally. Built-in test runner (`node --test`), native TS type-strippi
 ## 3. Repo layout
 
 ```
-OpenRecipe/
+OpenSkillet/
 ├── apps/
 │   ├── api/
 │   │   ├── src/

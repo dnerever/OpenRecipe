@@ -1,4 +1,4 @@
-import { safeParseRecipe } from '@openrecipe/core';
+import { safeParseRecipe } from '@openskillet/core';
 import { and, eq } from 'drizzle-orm';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';

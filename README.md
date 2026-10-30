@@ -1,6 +1,6 @@
 # OpenSkillet
 
-[![CI](https://github.com/dnerever/OpenRecipe/actions/workflows/ci.yml/badge.svg)](https://github.com/dnerever/OpenRecipe/actions/workflows/ci.yml)
+[![CI](https://github.com/dnerever/OpenSkillet/actions/workflows/ci.yml/badge.svg)](https://github.com/dnerever/OpenSkillet/actions/workflows/ci.yml)
 ![Node 24](https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 [![License: source-available](https://img.shields.io/badge/license-source--available-lightgrey)](LICENSE)
@@ -93,7 +93,7 @@ React 19 · Vite · TanStack Router & Query · CodeMirror 6 · Sentry
 Requires **Node 24+** and **Docker**.
 
 ```bash
-git clone https://github.com/dnerever/OpenRecipe.git && cd OpenRecipe
+git clone https://github.com/dnerever/OpenSkillet.git && cd OpenSkillet
 cp .env.example .env
 npm install
 npm run db:up        # postgres + rustfs
@@ -141,7 +141,9 @@ resolve through symlinks there. `npm run dev` keeps `tsc -b --watch` running so
 | `npm run format`            | Prettier                                              |
 
 Local services: Postgres on `:5432`, RustFS on `:9000` (console `:9001`,
-user/password `openrecipe` / `openrecipe-dev-secret`). Image uploads need
+user/password `openrecipe` / `openrecipe-dev-secret`). These local identifiers
+remain stable so existing Docker volumes and RustFS data keep working. Image
+uploads need
 `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` and `S3_SECRET_KEY` (`S3_REGION` is
 optional, defaulting to `auto`); without them everything else works and uploads
 answer 503.

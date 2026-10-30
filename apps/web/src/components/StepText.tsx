@@ -3,7 +3,7 @@ import {
   restateQuantity,
   splitOnTimers,
   type MeasurementSystem,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 import { useMemo, type ReactNode } from 'react';
 
 /**

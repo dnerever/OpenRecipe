@@ -1,4 +1,4 @@
-import { parseRecipe } from '@openrecipe/core';
+import { parseRecipe } from '@openskillet/core';
 import { eq, isNotNull } from 'drizzle-orm';
 import { db, sql } from './index.ts';
 import { recipes, versions } from './schema.ts';

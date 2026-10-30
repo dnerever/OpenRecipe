@@ -1,4 +1,4 @@
-import type { Frontmatter, LineChange, Phase, SemanticChange } from '@openrecipe/core';
+import type { Frontmatter, LineChange, Phase, SemanticChange } from '@openskillet/core';
 
 export type PublicUser = {
   id: string;

@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please report security issues privately, through GitHub's
-[**Report a vulnerability**](https://github.com/dnerever/OpenRecipe/security/advisories/new)
+[**Report a vulnerability**](https://github.com/dnerever/OpenSkillet/security/advisories/new)
 form on this repository's Security tab — not in a public issue.
 
 Include what you found, how to reproduce it, and what it could expose. You will

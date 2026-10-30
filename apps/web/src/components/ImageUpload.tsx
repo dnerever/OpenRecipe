@@ -1,4 +1,4 @@
-import { parseRecipe, serializeRecipe } from '@openrecipe/core';
+import { parseRecipe, serializeRecipe } from '@openskillet/core';
 import { useMutation } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { ApiError, MAX_UPLOAD_BYTES, uploadImage } from '../lib/api.ts';

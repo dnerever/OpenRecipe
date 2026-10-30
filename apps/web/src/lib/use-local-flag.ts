@@ -15,11 +15,27 @@ import { useCallback, useState } from 'react';
  * again in one click. Anything that must survive a different device belongs on
  * the account, not in this file.
  */
-export function useLocalFlag(key: string, fallback = false): [boolean, (next: boolean) => void] {
+export function useLocalFlag(
+  key: string,
+  fallback = false,
+  legacyKey?: string,
+): [boolean, (next: boolean) => void] {
   const [value, setValue] = useState<boolean>(() => {
     try {
-      const stored = window.localStorage.getItem(key);
-      return stored === null ? fallback : stored === 'true';
+      const storage = window.localStorage;
+      const stored = storage.getItem(key);
+      if (stored !== null) return stored === 'true';
+      if (!legacyKey) return fallback;
+
+      const legacy = storage.getItem(legacyKey);
+      if (legacy === null) return fallback;
+      try {
+        storage.setItem(key, legacy);
+        storage.removeItem(legacyKey);
+      } catch {
+        // Keep the legacy preference usable for this page view.
+      }
+      return legacy === 'true';
     } catch {
       return fallback;
     }
@@ -30,11 +46,12 @@ export function useLocalFlag(key: string, fallback = false): [boolean, (next: bo
       setValue(next);
       try {
         window.localStorage.setItem(key, String(next));
+        if (legacyKey) window.localStorage.removeItem(legacyKey);
       } catch {
         // Applied for this page view; it simply will not survive a reload.
       }
     },
-    [key],
+    [key, legacyKey],
   );
 
   return [value, set];

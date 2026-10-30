@@ -1,4 +1,4 @@
-import { humanizeDuration } from '@openrecipe/core';
+import { humanizeDuration } from '@openskillet/core';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { KitchenActivity } from '../components/KitchenActivity.tsx';

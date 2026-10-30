@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { parseRecipe, safeParseRecipe } from '@openrecipe/core';
+import { parseRecipe, safeParseRecipe } from '@openskillet/core';
 import {
   blankDraft,
   draftFromDoc,

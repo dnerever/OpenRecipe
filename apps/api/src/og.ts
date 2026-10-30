@@ -4,7 +4,7 @@ import {
   formatQuantity,
   formatUnit,
   licenseUrlFor,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 import type { Db } from './db/index.ts';
 import { env } from './env.ts';
 import type { Viewer } from './services/authorization.ts';

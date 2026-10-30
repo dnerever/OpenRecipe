@@ -3,7 +3,7 @@ import {
   type Frontmatter,
   type Ingredient,
   type RecipeDoc,
-} from '@openrecipe/core';
+} from '@openskillet/core';
 import { attributionFor } from './attribution.ts';
 import { parseIngredientLine } from './ingredients.ts';
 

@@ -1,4 +1,4 @@
-import { findQuantities, type StepQuantity } from '@openrecipe/core';
+import { findQuantities, type StepQuantity } from '@openskillet/core';
 
 /**
  * Which ingredients a step mentions, so cook mode can show their amounts beside
