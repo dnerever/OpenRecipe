@@ -160,10 +160,11 @@ Everything else is optional, and documented in [`.env.example`](.env.example):
 
 ## End-to-end tests
 
-`npm run test:e2e` drives the three flows `docs/ARCHITECTURE.md` §6 names in a real
-browser, against the production build served the way the container serves it.
-Build and migrate first; on a machine with Chrome but no Playwright browsers,
-point it at Chrome:
+`npm run test:e2e` drives the three flows `docs/ARCHITECTURE.md` §6 names and
+checks the landing page, sign-in form, recipe editor, recipe page and mobile cook
+mode with axe's WCAG 2.0/2.1/2.2 A/AA rules, in a real browser against the
+production build served the way the container serves it. Build and migrate
+first; on a machine with Chrome but no Playwright browsers, point it at Chrome:
 
 ```bash
 npm run build && npm run db:migrate
